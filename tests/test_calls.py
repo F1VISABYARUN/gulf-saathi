@@ -62,14 +62,22 @@ def test_missing_fields_do_not_crash():
     assert r["call_id"] is None and r["recipient_data"] == {} and r["extracted"] == {}
 
 
-def test_webhook_accepts_payload_and_returns_summary(caplog):
+def test_webhook_accepts_payload(caplog, monkeypatch):
+    from gulf_saathi import api
+    from gulf_saathi.db import MemoryStore
+
+    monkeypatch.setattr(api, "STORE", MemoryStore())
     caplog.set_level("WARNING")
     r = client.post("/webhooks/bolna", json=TALKED).json()
-    assert r["call_id"] == "exec-1" and r["answered"]
+    assert r["stored"] is True and api.STORE.get("calls", id="exec-1")["answered"] is True
     assert any("BOLNA_WEBHOOK_RAW" in m for m in caplog.messages)
 
 
 def test_webhook_rejects_bad_input_and_checks_token(monkeypatch):
+    from gulf_saathi import api
+    from gulf_saathi.db import MemoryStore
+
+    monkeypatch.setattr(api, "STORE", MemoryStore())
     assert client.post("/webhooks/bolna", content=b"not json").status_code == 400
     assert client.post("/webhooks/bolna", json=[1, 2]).status_code == 400
     monkeypatch.setenv("GS_WEBHOOK_TOKEN", "s3cret")

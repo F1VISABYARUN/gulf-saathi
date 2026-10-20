@@ -1,105 +1,69 @@
 # Gulf Saathi
 
-A Telugu, Hindi and Urdu phone line for Telangana's Gulf migrant workers: check an
-agent before paying, check a job offer for red flags, get a weekly safety call
-once abroad, and get help with the death ex gratia and PBBY insurance claims.
-No app and no reading.
+A Telugu voice safety line and case system for Telangana's Gulf migrant workers.
+Workers check an agent before paying. Once they fly, Saathi calls them on arrival
+day and every week. When something goes wrong, the family hears about it in Telugu
+and a caseworker gets an English case packet for MADAD, TOMCOM or the embassy.
 
-## What the line does
+Voice and phone calls run on [Bolna](https://www.bolna.ai). This repo is the server
+behind them, deployed on Vercel with a Supabase database.
 
-| Key | Flow | What happens |
-|-----|------|--------------|
-| 1 | **Is this agent real?** | Caller says the agency name or licence number. It's fuzzy-matched (Telugu, Devanagari, Urdu or English) against the licensed and flagged lists. Reply: licensed (with the fee cap), **flagged (warning)**, or not found (unlicensed recruitment is illegal). Then an ECR and visit-visa warning. Unclear matches are confirmed ("Did you say…?"). Every lookup is logged. |
-| 2 | **Offer check** | Five yes/no questions (contract, visa type, fee, country, passport). Answers are read back as red flags. |
-| 3 | **Weekly check-in** | Registers the caller's country and a family number. A weekly outbound call asks "Got paid? Have your passport? Safe?" A "no", or 2 missed or abandoned calls, opens a case and SMSes the family. |
-| 4 | **Family help** | Explains the ex gratia and PBBY, and queues a callback from a caseworker. |
+## How it fits together
 
-Every menu also accepts spoken answers ("ఒకటి", "అవును", "हाँ", "نہیں"…), and the
-language can be picked by speaking in it.
+```
+Worker's phone ── Bolna voice agent ──▶ /check-agent, /check-fee        (Gulf Saathi agent)
+                                    ──▶ /tools/record-checkin            (Saathi Check-in agent)
+               Bolna, after each call ──▶ /webhooks/bolna
+Caseworker ─────────── browser ──────▶ /dashboard
+Server ─────── Bolna API (POST /call) ──▶ arrival and weekly calls
+All data ─────────────────────────────▶ Supabase
+```
 
-`POST /offer/analyze` runs the same red-flag checks on forwarded text (e.g. a
-WhatsApp offer). It catches visit visas, Russia and Europe jobs, fees over the
-cap, passport deposits, GPay or cash payments and "today only" pressure.
+| Piece | What it does |
+|---|---|
+| Agent check (`matcher.py`) | Matches a spoken agency, owner, district or licence number, in Telugu or English, against the 2,447 MEA-licensed agents. Answers `confirmed_in_list`, `needs_confirmation`, `not_found` or `need_more_info`. Never endorses an agent. |
+| Fee check (`fees.py`) | Adds every payment to the agent and compares with Rs 30,000 + 18% GST = Rs 35,400. |
+| Worker case (`cases.py`) | Pre-departure trail: employer, sponsor, destination, salary, agent, payments, family. Case ID like `GS-7K3P9Q`. |
+| Calls (`cases.py`, `bolna.py`) | Books the arrival-day call, then a weekly call. A missed call is retried (3 hours for arrival, 24 hours for weekly). "Completed" counts as missed unless the worker actually spoke. |
+| Risk and alerts (`cases.py`, `sms.py`) | CRITICAL: wrong person or nobody at the airport, threats, not allowed out, asked for help, danger code phrase. HIGH: passport taken, 2+ months unpaid, 2 missed calls in a row. MEDIUM: 1 month unpaid, food or room problems, 1 missed call. HIGH and CRITICAL text the family in Telugu, once per open alert. |
+| Case packet (`cases.py`) | English summary with the whole timeline, recordings and the latest transcript, for a person to file. |
+| Dashboard (`dashboard.py`) | Password-protected case list with risk badges, case page with timeline, "Call now", packet download, "Mark resolved". |
 
-## Run it
+## Setup
+
+1. **Supabase:** SQL Editor → paste [`supabase/schema.sql`](supabase/schema.sql) → Run.
+2. **Bolna and Vercel:** follow [`docs/BOLNA_SETUP.md`](docs/BOLNA_SETUP.md).
+3. **Check:** `/health/db` shows `"ok": true`, and `/dashboard` opens after the password.
+
+## Run locally
 
 ```bash
 pip install -r requirements-dev.txt
-python -m pytest                      # 25 tests
-python -m gulf_saathi.simulate        # talk to the line in a terminal
-python -m gulf_saathi.simulate --checkin --lang te
+python -m pytest                                   # all tests
+GS_DASHBOARD_PASSWORD=test uvicorn gulf_saathi.api:app --port 8000
 ```
 
-In the simulator, type digits to press keys and any other text to "speak".
+Without Supabase settings the server keeps data in memory. Without Bolna settings
+"Call now" says Bolna isn't configured. Without Plivo the family SMS is shown on the
+dashboard but not sent.
 
-### Live phone demo (Twilio)
+Try the agent and fee checks from the command line:
 
 ```bash
-export TWILIO_ACCOUNT_SID=... TWILIO_AUTH_TOKEN=... TWILIO_FROM_NUMBER=+1...
-export GS_PUBLIC_BASE_URL=https://<your-ngrok>.ngrok.app GS_ADMIN_TOKEN=<random>
-uvicorn gulf_saathi.app:app --port 8000
-ngrok http 8000
+python -m gulf_saathi.matcher --owner "Seedi Kavitha"
+python -m gulf_saathi.matcher "చెల్లా మల్లేశం జగిత్యాల్"
 ```
 
-Set the Twilio number's "A call comes in" webhook to `POST {GS_PUBLIC_BASE_URL}/voice`.
-Set `GS_VALIDATE_TWILIO=1` to reject requests not signed by Twilio.
+## Data
 
-**Demo script:** call → press 1 (Telugu) → press 1 → say "Golconda Overseas" →
-you hear "జాగ్రత్త! గోల్కొండ ఓవర్సీస్ ప్రభుత్వ జాబితాలో అక్రమ ఏజెంట్‌గా…"
+`data/licensed_agents.csv` comes from the MEA / eMigrate active recruiting-agent list
+(as on 08-04-2026). Regenerate it from the PDF with `scripts/agents_pdf_to_csv.py`.
 
-Caseworker endpoints (send header `X-Admin-Token`): `GET /admin/escalations`,
-`/admin/callbacks`, `/admin/lookups`, and `POST /admin/run-checkins`. Run that
-last one from cron, daily, to place the weekly calls that are due.
+## Not done, or not verified
 
-## Agent data
-
-`data/agents_sample.csv` is **fictional demo data**. Every name contains "Demo" so
-no real business is labelled illegal. To use the real lists:
-
-1. Save eMigrate's licensed-agent list page and illegal-agent list page as HTML.
-2. `python scripts/import_agents.py --licensed lic.html --flagged flagged.html -o data/agents.csv`
-3. Review the output by hand, add Telugu, Hindi and Urdu spellings to `aliases`
-   (pipe-separated), and set `GS_AGENTS_CSV=data/agents.csv`.
-
-Adding aliases matters most for Urdu: that script isn't transliterated, so Urdu
-names only match through aliases.
-
-## Before this goes in front of real workers
-
-**Facts to verify.** These are configurable in `gulf_saathi/config.py`; I
-couldn't confirm them against primary sources:
-- Max recruitment service charge (default ₹30,000), from the Emigration Rules on emigrate.gov.in.
-- ₹5 lakh ex gratia and its document list (TOMCOM / Telangana NRI dept). The document list in the prompts is generic.
-- PBBY cover (default ₹10 lakh) and who it is mandatory for.
-
-**Language.** The prompts in `gulf_saathi/prompts.py` are machine-drafted. Get
-native speakers to review them. Better still, record them in a familiar local
-voice and swap `<Say>` for `<Play>`; that also helps with trust.
-
-**Telephony.**
-- Twilio is used here for the demo. For Indian numbers, look at Indian providers such as Exotel or Plivo.
-- I'm not sure which voices and speech locales Twilio currently supports for Telugu and Urdu. Override them with `GS_VOICE_*` if a call errors.
-- Commercial SMS in India requires DLT registration.
-
-**Cost to the worker.** Consider a missed-call model: the worker gives a missed call and the line calls back. Callers from labour camps shouldn't pay for international minutes.
-
-**MADAD.** As far as I know it has no public API, so escalations go to a caseworker queue. A person files the MADAD grievance.
-
-**Privacy.** The database holds workers' and families' phone numbers. Run it under India's DPDP Act obligations, get consent at registration, and keep the admin token secret.
-
-**Scaling.** Sessions are in memory, so this runs on one server process. Move them to Redis to run more than one.
-
-## Layout
-
-```
-gulf_saathi/
-  engine.py    call flow state machine (no telephony code, fully testable)
-  app.py       FastAPI: Twilio webhooks, /offer/analyze, /agents/lookup, admin
-  agents.py    fuzzy, multi-script agent matching
-  offer.py     red-flag rules for IVR answers and free text
-  checkin.py   weekly calls, missed-call tracking, escalation
-  prompts.py   all spoken text in te / hi / ur
-  store.py     SQLite
-  simulate.py  terminal simulator
-scripts/import_agents.py   eMigrate HTML -> agents.csv
-```
+- **Policy figures:** the Rs 35,400 fee cap and the PBBY and ex gratia figures must be checked against official sources before any public claim (marked VERIFY in `config.py`).
+- **Bolna call API:** placing calls (`POST /call`) is written from Hark's notes on Bolna's docs and hasn't been tried against the live API yet.
+- **Family SMS:** demo mode until Plivo and DLT registration are set up.
+- **Filing:** MADAD has no public API that we know of. The case packet is filed by a person.
+- **Privacy:** the database holds workers' and families' phone numbers and call recordings. Get consent at registration and keep the dashboard password and Supabase secret key private.
+- **Language:** the Telugu wording (prompts, SMS) is machine-drafted and needs a native speaker's review.

@@ -1,26 +1,119 @@
-"""HTTP API that the Bolna voice agent calls during a conversation.
+"""Gulf Saathi server: tools the Bolna voice agents call, Bolna's webhook, and
+the caseworker dashboard.
 
 Deployed on Vercel (see pyproject.toml). Run locally with:
   uvicorn gulf_saathi.api:app --port 8000
+Without SUPABASE_URL / SUPABASE_SERVICE_KEY it keeps data in memory only.
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
 import secrets
+from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, field_validator
 
-from .calls import parse_call
+from . import bolna, cases, dashboard, sms
+from .db import TABLES, MemoryStore, StoreError, SupabaseStore
 from .fees import check_fee as compute_fee
 from .matcher import LicensedList
 
 app = FastAPI(title="Gulf Saathi API")
 licensed = LicensedList.load()
+STORE = SupabaseStore.from_env() or MemoryStore()
+log = logging.getLogger("gulf_saathi")
 
+
+def now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _blank(v: Any) -> bool:
+    # Bolna fills a request template from what its LLM extracted. A field the caller
+    # never mentioned can arrive as null, an unfilled placeholder such as
+    # {"$var": "district"} or "%(district)s", or "none".
+    if v is None or isinstance(v, dict):
+        return True
+    s = str(v).strip()
+    return not s or s.startswith("%(") or s.lower() in ("none", "null", "unknown", "n/a", "na", "-")
+
+
+def clean_tool_args(data: dict) -> dict:
+    return {k: ("" if _blank(v) else (v.strip() if isinstance(v, str) else v)) for k, v in data.items()}
+
+
+def require_bolna_token(token: str = "") -> None:
+    """If GS_WEBHOOK_TOKEN is set, Bolna's URLs must end in ?token=<it>."""
+    expected = os.getenv("GS_WEBHOOK_TOKEN", "")
+    if expected and not secrets.compare_digest(token.encode(), expected.encode()):
+        raise HTTPException(401, "bad token")
+
+
+def require_dashboard(request: Request) -> None:
+    """Browser password prompt. The dashboard shows workers' and families' personal data."""
+    expected = os.getenv("GS_DASHBOARD_PASSWORD", "")
+    if not expected:
+        raise HTTPException(503, "Dashboard is off: set GS_DASHBOARD_PASSWORD in Vercel and redeploy.")
+    auth = request.headers.get("authorization", "")
+    if auth.lower().startswith("basic "):
+        try:
+            given = base64.b64decode(auth[6:]).decode("utf-8").split(":", 1)[1]
+        except Exception:
+            given = ""
+        if secrets.compare_digest(given.encode(), expected.encode()):
+            return
+    raise HTTPException(401, "Password needed", headers={"WWW-Authenticate": 'Basic realm="Gulf Saathi"'})
+
+
+def status() -> dict:
+    return {"storage": STORE.kind, "bolna": bolna.configured(), "sms": sms.provider()}
+
+
+async def json_object(request: Request) -> dict:
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(400, "body is not JSON")
+    if not isinstance(data, dict):
+        raise HTTPException(400, "expected a JSON object")
+    return data
+
+
+# --- health -------------------------------------------------------------------
+
+@app.get("/")
+def health():
+    return {
+        "service": "gulf-saathi",
+        "licensed_agents_loaded": len(licensed.agents),
+        "storage": STORE.kind,
+        "bolna_checkin_calls": bolna.configured(),
+        "sms": sms.provider(),
+        "dashboard": bool(os.getenv("GS_DASHBOARD_PASSWORD")),
+        "webhook_token": bool(os.getenv("GS_WEBHOOK_TOKEN")),
+    }
+
+
+@app.get("/health/db")
+def health_db():
+    """Can we read each table? Shows Supabase's error message, never data."""
+    tables = {}
+    for t in TABLES:
+        try:
+            STORE.select(t, limit=1)
+            tables[t] = "ok"
+        except Exception as e:  # noqa: BLE001 - report whatever went wrong
+            tables[t] = str(e)[:300]
+    return {"storage": STORE.kind, "ok": all(v == "ok" for v in tables.values()), "tables": tables}
+
+
+# --- tools for the Bolna voice agents --------------------------------------------
 
 class AgentQuery(BaseModel):
     agency: str = ""
@@ -32,20 +125,7 @@ class AgentQuery(BaseModel):
     @field_validator("*", mode="before")
     @classmethod
     def blank_if_missing(cls, v: Any) -> str:
-        # Bolna fills a request template from what its LLM extracted. A field the
-        # caller never mentioned can arrive as null, an unfilled placeholder such as
-        # {"$var": "district"} or "%(district)s", or "none". Treat all of these as blank.
-        if not isinstance(v, str):
-            return ""
-        v = v.strip()
-        if v.startswith("%(") or v.lower() in ("none", "null", "unknown", "n/a", "na", "-"):
-            return ""
-        return v
-
-
-@app.get("/")
-def health():
-    return {"service": "gulf-saathi", "licensed_agents_loaded": len(licensed.agents)}
+        return "" if _blank(v) else str(v).strip()
 
 
 @app.get("/check-agent")
@@ -56,11 +136,8 @@ def check_agent_get(agency: str = "", owner: str = "", district: str = "", licen
 
 @app.post("/check-agent")
 def check_agent(q: AgentQuery):
-    """Bolna custom tool: is this agent in the MEA licensed list?
-
-    `match` is one of confirmed_in_list / needs_confirmation / not_found, and
-    `instruction` tells the voice agent what to say. It never endorses an agent.
-    """
+    """Is this agent in the MEA licensed list? `match` is confirmed_in_list /
+    needs_confirmation / not_found / need_more_info. It never endorses an agent."""
     return licensed.check(q.agency, q.owner, q.district, q.licence_no, q.query)
 
 
@@ -72,11 +149,7 @@ class FeeQuery(BaseModel):
     @field_validator("payments", mode="before")
     @classmethod
     def blank_if_unfilled(cls, v: Any) -> Any:
-        if v is None or isinstance(v, dict):
-            return ""
-        if isinstance(v, str) and (v.strip().startswith("%(") or v.strip().lower() in ("none", "null", "unknown", "n/a", "na", "-")):
-            return ""
-        return v
+        return v if isinstance(v, list) else ("" if _blank(v) else v)
 
 
 @app.get("/check-fee")
@@ -87,28 +160,95 @@ def check_fee_get(payments: str = ""):
 
 @app.post("/check-fee")
 def check_fee(q: FeeQuery):
-    """Bolna custom tool: add up every payment to the agent and compare with the legal cap."""
+    """Add up every payment to the agent and compare with the legal cap."""
     return compute_fee(q.payments)
 
 
-log = logging.getLogger("gulf_saathi.webhook")
-
-
-@app.post("/webhooks/bolna")
-async def bolna_webhook(request: Request, token: str = ""):
-    """Bolna posts here several times per call. Right now this only records what
-    arrived (raw JSON goes to the Vercel logs) and returns what we understood.
-    Saving cases and raising alerts comes next, once a real payload has been seen.
-    """
-    expected = os.getenv("GS_WEBHOOK_TOKEN", "")
-    if expected and not secrets.compare_digest(token, expected):
-        raise HTTPException(401, "bad token")
+@app.post("/tools/record-checkin", dependencies=[Depends(require_bolna_token)])
+async def tool_record_checkin(request: Request):
+    """The check-in agent sends the worker's answers here during the call. The
+    reply tells it what to say next; HIGH / CRITICAL answers alert the family."""
+    data = await json_object(request)
     try:
-        payload = await request.json()
-    except Exception:
-        raise HTTPException(400, "body is not JSON")
-    if not isinstance(payload, dict):
-        raise HTTPException(400, "expected a JSON object")
+        return cases.record_checkin(STORE, clean_tool_args(data), now())
+    except StoreError as e:
+        log.error("record_checkin failed: %s", e)
+        return {"ok": False, "instruction": "The system is not available right now. Thank the caller, do not "
+                                            "promise anything, and say Saathi will call back."}
+
+
+# --- Bolna webhook ----------------------------------------------------------------
+
+@app.post("/webhooks/bolna", dependencies=[Depends(require_bolna_token)])
+async def bolna_webhook(request: Request):
+    """Bolna posts here several times per call. Saves the call; once it has ended,
+    counts a miss or a contact, raises alerts and books the next call."""
+    payload = await json_object(request)
     if os.getenv("GS_LOG_WEBHOOK", "1") != "0":  # contains phone numbers and transcripts
         log.warning("BOLNA_WEBHOOK_RAW %s", json.dumps(payload, ensure_ascii=False)[:20000])
-    return parse_call(payload)
+    try:
+        return cases.process_call_record(STORE, payload, now())
+    except StoreError as e:
+        log.error("webhook not saved: %s", e)
+        raise HTTPException(503, "storage unavailable")  # lets Bolna retry
+
+
+# --- dashboard ----------------------------------------------------------------------
+
+def _worker_or_404(case_id: str) -> dict:
+    w = STORE.get("workers", case_id=case_id.strip().upper())
+    if not w:
+        raise HTTPException(404, "case not found")
+    return w
+
+
+@app.get("/dashboard", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
+def dashboard_list():
+    return dashboard.render_list(STORE.select("workers", order="updated_at"), status())
+
+
+@app.get("/dashboard/new", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
+def dashboard_new():
+    return dashboard.render_new()
+
+
+@app.get("/dashboard/case/{case_id}", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
+def dashboard_case(case_id: str):
+    w = _worker_or_404(case_id)
+    return dashboard.render_case(w, cases.timeline(STORE, w), status())
+
+
+@app.get("/dashboard/case/{case_id}/packet.txt", dependencies=[Depends(require_dashboard)])
+def dashboard_packet(case_id: str):
+    w = _worker_or_404(case_id)
+    return PlainTextResponse(cases.case_packet(STORE, w, now()),
+                             headers={"Content-Disposition": f'attachment; filename="{w["case_id"]}-case-packet.txt"'})
+
+
+@app.post("/api/workers", dependencies=[Depends(require_dashboard)])
+async def api_register(request: Request):
+    data = await json_object(request)
+    try:
+        out = cases.register_worker(STORE, licensed, data, now())
+    except cases.CaseError as e:
+        raise HTTPException(400, str(e))
+    return {"case_id": out["worker"]["case_id"], "arrival_call": out["arrival_call"]}
+
+
+@app.post("/api/cases/{case_id}/call", dependencies=[Depends(require_dashboard)])
+async def api_call_now(case_id: str, request: Request):
+    body = await json_object(request) if await request.body() else {}
+    kind = body.get("kind", "weekly")
+    if kind not in cases.CHECKIN_KINDS:
+        raise HTTPException(400, f"kind must be one of {cases.CHECKIN_KINDS}")
+    res = cases.schedule_call(STORE, _worker_or_404(case_id), kind, None, now())
+    if not res["ok"]:
+        raise HTTPException(502, res["error"])
+    return res
+
+
+@app.post("/api/escalations/{escalation_id}/resolve", dependencies=[Depends(require_dashboard)])
+def api_resolve(escalation_id: str):
+    if not cases.resolve_escalation(STORE, escalation_id, now()):
+        raise HTTPException(404, "alert not found")
+    return {"ok": True}
