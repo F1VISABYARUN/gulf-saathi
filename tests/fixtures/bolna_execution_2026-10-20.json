@@ -1,0 +1,36 @@
+{
+  "_note": "Real Bolna execution record from a test call on 20 Oct 2026 (Debug > raw). Trimmed; phone numbers redacted.",
+  "id": "d2d1c8ee-4056-4983-88db-89469b197c0e",
+  "agent_id": "81ab8c71-83ab-43b0-9145-96cb1975f105",
+  "batch_id": null,
+  "scheduled_at": null,
+  "answered_by_voice_mail": null,
+  "conversation_duration": 231,
+  "total_cost": 24,
+  "transcript": "assistant: నమస్కారం, నేను సాథి. గల్ఫ్ కి వెళ్తున్నారా? మీ ఏజెంట్ పేరు ప్రభుత్వ లైసెన్స్ జాబితాలో ఉందో లేదో చెక్ చేసి చెప్తాను.\nuser:  sorry\nassistant:  మీ పేరు చెప్పగలరా? మీరు ఏ దేశానికి వెళ్తున్నారు?\nuser: रामय्य\nuser: రామయ్య కరీంనగర్.\nassistant:  ఈ పేరు ప్రభుత్వ లైసెన్స్ జాబితాలో దొరకలేదు.\n",
+  "extracted_data": {},
+  "summary": null,
+  "error_message": null,
+  "status": "completed",
+  "custom_extractions": null,
+  "user_number": "+91XXXXXXXXXX",
+  "agent_number": "+91YYYYYYYYYY",
+  "initiated_at": "2026-10-20T09:47:54.814225",
+  "telephony_data": {
+    "duration": 231,
+    "to_number": "+91XXXXXXXXXX",
+    "from_number": "+91YYYYYYYYYY",
+    "recording_url": "https://api.bolna.ai/recordings/call/d2d1c8ee-4056-4983-88db-89469b197c0e",
+    "hosted_telephony": true,
+    "call_type": "outbound",
+    "provider": "plivo",
+    "hangup_by": "Callee",
+    "hangup_reason": "Call recipient hungup",
+    "ring_duration": 8
+  },
+  "context_details": {
+    "recipient_data": {"timezone": "Asia/Kolkata"},
+    "recipient_phone_number": "+91XXXXXXXXXX"
+  },
+  "tool_call_logs": []
+}

@@ -1,9 +1,9 @@
 """Read what Bolna sends after a call.
 
-The field names below come from Hark's notes on Bolna's docs and from the
-transcripts pasted in this project (lines start "assistant:" / "user:"). They are
-NOT yet checked against a real payload from our own agent: the webhook endpoint
-logs the raw JSON so the first real call settles that.
+Field names are checked against a real execution record from our own agent
+(tests/fixtures/bolna_execution_2026-10-20.json, from Bolna's Debug page). That
+is the record Bolna stores for a call; that the webhook body has the same shape
+is still an assumption until the webhook is switched on.
 """
 from __future__ import annotations
 
@@ -49,6 +49,9 @@ def parse_call(payload: dict) -> dict:
         "duration_seconds": payload.get("conversation_duration"),
         "transcript": payload.get("transcript") or "",
         "recording_url": _get(payload, "telephony_data", "recording_url"),
+        "user_number": payload.get("user_number") or _get(payload, "telephony_data", "to_number"),
+        "hangup_by": _get(payload, "telephony_data", "hangup_by"),
+        "hangup_reason": _get(payload, "telephony_data", "hangup_reason"),
         "recipient_data": _get(payload, "context_details", "recipient_data") or {},
         "extracted": extracted if isinstance(extracted, dict) else {},
     }

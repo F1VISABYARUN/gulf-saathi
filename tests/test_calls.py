@@ -1,4 +1,5 @@
-import os
+import json
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,7 +9,21 @@ from gulf_saathi.calls import parse_call, was_answered
 
 client = TestClient(app)
 
-# Synthetic: shaped like Hark's notes describe Bolna's payload, not a captured one.
+REAL = json.loads((Path(__file__).parent / "fixtures" / "bolna_execution_2026-10-20.json").read_text(encoding="utf-8"))
+
+
+def test_real_bolna_record_parses():
+    r = parse_call(REAL)
+    assert r["call_id"] == "d2d1c8ee-4056-4983-88db-89469b197c0e"
+    assert r["terminal"] and r["answered"] and not r["missed"]  # "user:  sorry" has two spaces
+    assert r["duration_seconds"] == 231
+    assert r["recording_url"] == "https://api.bolna.ai/recordings/call/d2d1c8ee-4056-4983-88db-89469b197c0e"
+    assert r["recipient_data"] == {"timezone": "Asia/Kolkata"}
+    assert r["extracted"] == {}
+    assert r["hangup_by"] == "Callee" and r["user_number"] == "+91XXXXXXXXXX"
+
+
+# Synthetic: real field names, made-up values.
 TALKED = {
     "id": "exec-1", "agent_id": "agent-1", "status": "completed", "conversation_duration": 42,
     "transcript": "assistant: నమస్కారం\nuser: బొల్లె గంగా నరసయ్య\nassistant: ఒక్క నిమిషం",
