@@ -102,16 +102,43 @@ def test_vision_tours_does_not_confirm_vision_overseas(agents):
 
 
 def test_made_up_name_sharing_a_real_word_is_only_a_candidate(agents):
-    # "Telangana" is the distinctive word of TOMCOM's own registration, so the
-    # line should ask "did you mean TOMCOM?", not say "not found" or confirm.
-    r = agents.check(query="Telangana Gulf Placements Nirmal")
+    # "Telangana" is the distinctive word of TOMCOM's own registration, so with no
+    # district the line asks "did you mean TOMCOM?" instead of confirming or ignoring it.
+    r = agents.check(query="Telangana Gulf Placements")
     assert r["match"] == "needs_confirmation"
     assert top(r) == "TELANGANA OVERSEAS MANPOWER COMPANY LIMITED"
+    # Told it is in Nirmal (TOMCOM is Hyderabad), the weak match is dropped.
+    assert agents.check(query="Telangana Gulf Placements Nirmal")["match"] == "not_found"
 
 
-def test_common_first_name_gives_several_candidates(agents):
-    r = agents.check(query="కవిత")
-    assert r["match"] == "needs_confirmation" and len(r["candidates"]) > 1
+@pytest.mark.parametrize("kwargs", [
+    {"query": "కవిత"}, {"owner": "Kavitha"}, {"query": "రామయ్య"}, {"owner": "Ramayya"}, {"owner": "Mallesh"},
+    {"agency": "Gagan"}, {"query": "చెల్లా"},
+])
+def test_one_word_alone_asks_for_more_instead_of_listing_agents(agents, kwargs):
+    # Live call: "రామయ్య" alone made the line read out agents from Kerala and Maharashtra.
+    r = agents.check(**kwargs)
+    assert r["match"] == "need_more_info"
+    assert r["candidates"] == []
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"query": "రామయ్య కరీంనగర్"}, {"agency": "రామయ్య", "district": "కరీంనగర్"},
+    {"owner": "రామయ్య", "district": "కరీంనగర్"},
+])
+def test_weak_name_in_a_different_district_is_not_found(agents, kwargs):
+    # Live call 3. Ramya Manpower (Nirmal) is a weak, wrong-district match: don't read it out.
+    assert agents.check(**kwargs)["match"] == "not_found"
+
+
+def test_one_word_plus_district_is_checked(agents):
+    assert agents.check(owner="Mallesh", district="Nirmal")["match"] == "needs_confirmation"
+
+
+def test_at_most_two_candidates_and_home_states_first(agents):
+    r = agents.check(agency="Vision Tours and Travels")
+    assert len(r["candidates"]) <= 2
+    assert r["candidates"][0]["state"] == "Telangana"
 
 
 # --- Made-up agents are not found -----------------------------------------

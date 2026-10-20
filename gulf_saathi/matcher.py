@@ -30,6 +30,8 @@ from . import config
 
 LICENSED_CSV = Path(config.ROOT / "data" / "licensed_agents.csv")
 
+MAX_CANDIDATES = 2  # read back at most this many on a phone call
+HOME_STATES = {"Telangana", "Andhra Pradesh"}  # where the callers live; wins ties
 CANDIDATE_MIN = 78  # below this a record isn't worth reading back to the caller
 STRONG = 90  # one name this strong + the right district confirms
 OWNER_OK = 85  # owner + agency both at least this good confirms
@@ -258,6 +260,7 @@ class LicensedList:
 
     def check(self, agency: str = "", owner: str = "", district: str = "", licence_no: str = "", query: str = "") -> dict:
         """Main entry point. `query` is free text when the caller's words weren't split up."""
+        query_rest = ""
         if licence_no:
             a = self.by_number(licence_no)
             if a:
@@ -265,10 +268,17 @@ class LicensedList:
         if query:
             found, rest = find_district(query)
             district = district or found or ""
+            query_rest = rest
             agency = agency or rest
             owner = owner or rest
         if not (agency or owner):
             return _result("not_found", [], "no name given")
+
+        # One word alone (a first name like "Ramayya") matches too many agents across
+        # India, so ask for more instead of reading back strangers.
+        said_words = set(tokens(query_rest if query else f"{agency} {owner}"))
+        if len(said_words) == 1 and not district and not _canonical_generic(next(iter(said_words))):
+            return _result("need_more_info", [], "only one word was given")
 
         said_agency = split_agency(agency) if agency else None
         said_owner = _person(owner) if owner else None
@@ -285,9 +295,17 @@ class LicensedList:
             if district:
                 score += 4 if d_ok else -8
             scored.append((a, score, o, g, d_ok))
-        scored.sort(key=lambda x: x[1], reverse=True)
+        # Ties go to Telangana / Andhra agents. The bonus only orders the list;
+        # thresholds below use the real score.
+        scored.sort(key=lambda x: x[1] + (0.5 if x[0].state in HOME_STATES else 0), reverse=True)
 
-        top = [x for x in scored if x[1] >= CANDIDATE_MIN][:3]
+        # A district was given and this agent isn't in it: only a strong name match
+        # is still worth asking about (the district may have been misheard).
+        def plausible(x):
+            _, score, o, g, d_ok = x
+            return score >= CANDIDATE_MIN and (not district or d_ok or max(o, g) >= STRONG)
+
+        top = [x for x in scored if plausible(x)][:MAX_CANDIDATES]
         if not top:
             return _result("not_found", [], "no name close enough in the licensed list")
 
@@ -306,6 +324,7 @@ def _result(match: str, cands: list[tuple[Agent, float]], reason: str) -> dict:
         "confirmed_in_list": "This name appears in the government's licensed list. Other checks are still needed.",
         "needs_confirmation": "Read the candidates back (agency, owner, district) and ask which one, if any, is the caller's agent.",
         "not_found": "Not found in the licensed list. Ask for the exact agency name, owner name, district or licence number.",
+        "need_more_info": "One name alone is not enough to check. Ask for the agency name or the district (or the licence number), then check again. Do not say the agent is or is not in the list yet.",
     }[match]
     return {
         "match": match,
