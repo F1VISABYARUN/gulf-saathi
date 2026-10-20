@@ -108,3 +108,54 @@ def test_health_shows_config_and_db(mem):
     assert h["storage"] == "memory" and h["dashboard"] is True and h["bolna_checkin_calls"] is False
     assert client.get("/health/db").json() == {"storage": "memory", "ok": True,
                                                 "tables": {t: "ok" for t in ("workers", "calls", "checkins", "escalations")}}
+
+
+def test_case_page_notices_edit_and_book_arrival(mem):
+    r = client.post("/api/workers", auth=AUTH, json={
+        "worker_name": "MALLAIAH", "worker_phone": "9491750870", "family_phone": "9441808262",
+        "payments": "500000", "arrival_call_at": "2026-10-30T16:27"})
+    case_id = r.json()["case_id"]
+    page = client.get(f"/dashboard/case/{case_id}", auth=AUTH).text
+    assert "is not booked" in page and "Book arrival call" in page          # Bolna off: nothing booked
+    assert "Next call: —" in page                                            # and no booked time shown
+    assert "family SMS will use the English name" in page
+    assert f'/dashboard/case/{case_id}/edit' in page
+
+    # Booking without Bolna reports why.
+    r = client.post(f"/api/cases/{case_id}/book-arrival", auth=AUTH)
+    assert r.status_code == 502 and "not configured" in r.json()["detail"]
+
+    # The edit page is the form, filled in.
+    edit = client.get(f"/dashboard/case/{case_id}/edit", auth=AUTH).text
+    assert 'value="+919491750870"' in edit and 'value="500000"' in edit and 'value="2026-10-30T16:27"' in edit
+    assert "Save changes" in edit
+
+    r = client.post(f"/api/cases/{case_id}", auth=AUTH, json={
+        "worker_name": "MALLAIAH", "worker_name_te": "మల్లయ్య", "worker_phone": "8341820870",
+        "family_phone": "9441808262", "payments": "500000", "arrival_call_at": "2026-10-30T16:27",
+        "code_phrase": "అమ్మ బాగుందా"})
+    assert r.json() == {"case_id": case_id}
+    page = client.get(f"/dashboard/case/{case_id}", auth=AUTH).text
+    assert "+918341820870" in page and "English name" not in page
+
+    bad = client.post(f"/api/cases/{case_id}", auth=AUTH, json={
+        "worker_name": "M", "worker_phone": "8341820870", "family_phone": "9441808262", "code_phrase": "ANNA"})
+    assert bad.status_code == 400 and "too easy" in bad.json()["detail"]
+    assert client.post(f"/api/cases/{case_id}", json={}).status_code == 401
+    assert client.get("/dashboard/case/GS-NOPE/edit", auth=AUTH).status_code == 404
+
+
+def test_old_case_with_weak_code_phrase_shows_warning(mem):
+    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "M", "worker_phone": "9491750870",
+                                                      "family_phone": "9441808262"})
+    case_id = r.json()["case_id"]
+    mem.update("workers", {"case_id": case_id}, {"code_phrase": "ANNA"})  # saved before the rule existed
+    page = client.get(f"/dashboard/case/{case_id}", auth=AUTH).text
+    assert 'Danger code phrase "ANNA" is too easy to say by accident' in page
+
+
+def test_book_arrival_without_a_time(mem):
+    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "M", "worker_phone": "9491750870",
+                                                      "family_phone": "9441808262"})
+    r = client.post(f"/api/cases/{r.json()['case_id']}/book-arrival", auth=AUTH)
+    assert r.status_code == 400 and "no arrival-day call time" in r.json()["detail"]

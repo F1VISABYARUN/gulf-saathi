@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from html import escape
 
-from .cases import fmt_ist, reason_text
+from .cases import CODE_PHRASE_HELP, IST, code_phrase_ok, fmt_ist, parse_ts, reason_text
 from .fees import fmt_rupees
 
 BADGE = {"critical": "#b42318", "high": "#c4320a", "medium": "#a15c07", "ok": "#067647"}
@@ -150,28 +150,60 @@ FIELDS = [
 ]
 
 
-def render_new() -> str:
+def _form_value(name: str, values: dict):
+    """A stored value as the form field expects it."""
+    v = values.get(name)
+    if v in (None, ""):
+        return ""
+    if name == "payments":
+        return "; ".join(str(x) for x in v) if isinstance(v, list) else v
+    if name == "arrival_call_at":
+        dt = parse_ts(v)
+        return dt.astimezone(IST).strftime("%Y-%m-%dT%H:%M") if dt else ""
+    if name == "contract_salary" and isinstance(v, float) and v.is_integer():
+        return int(v)
+    return v
+
+
+def render_form(values: dict | None = None, case_id: str | None = None) -> str:
+    """Registration form; with values and a case ID it edits that case instead."""
+    values = values or {}
     sets = []
     for legend, fields in FIELDS:
         inputs = []
         for name, label, ph in fields:
             kind = "date" if name == "departure_date" else "datetime-local" if name == "arrival_call_at" else "text"
+            hint = f'<div class="muted" style="font-size:12px">{esc(CODE_PHRASE_HELP)}</div>' if name == "code_phrase" else ""
             inputs.append(f'<div><label for="{name}">{esc(label)}</label>'
-                          f'<input id="{name}" name="{name}" type="{kind}" placeholder="{esc("e.g. " + ph if ph else "")}"></div>')
+                          f'<input id="{name}" name="{name}" type="{kind}" value="{esc(_form_value(name, values))}" '
+                          f'placeholder="{esc("e.g. " + ph if ph else "")}">{hint}</div>')
         sets.append(f'<fieldset><legend>{esc(legend)}</legend><div class="grid">{"".join(inputs)}</div></fieldset>')
-    return page("Register worker", f"""<h1>Register a worker before departure</h1>
-<p class="muted">This is the evidence trail. If the worker goes missing, the family and embassy start from these names and numbers.
-If an arrival-day call time is set, Saathi books that call with Bolna.</p>
+    if case_id:
+        title, intro, url, button, done = (
+            f"Edit {case_id}", f"Correct the details of case {esc(case_id)}. The case number, timeline and alerts stay as they are.",
+            f"/api/cases/{esc(case_id)}", "Save changes", "Saved")
+    else:
+        title, intro, url, button, done = (
+            "Register a worker before departure",
+            "This is the evidence trail. If the worker goes missing, the family and embassy start from these names and numbers. "
+            "If an arrival-day call time is set, Saathi books that call with Bolna.",
+            "/api/workers", "Register", "Registered")
+    return page(title, f"""<h1>{esc(title)}</h1>
+<p class="muted">{intro}</p>
 <form id="f" class="card" onsubmit="return false">{''.join(sets)}
-<label for="notes">Notes</label><textarea id="notes" name="notes" rows="3"></textarea>
-<p><button class="btn" id="go" type="submit">Register</button></p><div id="msg"></div></form>
+<label for="notes">Notes</label><textarea id="notes" name="notes" rows="3">{esc(values.get('notes'))}</textarea>
+<p><button class="btn" id="go" type="submit">{button}</button></p><div id="msg"></div></form>
 <script>
 document.getElementById('f').addEventListener('submit', async (e) => {{
   const data = Object.fromEntries(new FormData(e.target).entries());
-  const j = await post('/api/workers', data, document.getElementById('go'), 'Registered');
+  const j = await post('{url}', data, document.getElementById('go'), '{done}');
   if (j && j.case_id) location.href = '/dashboard/case/' + j.case_id;
 }});
 </script>""")
+
+
+def render_new() -> str:
+    return render_form()
 
 
 def _answers_table(answers: dict) -> str:
@@ -232,13 +264,30 @@ def render_case(w: dict, events: list[dict], status: dict) -> str:
 
     calls_disabled = "" if status["bolna"] else "disabled title='Bolna is not configured'"
     case_id = esc(w["case_id"])
+
+    # Things the caseworker should fix or do, shown above everything else.
+    notices = []
+    arrival_at = w.get("arrival_call_at")
+    arrival_booked = any(e["type"] == "call" and e["call"].get("kind") == "arrival" for e in events)
+    if arrival_at and not arrival_booked:
+        why = "" if status["bolna"] else " Bolna is not set up yet (BOLNA_CHECKIN_AGENT_ID)."
+        notices.append(f'<p class="flag">Arrival-day call for {esc(fmt_ist(arrival_at))} is not booked.{esc(why)} '
+                       f'<button class="btn secondary" {calls_disabled} onclick="post(\'/api/cases/{case_id}/book-arrival\', {{}}, this, '
+                       f'\'Booked\').then(j => j && location.reload())">Book arrival call</button></p>')
+    if not code_phrase_ok(w.get("code_phrase")):
+        notices.append(f'<p class="flag">Danger code phrase "{esc(w.get("code_phrase"))}" is too easy to say by accident. '
+                       f'{esc(CODE_PHRASE_HELP)}. <a href="/dashboard/case/{case_id}/edit">Edit details</a></p>')
+    if not w.get("worker_name_te"):
+        notices.append(f'<p class="muted">The family SMS will use the English name. Add the name in Telugu: '
+                       f'<a href="/dashboard/case/{case_id}/edit">Edit details</a></p>')
     return page(w["case_id"], f"""<h1>{case_id} · {esc(w['worker_name'])} {badge(w.get('risk_level'))}</h1>
 <div class="card">
-  {f'<ul>{reasons}</ul>' if reasons else '<p class="muted">No current risk signals.</p>'}{flags}
+  {f'<ul>{reasons}</ul>' if reasons else '<p class="muted">No current risk signals.</p>'}{flags}{''.join(notices)}
   <p>
     <button class="btn" {calls_disabled} onclick="post('/api/cases/{case_id}/call', {{kind:'arrival'}}, this, 'Arrival call requested')">Call now: arrival check</button>
     <button class="btn" {calls_disabled} onclick="post('/api/cases/{case_id}/call', {{kind:'weekly'}}, this, 'Weekly check-in call requested')">Call now: weekly check-in</button>
     <a class="btn secondary" href="/dashboard/case/{case_id}/packet.txt">Download English case packet</a>
+    <a class="btn secondary" href="/dashboard/case/{case_id}/edit">Edit details</a>
   </p><div id="msg"></div>
   <div class="muted">Status: {esc(w.get('status'))} · Last contact: {esc(fmt_ist(w.get('last_contact_at')))} ·
   Missed in a row: {esc(w.get('missed_checkins') or 0)} · Next call: {esc(fmt_ist(w.get('next_call_at')))} · refreshes every 20 seconds</div>

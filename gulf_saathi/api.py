@@ -218,6 +218,12 @@ def dashboard_case(case_id: str):
     return dashboard.render_case(w, cases.timeline(STORE, w), status())
 
 
+@app.get("/dashboard/case/{case_id}/edit", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
+def dashboard_edit(case_id: str):
+    w = _worker_or_404(case_id)
+    return dashboard.render_form(w, w["case_id"])
+
+
 @app.get("/dashboard/case/{case_id}/packet.txt", dependencies=[Depends(require_dashboard)])
 def dashboard_packet(case_id: str):
     w = _worker_or_404(case_id)
@@ -233,6 +239,27 @@ async def api_register(request: Request):
     except cases.CaseError as e:
         raise HTTPException(400, str(e))
     return {"case_id": out["worker"]["case_id"], "arrival_call": out["arrival_call"]}
+
+
+@app.post("/api/cases/{case_id}", dependencies=[Depends(require_dashboard)])
+async def api_update(case_id: str, request: Request):
+    data = await json_object(request)
+    try:
+        w = cases.update_worker(STORE, licensed, _worker_or_404(case_id), data, now())
+    except cases.CaseError as e:
+        raise HTTPException(400, str(e))
+    return {"case_id": w["case_id"]}
+
+
+@app.post("/api/cases/{case_id}/book-arrival", dependencies=[Depends(require_dashboard)])
+def api_book_arrival(case_id: str):
+    try:
+        res = cases.book_arrival_call(STORE, _worker_or_404(case_id), now())
+    except cases.CaseError as e:
+        raise HTTPException(400, str(e))
+    if not res["ok"]:
+        raise HTTPException(502, res["error"])
+    return res
 
 
 @app.post("/api/cases/{case_id}/call", dependencies=[Depends(require_dashboard)])

@@ -326,3 +326,60 @@ def test_real_bolna_event_sequence_processes_once(store, licensed, placed, texts
     r = process_call_record(store, payload("exec-live", w["case_id"], "weekly", "completed"), NOW)
     assert r["processed"] is False
     assert len(placed) == 1 and placed[0]["user_data"]["call_kind"] == "weekly"  # next call booked once
+
+
+# --- fixes from the first live registration ------------------------------------------
+
+def test_failed_booking_does_not_show_a_booked_call(store, licensed, monkeypatch):
+    monkeypatch.setattr(bolna, "place_call", lambda *a, **k: {"ok": False, "execution_id": None, "error": "Bolna not configured"})
+    w = register(store, licensed)["worker"]
+    assert w.get("next_call_at") is None
+    assert not cases.arrival_call_booked(store, w)
+
+
+def test_book_arrival_call_later(store, licensed, monkeypatch, placed):
+    real_fake = bolna.place_call
+    monkeypatch.setattr(bolna, "place_call", lambda *a, **k: {"ok": False, "execution_id": None, "error": "off"})
+    w = register(store, licensed)["worker"]
+    monkeypatch.setattr(bolna, "place_call", real_fake)  # Bolna set up afterwards
+
+    res = cases.book_arrival_call(store, w, NOW)
+    assert res["ok"] and cases.arrival_call_booked(store, w)
+    assert placed[-1]["scheduled_at"] == datetime(2026, 10, 25, 4, 0, tzinfo=timezone.utc)
+    assert store.get("workers", id=w["id"])["next_call_at"] == "2026-10-25T04:00:00+00:00"
+
+    # If the arrival time has already passed, call now instead.
+    res = cases.book_arrival_call(store, w, datetime(2026, 10, 26, tzinfo=timezone.utc))
+    assert res["ok"] and placed[-1]["scheduled_at"] is None
+
+
+def test_book_arrival_needs_a_time(store, licensed, placed):
+    w = register(store, licensed, arrival_call_at="")["worker"]
+    with pytest.raises(CaseError, match="no arrival-day call time"):
+        cases.book_arrival_call(store, w, NOW)
+
+
+@pytest.mark.parametrize("phrase, ok", [
+    ("అమ్మ బాగుందా", True), ("Is Amma well?", True), ("ANNA", False), ("అన్నా", False),
+    ("anna.", False), ("hello", False), ("", False), ("ok", False),
+])
+def test_code_phrase_rule(phrase, ok):
+    assert cases.code_phrase_ok(phrase) is ok
+
+
+def test_registration_rejects_a_weak_code_phrase(store, licensed, placed):
+    with pytest.raises(CaseError, match="too easy to say by accident"):
+        register(store, licensed, code_phrase="ANNA")
+
+
+def test_edit_corrects_details_and_keeps_the_case(store, licensed, placed):
+    w = register(store, licensed)["worker"]
+    edited = cases.update_worker(store, licensed, w, {**YADAIAH, "worker_phone": "8341820870",
+                                                      "agent_name": "Golconda Overseas", "agent_owner": "",
+                                                      "payments": "20000"}, NOW + timedelta(hours=1))
+    assert edited["case_id"] == w["case_id"] and edited["id"] == w["id"]
+    assert edited["worker_phone"] == "+918341820870"
+    assert edited["agent_check"] == "not_found" and edited["fee_status"] == "within_cap"  # checks re-run
+    assert edited["status"] == "registered" and edited["risk_level"] == "ok"
+    with pytest.raises(CaseError, match="too easy"):
+        cases.update_worker(store, licensed, w, {**YADAIAH, "code_phrase": "anna"}, NOW)

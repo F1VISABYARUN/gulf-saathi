@@ -244,8 +244,20 @@ def _text(data: dict, key: str, limit: int = 200) -> str | None:
     return v[:limit] or None
 
 
-def register_worker(store, licensed: LicensedList, data: dict, now: datetime) -> dict:
-    """Create the pre-departure case. Returns {"worker": ..., "arrival_call": ...}."""
+# Everyday words make bad danger phrases: the worker would say them by accident.
+# "Anna" (elder brother) is also how the voice agent itself talks.
+_WEAK_PHRASES = {"anna", "annaa", "అన్న", "అన్నా", "amma", "అమ్మ", "hello", "హలో", "ok", "okay"}
+CODE_PHRASE_HELP = "Use a short sentence the worker would never say by accident, e.g. " + DEFAULT_CODE_PHRASE
+
+
+def code_phrase_ok(phrase: str | None) -> bool:
+    p = (phrase or "").strip().strip(".!?,").lower()
+    return len(p.split()) >= 2 and p not in _WEAK_PHRASES
+
+
+def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
+    """Validate and normalise everything a caseworker types in, for registering or
+    editing a case. Re-runs the agent and fee checks. Raises CaseError."""
     name = _text(data, "worker_name")
     if not name:
         raise CaseError("worker name is required")
@@ -275,10 +287,11 @@ def register_worker(store, licensed: LicensedList, data: dict, now: datetime) ->
         salary = float(str(salary).replace(",", "")) if str(salary or "").strip() else None
     except ValueError:
         raise CaseError(f"salary must be a number: {salary}")
+    code_phrase = _text(data, "code_phrase") or DEFAULT_CODE_PHRASE
+    if not code_phrase_ok(code_phrase):
+        raise CaseError(f'danger code phrase "{code_phrase}" is too easy to say by accident. {CODE_PHRASE_HELP}')
 
-    worker = store.insert("workers", {
-        "case_id": new_case_id(store),
-        "created_at": iso(now), "updated_at": iso(now),
+    return {
         "worker_name": name, "worker_name_te": _text(data, "worker_name_te"), "worker_phone": worker_phone,
         "family_name": _text(data, "family_name"), "family_phone": family_phone,
         "family_relation": _text(data, "family_relation"),
@@ -292,12 +305,42 @@ def register_worker(store, licensed: LicensedList, data: dict, now: datetime) ->
         "payments": fee["payments"], "amount_paid_total": fee["total"], "fee_status": fee["status"],
         "departure_date": departure, "flight_no": _text(data, "flight_no", 20),
         "arrival_call_at": iso(arrival_call_at) if arrival_call_at else None,
-        "code_phrase": _text(data, "code_phrase") or DEFAULT_CODE_PHRASE,
-        "status": "registered", "risk_level": "ok", "risk_reasons": [], "missed_checkins": 0,
+        "code_phrase": code_phrase,
         "notes": _text(data, "notes", 2000),
+    }
+
+
+def register_worker(store, licensed: LicensedList, data: dict, now: datetime) -> dict:
+    """Create the pre-departure case. Returns {"worker": ..., "arrival_call": ...}."""
+    fields = clean_case_fields(data, licensed)
+    worker = store.insert("workers", {
+        "case_id": new_case_id(store), "created_at": iso(now), "updated_at": iso(now), **fields,
+        "status": "registered", "risk_level": "ok", "risk_reasons": [], "missed_checkins": 0,
     })
-    arrival = schedule_call(store, worker, "arrival", arrival_call_at, now) if arrival_call_at else None
+    arrival_at = parse_ts(fields["arrival_call_at"])
+    arrival = schedule_call(store, worker, "arrival", arrival_at, now) if arrival_at else None
     return {"worker": store.get("workers", id=worker["id"]), "arrival_call": arrival}
+
+
+def update_worker(store, licensed: LicensedList, worker: dict, data: dict, now: datetime) -> dict:
+    """Correct a case's details. The case ID, status, risk and timeline stay as they are.
+    Does not book or move calls: the case page offers that."""
+    fields = clean_case_fields(data, licensed)
+    store.update("workers", {"id": worker["id"]}, {**fields, "updated_at": iso(now)})
+    return store.get("workers", id=worker["id"])
+
+
+def arrival_call_booked(store, worker: dict) -> bool:
+    return any(c.get("kind") == "arrival" for c in store.select("calls", {"worker_id": worker["id"]}))
+
+
+def book_arrival_call(store, worker: dict, now: datetime) -> dict:
+    """Book the arrival call that registration couldn't (e.g. Bolna wasn't set up yet).
+    If its time has already passed, call now."""
+    when = parse_ts(worker.get("arrival_call_at"))
+    if not when:
+        raise CaseError("no arrival-day call time is set for this case")
+    return schedule_call(store, worker, "arrival", when if when > now + timedelta(minutes=1) else None, now)
 
 
 # --- calls ------------------------------------------------------------------------
@@ -319,9 +362,10 @@ def schedule_call(store, worker: dict, kind: str, when: datetime | None, now: da
     """Ask Bolna to call the worker at `when` (or now). Records the call so the
     webhook can match it and the dashboard can show it."""
     later = when is not None and when > now + timedelta(minutes=1)
-    if later:
-        store.update("workers", {"id": worker["id"]}, {"next_call_at": iso(when), "updated_at": iso(now)})
     res = bolna.place_call(worker["worker_phone"], call_user_data(worker, kind), when if later else None)
+    if res["ok"] and later:
+        # Only after Bolna accepted it: the dashboard must not show a call that isn't booked.
+        store.update("workers", {"id": worker["id"]}, {"next_call_at": iso(when), "updated_at": iso(now)})
     if res["ok"] and res["execution_id"]:
         store.upsert("calls", {
             "id": res["execution_id"], "worker_id": worker["id"], "kind": kind,
