@@ -162,13 +162,20 @@ def normalize_answers(raw: dict) -> dict:
     if pickup is None and "picked_up_by_named_employer" in raw:  # field name in Hark's notes
         named = yes_no(raw["picked_up_by_named_employer"])
         pickup = {True: "employer", False: "other_person"}.get(named)
-    text = lambda k: str(raw.get(k) or "").strip()[:500]
+    if pickup is None and yes_no(raw.get("taken_by_stranger")):
+        # Help line: "someone I don't know took me from the airport / is taking me now".
+        pickup = "other_person"
+    text = lambda k: "" if str(raw.get(k) or "").strip().lower() == "not_said" else str(raw.get(k) or "").strip()[:500]
     return {
         "pickup_status": pickup,
         "pickup_person": text("pickup_person"),
         "current_location": text("current_location"),
         "current_job": text("current_job"),
         "current_city": text("current_city"),
+        "landmark": text("landmark"),
+        "home_district": text("home_district"),
+        "agent_name": text("agent_name"),
+        "agent_phone": text("agent_phone"),
         "salary_received": yes_no(raw.get("salary_received")),
         "months_unpaid": as_int(raw.get("months_unpaid")),
         "passport_with_worker": yes_no(raw.get("passport_with_worker")),
@@ -478,6 +485,14 @@ def process_call_record(store, payload: dict, now: datetime) -> dict:
         row["created_at"] = iso(now)
     store.upsert("calls", row)
 
+    if c["terminal"] and kind not in CALL_KINDS and c["extracted"] and not (existing or {}).get("processed_at"):
+        # A call to the Gulf Saathi line (Saathi didn't place it). Bolna's after-call
+        # extraction is the safety net if the live voice AI missed report_problem.
+        help_out = help_from_extraction(store, c, now)
+        if help_out is not None:
+            hw = store.get("workers", case_id=help_out["case_id"])
+            store.update("calls", {"id": c["call_id"]}, {"processed_at": iso(now), "kind": "help", "worker_id": hw["id"]})
+            return {"stored": True, "processed": True, "worker": hw["case_id"], "help": help_out}
     if not c["terminal"] or not worker or kind not in CHECKIN_KINDS or (existing or {}).get("processed_at"):
         return {"stored": True, "processed": False, "worker": worker["case_id"] if worker else None}
     store.update("calls", {"id": c["call_id"]}, {"processed_at": iso(now)})
@@ -541,18 +556,21 @@ def record_checkin(store, data: dict, now: datetime) -> dict:
     store.update("workers", {"id": worker["id"]}, changes)
 
     codes = {r["code"] for r in reasons}
+    # Only claim the family was told when the SMS really went out (it doesn't in demo mode).
+    told = ("we have told your family and " if escalation and escalation.get("sms_status") == "sent"
+            else "we have noted this in your case and ")
     if "code_phrase" in codes:
         say = ("IMPORTANT: the worker said the danger phrase and may not be able to talk freely. Do NOT mention "
                "danger, help, complaints, family or embassy. Chat normally for a few seconds and end the call politely.")
     elif level == "critical":
-        say = ("Speak calmly. Say: we have told your family and prepared your complaint for the Indian Embassy. "
+        say = (f"Speak calmly. Say: {told}prepared your complaint for the Indian Embassy. "
                "If you are in danger right now, call the Indian Embassy. Do not promise rescue.")
         if codes & {"wrong_pickup", "no_pickup"}:
             employer = worker.get("employer_name") or "your registered employer"
             say += (f" If they are still at the airport: do not go with anyone except {employer}; stay inside "
                     "the airport and call the Indian Embassy.")
     elif level == "high":
-        say = ("Say: we have told your family and prepared your complaint. Do not promise that the salary or the "
+        say = (f"Say: {told}prepared your complaint. Do not promise that the salary or the "
                "passport will be recovered. Say Saathi will call again soon.")
     elif kind == "help":
         say = ("Say: we have noted your problem in your case, and a Saathi helper will look at it. Do not promise "
@@ -597,11 +615,83 @@ def report_problem(store, data: dict, now: datetime) -> dict:
             "missed_checkins": 0, "source": "help_call", "notes": "Opened from a call to the Gulf Saathi line.",
         })
         opened = True
+    _save_trace(store, worker, data, now)
     out = record_checkin(store, {**data, "case_id": worker["case_id"], "call_kind": "help"}, now)
-    if out["ok"] and opened:
-        out["instruction"] += (f" Also tell them their case number is {' '.join(worker['case_id'][3:])} "
-                               "and ask them to keep it.")
+    if out["ok"]:
+        out["instruction"] += (f" Their case number is {spoken_case_id(worker['case_id'])}: read it slowly, one "
+                               "letter at a time, and ask them to keep it.")
     return {**out, "case_id": worker["case_id"], "new_case": opened}
+
+
+def spoken_case_id(case_id: str) -> str:
+    """"GS-W9HWSY" -> "G S, W 9 H W S Y", so the voice reads it letter by letter."""
+    return "G S, " + " ".join(case_id[3:])
+
+
+def _save_trace(store, worker: dict, data: dict, now: datetime) -> None:
+    """Help line: keep what helps trace the caller (name, home, agent, nearby place)
+    on the case. Fills empty fields only; never overwrites what a caseworker typed."""
+    a = normalize_answers(data)
+    changes = {}
+    name = _text(data, "caller_name")
+    if name and name.lower() != "not_said" and worker.get("worker_name", "").startswith("Caller ("):
+        changes["worker_name"] = name
+    if a["agent_name"] and not worker.get("agent_name"):
+        changes["agent_name"] = a["agent_name"][:200]
+    if a["agent_phone"] and not worker.get("sub_agent_phone"):
+        try:
+            changes["sub_agent_phone"] = normalize_phone(a["agent_phone"])
+        except CaseError:
+            pass
+    if a["current_city"] and not worker.get("dest_city"):
+        changes["dest_city"] = a["current_city"][:200]
+    extra = [f"{label}: {a[k]}" for k, label in (("home_district", "Home"), ("landmark", "Near"))
+             if a[k] and f"{label}: {a[k]}" not in (worker.get("notes") or "")]
+    if extra:
+        changes["notes"] = ((worker.get("notes") or "") + " " + ". ".join(extra) + ".").strip()[:2000]
+    if changes:
+        changes["updated_at"] = iso(now)
+        store.update("workers", {"id": worker["id"]}, changes)
+        worker.update(changes)
+
+
+def flatten_extraction(extracted: dict) -> dict:
+    """Bolna puts after-call extractions under a category, each with an `objective`
+    (pre-defined answer) or `subjective` (free text) value:
+    {"help_check": {"abroad": {"objective": "yes", ...}, "notes": {"subjective": "...", ...}}}
+    Flat {"field": "value"} data is accepted too. "not_said" becomes empty."""
+    out = {}
+
+    def value(v):
+        if isinstance(v, dict) and ("objective" in v or "subjective" in v):
+            v = v.get("objective") if v.get("objective") not in (None, "") else v.get("subjective")
+        return "" if v is None or str(v).strip().lower() == "not_said" else v
+
+    for k, v in (extracted or {}).items():
+        if isinstance(v, dict) and not ("objective" in v or "subjective" in v):
+            for k2, v2 in v.items():
+                out[str(k2).lower()] = value(v2)
+        else:
+            out[str(k).lower()] = value(v)
+    return out
+
+
+def help_from_extraction(store, c: dict, now: datetime) -> dict | None:
+    """After a call to the Gulf Saathi line: if Bolna's extraction says the caller is
+    abroad or in danger, open or update their help case, even if the live voice AI
+    never called report_problem. None when there is nothing to act on."""
+    ex = flatten_extraction(c.get("extracted") or {})
+    a = normalize_answers(ex)
+    danger = (any(a.get(k) is True for k in ("threatened", "movement_restricted", "needs_help"))
+              or a.get("passport_with_worker") is False or (a.get("months_unpaid") or 0) > 0
+              or a.get("pickup_status") in ("other_person", "nobody"))
+    if not (yes_no(ex.get("abroad")) or danger) or not c.get("user_number"):
+        return None
+    data = {k: v for k, v in ex.items() if k != "case_id"}
+    data["caller_phone"] = c["user_number"]
+    data["notes"] = ("After-call summary: " + str(ex.get("notes") or "")).strip()
+    out = report_problem(store, data, now)
+    return out if out.get("ok") else None
 
 
 def briefed_worker_ids(store) -> dict:

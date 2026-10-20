@@ -17,7 +17,8 @@ PICKUP = {"employer": "Registered employer", "other_person": "Someone else", "no
 ANSWER_LABELS = [
     ("pickup_status", "Who picked them up"), ("pickup_person", "Person at pickup"),
     ("current_location", "Where they are now"), ("current_job", "Work they are doing now"),
-    ("current_city", "City they are in now"), ("salary_received", "Salary received"),
+    ("current_city", "City they are in now"), ("landmark", "Nearby place"), ("home_district", "Home village / district"),
+    ("agent_name", "Agent (as said)"), ("agent_phone", "Agent phone (as said)"), ("salary_received", "Salary received"),
     ("months_unpaid", "Months unpaid"), ("passport_with_worker", "Passport with worker"),
     ("food_ok", "Food and room OK"), ("threatened", "Threats or violence"),
     ("movement_restricted", "Stopped from going out"), ("needs_help", "Asked for help"),

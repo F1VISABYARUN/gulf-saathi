@@ -506,3 +506,87 @@ def test_demo_story_never_calls_or_texts(store, licensed, placed, texts):
     assert store.select("escalations")[0]["sms_status"] == "demo: not sent"
     sig = repeated_signals(store.select("workers"))
     assert sig and all(s["demo"] for s in sig) and set(sig[0]["cases"]) == {out["yadaiah"], out["ramesh"]}
+
+
+# --- help line safety net (Bolna after-call extraction) -----------------------------
+
+def _x(objective=None, subjective=None):
+    return {"objective": objective, "subjective": subjective, "confidence": 0.9}
+
+
+# Shape of extracted_data from the live call d5acc09e (21 Oct 2026, "Oman airport").
+OMAN_EXTRACTION = {"help_check": {
+    "notes": _x(subjective="The caller says someone took them in Oman, that they are being beaten, and asks for help."),
+    "abroad": _x("yes"), "needs_help": _x("yes"), "threatened": _x("yes"),
+    "caller_name": _x(subjective="not_said"), "current_job": _x(subjective="not_said"),
+    "current_city": _x(subjective="Oman, at the airport"), "months_unpaid": _x(subjective="not_said"),
+    "movement_restricted": _x("not_said"), "passport_with_worker": _x("not_said"),
+}}
+
+
+def gulf_line_call(call_id, extracted, number="+971501112222"):
+    return {"id": call_id, "agent_id": "gulf-saathi", "status": "completed", "conversation_duration": 180,
+            "transcript": "assistant: నమస్కారం\nuser: ఓమన్ ఎయిర్పోర్ట్ లో ఉన్నాను", "user_number": number,
+            "telephony_data": {"recording_url": f"https://api.bolna.ai/recordings/call/{call_id}"},
+            "context_details": {"recipient_data": {"timezone": "Asia/Kolkata"}}, "extracted_data": extracted}
+
+
+def test_flatten_extraction_reads_bolna_categories():
+    flat = cases.flatten_extraction(OMAN_EXTRACTION)
+    assert flat["abroad"] == "yes" and flat["threatened"] == "yes" and flat["current_city"] == "Oman, at the airport"
+    assert flat["caller_name"] == "" and flat["passport_with_worker"] == ""
+    assert cases.flatten_extraction({"abroad": "yes"}) == {"abroad": "yes"}
+
+
+def test_after_call_extraction_opens_a_help_case_when_the_live_ai_missed_it(store, placed, texts):
+    out = process_call_record(store, gulf_line_call("x1", OMAN_EXTRACTION), NOW)
+    assert out["processed"] and out["help"]["new_case"]
+    w = store.get("workers", case_id=out["worker"])
+    assert w["source"] == "help_call" and w["risk_level"] == "critical" and w["worker_phone"] == "+971501112222"
+    assert {"threatened", "needs_help"} <= {r["code"] for r in w["risk_reasons"]}
+    assert len(store.select("escalations")) == 1
+    # Bolna delivers the same finished call again: nothing new.
+    again = process_call_record(store, gulf_line_call("x1", OMAN_EXTRACTION), NOW)
+    assert again["processed"] is False and len(store.select("escalations")) == 1
+    assert placed == []  # never books calls for a help-line caller
+
+
+def test_after_call_extraction_after_the_live_tool_sends_no_second_alert(store, texts):
+    cases.report_problem(store, {"caller_phone": "+971501112222", "threatened": "yes", "needs_help": "yes"}, NOW)
+    process_call_record(store, gulf_line_call("x2", OMAN_EXTRACTION), NOW)
+    assert len(store.select("workers")) == 1 and len(store.select("escalations")) == 1
+
+
+def test_a_caller_only_checking_an_agent_opens_no_case(store, texts):
+    checking = {"help_check": {"abroad": _x("no"), "needs_help": _x("not_said"), "threatened": _x("not_said"),
+                               "notes": _x(subjective="Asked whether an agent in Jagtial is licensed.")}}
+    out = process_call_record(store, gulf_line_call("x3", checking, "+919000011111"), NOW)
+    assert store.select("workers") == [] and not out.get("help")
+
+
+def test_taken_by_a_stranger_is_critical_with_airport_advice(store, texts):
+    r = cases.report_problem(store, {"caller_phone": "+96890001111", "taken_by_stranger": "yes"}, NOW)
+    assert r["risk_level"] == "critical" and "stay inside the airport" in r["instruction"]
+    assert "G S, " in r["instruction"]  # case number read letter by letter
+
+
+def test_family_is_only_said_to_be_told_when_the_sms_went_out(store, monkeypatch):
+    monkeypatch.setattr(sms, "send_sms", lambda to, text: "demo: not sent (no SMS provider configured)")
+    r = cases.report_problem(store, {"caller_phone": "+971501112222", "family_phone": "9000012345",
+                                     "threatened": "yes"}, NOW)
+    assert "told your family" not in r["instruction"] and "noted this in your case" in r["instruction"]
+    monkeypatch.setattr(sms, "send_sms", lambda to, text: "sent")
+    r = cases.report_problem(store, {"caller_phone": "+971502223333", "family_phone": "9000012346",
+                                     "threatened": "yes"}, NOW)
+    assert "we have told your family" in r["instruction"]
+
+
+def test_help_line_keeps_trace_details_on_the_case(store, texts):
+    r = cases.report_problem(store, {"caller_phone": "+971501112222", "needs_help": "yes", "caller_name": "Mallayya",
+                                     "home_district": "Jagtial", "agent_name": "Rajesh", "agent_phone": "98480 12345",
+                                     "landmark": "near a big mosque", "current_city": "Al Ain"}, NOW)
+    w = store.get("workers", case_id=r["case_id"])
+    assert w["worker_name"] == "Mallayya" and w["agent_name"] == "Rajesh" and w["sub_agent_phone"] == "+919848012345"
+    assert "Home: Jagtial" in w["notes"] and "Near: near a big mosque" in w["notes"] and w["dest_city"] == "Al Ain"
+    ans = store.select("checkins")[0]["answers"]
+    assert ans["landmark"] == "near a big mosque" and ans["home_district"] == "Jagtial"
