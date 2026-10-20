@@ -178,3 +178,20 @@ def test_result_never_uses_endorsement_words(agents):
         text = str(agents.check(**kwargs)).lower()
         for word in ("safe", "trusted", "genuine", "good agent"):
             assert word not in text
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"owner": "Ramesh", "district": "Jagtial"},
+    {"owner": "రమేష్", "district": "జగిత్యాల"},
+    {"query": "రమేష్ జగిత్యాల"},
+])
+def test_one_first_name_never_reads_back_another_state(agents, kwargs):
+    # Live call 21 Oct 2026: "Ramesh, Jagtial" was read back as a Chennai agency and
+    # the caller said yes. With one name, the district must match.
+    r = agents.check(**kwargs)
+    assert r["match"] == "not_found" and r["candidates"] == []
+
+
+def test_one_name_in_the_right_district_still_only_needs_confirmation(agents):
+    r = agents.check(owner="Narsaiah", district="Jagtial")
+    assert r["match"] == "needs_confirmation" and r["candidates"][0]["district"] == "Jagtial"

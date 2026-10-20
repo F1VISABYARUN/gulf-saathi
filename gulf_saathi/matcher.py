@@ -302,8 +302,15 @@ class LicensedList:
 
         # A district was given and this agent isn't in it: only a strong name match
         # is still worth asking about (the district may have been misheard).
+        # One word (a first name like "Ramesh") scores "strong" against agents all over
+        # India, so with one word the district must match: never read back a stranger
+        # from another state.
+        one_word = len(said_words) == 1 and not _canonical_generic(next(iter(said_words)))
+
         def plausible(x):
             _, score, o, g, d_ok = x
+            if one_word and district:
+                return score >= CANDIDATE_MIN and d_ok
             return score >= CANDIDATE_MIN and (not district or d_ok or max(o, g) >= STRONG)
 
         top = [x for x in scored if plausible(x)][:MAX_CANDIDATES]
@@ -314,7 +321,7 @@ class LicensedList:
         runner_up = top[1][1] if len(top) > 1 else 0
         clear_winner = score - runner_up >= 5
         both = owner and agency and not query and o >= OWNER_OK and g >= AGENCY_OK
-        one_plus_district = d_ok and max(o, g) >= STRONG
+        one_plus_district = d_ok and max(o, g) >= STRONG and not one_word
         if clear_winner and (both or one_plus_district):
             return _result("confirmed_in_list", [(a, score)], "name and owner/district matched")
         return _result("needs_confirmation", [(x[0], x[1]) for x in top], "ask the caller which one, if any")
