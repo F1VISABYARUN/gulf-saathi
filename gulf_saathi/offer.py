@@ -27,7 +27,7 @@ def assess(a: OfferAnswers) -> list[str]:
         flags.append("flag_passport_kept")
     if a.has_contract is False:
         flags.append("flag_no_contract")
-    if a.fee_inr is not None and a.fee_inr > config.MAX_SERVICE_FEE_INR:
+    if a.fee_inr is not None and a.fee_inr > config.FEE_CAP_INR:
         flags.append("flag_fee_high")
     if a.region == "other":
         flags.append("flag_non_gulf")
