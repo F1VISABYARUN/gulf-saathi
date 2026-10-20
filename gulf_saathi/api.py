@@ -5,11 +5,16 @@ Deployed on Vercel (see pyproject.toml). Run locally with:
 """
 from __future__ import annotations
 
+import json
+import logging
+import os
+import secrets
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, field_validator
 
+from .calls import parse_call
 from .fees import check_fee as compute_fee
 from .matcher import LicensedList
 
@@ -84,3 +89,26 @@ def check_fee_get(payments: str = ""):
 def check_fee(q: FeeQuery):
     """Bolna custom tool: add up every payment to the agent and compare with the legal cap."""
     return compute_fee(q.payments)
+
+
+log = logging.getLogger("gulf_saathi.webhook")
+
+
+@app.post("/webhooks/bolna")
+async def bolna_webhook(request: Request, token: str = ""):
+    """Bolna posts here several times per call. Right now this only records what
+    arrived (raw JSON goes to the Vercel logs) and returns what we understood.
+    Saving cases and raising alerts comes next, once a real payload has been seen.
+    """
+    expected = os.getenv("GS_WEBHOOK_TOKEN", "")
+    if expected and not secrets.compare_digest(token, expected):
+        raise HTTPException(401, "bad token")
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "body is not JSON")
+    if not isinstance(payload, dict):
+        raise HTTPException(400, "expected a JSON object")
+    if os.getenv("GS_LOG_WEBHOOK", "1") != "0":  # contains phone numbers and transcripts
+        log.warning("BOLNA_WEBHOOK_RAW %s", json.dumps(payload, ensure_ascii=False)[:20000])
+    return parse_call(payload)
