@@ -105,6 +105,14 @@ def predeparture_flags(w: dict) -> list[str]:
     return [f["text"] for f in predeparture_checks(w)]
 
 
+def case_badge(w: dict) -> str:
+    """Risk badge. A worker still in India with no risk yet but with red flags shows
+    RED FLAGS, not a green OK next to a "do not travel" warning."""
+    if (w.get("risk_level") or "ok") == "ok" and w.get("status") == "registered" and predeparture_checks(w):
+        return '<span class="badge" style="background:#b42318">RED FLAGS</span>'
+    return badge(w.get("risk_level"))
+
+
 def demo_tag(w: dict) -> str:
     return ' <span class="demo">DEMO</span>' if w.get("is_demo") else ""
 
@@ -156,7 +164,7 @@ def render_list(workers: list[dict], status: dict, totals: dict | None = None) -
     by_recent = sorted(workers, key=lambda w: w.get("updated_at") or "", reverse=True)
     for w in sorted(by_recent, key=lambda w: order.get(w.get("risk_level"), 3)):
         rows.append(f"""<tr>
-<td>{badge(w.get('risk_level'))}</td>
+<td>{case_badge(w)}</td>
 <td class="nowrap"><a href="/dashboard/case/{esc(w['case_id'])}"><b>{esc(w['case_id'])}</b></a></td>
 <td>{esc(w['worker_name'])}{demo_tag(w)}<div class="muted">{esc(w.get('worker_phone'))}</div>{''.join(f'<div class="flag">{esc(f)}</div>' for f in predeparture_flags(w))}</td>
 <td>{esc(w.get('dest_city'))}{', ' if w.get('dest_city') and w.get('dest_country') else ''}{esc(w.get('dest_country'))}</td>
@@ -358,7 +366,8 @@ def render_case(w: dict, events: list[dict], status: dict, signals: list[dict] |
                        f'<div class="sms" style="margin:8px 0"><b>Family SMS</b> ({esc(es.get("sms_status"))}):<br>{esc(es.get("family_sms"))}</div>'
                        f'{action}</div>')
 
-    calls_disabled = "" if status["bolna"] else "disabled title='Bolna is not configured'"
+    calls_disabled = ("disabled title='Demo case: Saathi never calls demo numbers'" if w.get("is_demo") else
+                      "" if status["bolna"] else "disabled title='Bolna is not configured'")
     case_id = esc(w["case_id"])
 
     briefings = [e["checkin"] for e in events if e["type"] == "checkin" and e["checkin"].get("kind") == "briefing"]
@@ -387,7 +396,7 @@ def render_case(w: dict, events: list[dict], status: dict, signals: list[dict] |
     welcome = (f'<div class="sms info" style="margin-top:12px"><b>Welcome SMS to family</b> ({esc(w.get("welcome_sms_status"))}):'
                f'<br>{esc(w["welcome_sms"])}</div>' if w.get("welcome_sms") else "")
     sig = (f'<div class="card"><h2>Repeated across cases</h2>{signals_table(signals)}</div>' if signals else "")
-    return page(w["case_id"], f"""<h1>{case_id} · {esc(w['worker_name'])}{demo_tag(w)} {badge(w.get('risk_level'))}</h1>
+    return page(w["case_id"], f"""<h1>{case_id} · {esc(w['worker_name'])}{demo_tag(w)} {case_badge(w)}</h1>
 <div class="card">
   {f'<ul>{reasons}</ul>' if reasons else '<p class="muted">No current risk signals.</p>'}{flags}{''.join(notices)}
   <p>

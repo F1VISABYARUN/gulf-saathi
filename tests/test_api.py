@@ -238,3 +238,14 @@ def test_passwords_ignore_spaces_pasted_into_vercel(mem, monkeypatch):
     monkeypatch.setattr(api.bolna, "place_call", lambda *a, **k: {"ok": True, "execution_id": "e", "error": None})
     api._last_demo_call.clear()
     assert client.post("/api/demo-call", json={"phone": "9876543210", "code": "judge-2026"}).status_code == 200
+
+
+def test_demo_cases_are_never_called(mem, monkeypatch):
+    calls = []
+    monkeypatch.setattr(api.bolna, "place_call", lambda *a, **k: calls.append(a) or {"ok": True, "execution_id": "e", "error": None})
+    out = client.post("/api/demo/run", auth=AUTH).json()
+    r = client.post(f"/api/cases/{out['yadaiah']}/call", auth=AUTH, json={"kind": "weekly"})
+    assert r.status_code == 502 and "demo" in r.json()["detail"].lower() and calls == []
+    page = client.get(f"/dashboard/case/{out['yadaiah']}", auth=AUTH).text
+    assert "never calls demo numbers" in page
+    assert "RED FLAGS" in client.get(f"/dashboard/case/{out['ramesh']}", auth=AUTH).text

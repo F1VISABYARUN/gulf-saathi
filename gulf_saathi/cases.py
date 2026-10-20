@@ -408,6 +408,10 @@ def schedule_call(store, worker: dict, kind: str, when: datetime | None, now: da
     """Ask Bolna to call the worker at `when` (or now). Records the call so the
     webhook can match it and the dashboard can show it."""
     later = when is not None and when > now + timedelta(minutes=1)
+    if worker.get("is_demo"):
+        # Demo numbers are made up but could belong to real people, and calls cost credits.
+        return {"ok": False, "execution_id": None, "error": "Demo case: Saathi never calls demo numbers",
+                "kind": kind, "when": iso(now)}
     res = bolna.place_call(worker["worker_phone"], call_user_data(worker, kind), when if later else None)
     if res["ok"] and later:
         # Only after Bolna accepted it: the dashboard must not show a call that isn't booked.
