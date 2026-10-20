@@ -51,7 +51,7 @@ def test_unanswered_statuses_are_missed(status):
     assert parse_call({"id": "x", "status": status, "conversation_duration": 0})["missed"]
 
 
-@pytest.mark.parametrize("status", ["queued", "ringing", "in-progress", "call-disconnected", ""])
+@pytest.mark.parametrize("status", ["queued", "initiated", "ringing", "in-progress", ""])
 def test_in_progress_updates_are_not_final(status):
     r = parse_call({**TALKED, "status": status})
     assert not r["terminal"] and not r["missed"] and not r["answered"]
@@ -83,3 +83,14 @@ def test_webhook_rejects_bad_input_and_checks_token(monkeypatch):
     monkeypatch.setenv("GS_WEBHOOK_TOKEN", "s3cret")
     assert client.post("/webhooks/bolna", json=TALKED).status_code == 401
     assert client.post("/webhooks/bolna?token=s3cret", json=TALKED).status_code == 200
+
+
+def test_call_disconnected_with_transcript_ends_the_call():
+    r = parse_call({**TALKED, "status": "call-disconnected"})
+    assert r["terminal"] and r["answered"]
+
+
+def test_call_disconnected_without_transcript_waits_for_completed():
+    r = parse_call({**TALKED, "status": "call-disconnected", "transcript": ""})
+    assert not r["terminal"] and not r["missed"]
+    assert parse_call({**TALKED, "status": "completed"})["terminal"]

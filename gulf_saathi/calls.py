@@ -9,8 +9,13 @@ from __future__ import annotations
 
 from typing import Any
 
-# Bolna sends several webhooks per call; only these statuses end it.
-TERMINAL_STATUSES = {"completed", "no-answer", "busy", "failed", "canceled", "stopped", "error", "balance-low"}
+# Bolna sends several webhooks per call (seen on a real call: initiated, ringing,
+# in-progress, call-disconnected). Only these statuses end it.
+TERMINAL_STATUSES = {"completed", "call-disconnected", "no-answer", "busy", "failed", "canceled", "stopped",
+                     "error", "balance-low"}
+# Not yet seen: whether "call-disconnected" already carries the transcript. If it
+# doesn't, wait for the "completed" message rather than wrongly count a miss.
+NEEDS_TRANSCRIPT = {"call-disconnected"}
 
 
 def _get(d: Any, *path: str) -> Any:
@@ -36,6 +41,8 @@ def was_answered(payload: dict) -> bool:
 def parse_call(payload: dict) -> dict:
     status = str(payload.get("status") or "").lower()
     terminal = status in TERMINAL_STATUSES
+    if status in NEEDS_TRANSCRIPT and not str(payload.get("transcript") or "").strip():
+        terminal = False
     answered = was_answered(payload) if terminal else False
     extracted = payload.get("extracted_data")
     return {

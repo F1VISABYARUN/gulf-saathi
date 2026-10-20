@@ -272,7 +272,8 @@ class LicensedList:
             agency = agency or rest
             owner = owner or rest
         if not (agency or owner):
-            return _result("not_found", [], "no name given")
+            # e.g. only a district: nothing to check yet, so never say "not found"
+            return _result("need_more_info", [], "no name given")
 
         # One word alone (a first name like "Ramayya") matches too many agents across
         # India, so ask for more instead of reading back strangers.

@@ -162,9 +162,15 @@ def test_made_up_agent_not_found(agents, name):
     assert agents.check(agency=name)["match"] == "not_found"
 
 
-@pytest.mark.parametrize("name", ["Overseas", "Manpower Consultants", "Gulf Travels", ""])
+@pytest.mark.parametrize("name", ["Overseas", "Manpower Consultants", "Gulf Travels"])
 def test_generic_words_alone_find_nobody(agents, name):
     assert agents.check(agency=name)["match"] == "not_found"
+
+
+@pytest.mark.parametrize("kwargs", [{}, {"agency": ""}, {"district": "నిజామాబాద్"}])
+def test_no_name_asks_for_one_instead_of_saying_not_found(agents, kwargs):
+    # Live call 4: the model sent only the district, and the line said "not found".
+    assert agents.check(**kwargs)["match"] == "need_more_info"
 
 
 def test_result_never_uses_endorsement_words(agents):

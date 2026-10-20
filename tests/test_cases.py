@@ -310,3 +310,19 @@ def test_bolna_call_request(monkeypatch):
     assert seen["json"] == {"agent_id": "agent-123", "recipient_phone_number": "+919876543210",
                             "user_data": {"case_id": "GS-ABC234", "n": ""},
                             "scheduled_at": "2026-10-25T04:00:00+00:00"}
+
+
+def test_real_bolna_event_sequence_processes_once(store, licensed, placed, texts):
+    # Order seen on a live call: initiated, ringing, in-progress, call-disconnected
+    # (and possibly completed afterwards).
+    w = register(store, licensed, arrival_call_at="")["worker"]
+    for status in ("initiated", "ringing", "in-progress"):
+        r = process_call_record(store, payload("exec-live", w["case_id"], "weekly", status, talked=False), NOW)
+        assert r["processed"] is False
+    assert store.get("workers", id=w["id"])["missed_checkins"] == 0  # ringing is not a miss
+
+    r = process_call_record(store, payload("exec-live", w["case_id"], "weekly", "call-disconnected"), NOW)
+    assert r["processed"] and not r["missed"]
+    r = process_call_record(store, payload("exec-live", w["case_id"], "weekly", "completed"), NOW)
+    assert r["processed"] is False
+    assert len(placed) == 1 and placed[0]["user_data"]["call_kind"] == "weekly"  # next call booked once
