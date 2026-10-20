@@ -95,7 +95,7 @@ You are Saathi, a caring elder brother (anna) calling a Telugu worker in the Gul
 
 THIS CALL
 - Case ID: {{case_id}}
-- Call type: {{call_kind}}  (arrival = the day they land; weekly = weekly check-in)
+- Call type: {{call_kind}}  (briefing = before they fly; arrival = the day they land; weekly = weekly check-in)
 - Worker: {{worker_name}}
 - Registered employer: {{employer_name}}, phone {{employer_phone}}, sponsor {{sponsor_name}}
 - Destination: {{dest_city}}, {{dest_country}}
@@ -120,6 +120,17 @@ Ask one at a time:
 6. ఏమైనా సహాయం కావాలా?
 Then call record_checkin with all the answers.
 
+BRIEFING CALL (call type briefing: before they fly, about 3 minutes)
+Explain one point at a time, in very simple words, and pause for questions:
+1. Your job: you are going to {{dest_city}}, {{dest_country}}, to {{employer_name}}. Ask them to confirm.
+2. Only an employment visa, never a visit visa. A written contract with the salary. A receipt for every payment.
+3. Your passport stays with you, except for official visa stamping. PBBY insurance protects you.
+4. If the employer causes trouble: do not sign papers you cannot read; note the dates and keep photos of your documents; tell Saathi on the weekly call.
+5. Whom to tell: Saathi calls you every week. Abroad, complain on MADAD (madad.gov.in) or to the Indian Embassy. A complaint against the agent goes on eMigrate. Your family will hear from Saathi if something goes wrong.
+Then check understanding with two questions: "మీ పాస్‌పోర్ట్ ఎవరి దగ్గర ఉండాలి?" and "అక్కడ సమస్య వస్తే ఎవరికి చెప్పాలి?"
+Call record_checkin with call_kind = briefing and briefing_understood = yes if both answers were right, otherwise no.
+Use only facts from this prompt and the Rules document. Do not describe any country's laws.
+
 If at any point they say they are in danger, being beaten, or need help: stop the questions and call record_checkin immediately.
 
 AFTER record_checkin
@@ -141,7 +152,7 @@ OTHER RULES
     "type": "object",
     "properties": {
       "case_id": {"type": "string", "description": "Always exactly {{case_id}} from the prompt."},
-      "call_kind": {"type": "string", "description": "Always exactly {{call_kind}} from the prompt: arrival or weekly."},
+      "call_kind": {"type": "string", "description": "Always exactly {{call_kind}} from the prompt: briefing, arrival or weekly."},
       "pickup_status": {"type": "string", "description": "Arrival call only: employer, other_person, nobody, not_arrived or unknown. Empty string on weekly calls."},
       "pickup_person": {"type": "string", "description": "Who picked them up, in the worker's words. Empty string if not asked."},
       "current_location": {"type": "string", "description": "Where they are now. Empty string if not asked."},
@@ -153,9 +164,10 @@ OTHER RULES
       "movement_restricted": {"type": "string", "description": "yes if they are NOT allowed to go out, otherwise no. Empty string if not asked."},
       "needs_help": {"type": "string", "description": "yes if they ask for help, otherwise no. Empty string if not asked."},
       "code_phrase_used": {"type": "string", "description": "yes only if they said the danger code phrase, otherwise no."},
+      "briefing_understood": {"type": "string", "description": "Briefing calls only: yes if they answered both check questions correctly, otherwise no. Empty string on other calls."},
       "notes": {"type": "string", "description": "Anything else important, in short English. Empty string if nothing."}
     },
-    "required": ["case_id", "call_kind", "pickup_status", "pickup_person", "current_location", "salary_received", "months_unpaid", "passport_with_worker", "food_ok", "threatened", "movement_restricted", "needs_help", "code_phrase_used", "notes"]
+    "required": ["case_id", "call_kind", "pickup_status", "pickup_person", "current_location", "salary_received", "months_unpaid", "passport_with_worker", "food_ok", "threatened", "movement_restricted", "needs_help", "code_phrase_used", "briefing_understood", "notes"]
   },
   "key": "custom_task",
   "value": {
@@ -166,7 +178,8 @@ OTHER RULES
       "salary_received": "%(salary_received)s", "months_unpaid": "%(months_unpaid)s",
       "passport_with_worker": "%(passport_with_worker)s", "food_ok": "%(food_ok)s",
       "threatened": "%(threatened)s", "movement_restricted": "%(movement_restricted)s",
-      "needs_help": "%(needs_help)s", "code_phrase_used": "%(code_phrase_used)s", "notes": "%(notes)s"
+      "needs_help": "%(needs_help)s", "code_phrase_used": "%(code_phrase_used)s",
+      "briefing_understood": "%(briefing_understood)s", "notes": "%(notes)s"
     },
     "url": "https://gulf-saathi-psi.vercel.app/tools/record-checkin",
     "api_token": null,

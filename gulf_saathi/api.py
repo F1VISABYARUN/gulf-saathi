@@ -204,7 +204,14 @@ def _worker_or_404(case_id: str) -> dict:
 
 @app.get("/dashboard", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
 def dashboard_list():
-    return dashboard.render_list(STORE.select("workers", order="updated_at"), status())
+    workers = STORE.select("workers", order="updated_at")
+    totals = cases.summary_counts(workers, cases.briefed_worker_ids(STORE))
+    return dashboard.render_list(workers, status(), totals)
+
+
+@app.get("/dashboard/agents", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
+def dashboard_agents():
+    return dashboard.render_agents(cases.agent_stats(STORE.select("workers", order="updated_at")))
 
 
 @app.get("/dashboard/new", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
@@ -266,8 +273,8 @@ def api_book_arrival(case_id: str):
 async def api_call_now(case_id: str, request: Request):
     body = await json_object(request) if await request.body() else {}
     kind = body.get("kind", "weekly")
-    if kind not in cases.CHECKIN_KINDS:
-        raise HTTPException(400, f"kind must be one of {cases.CHECKIN_KINDS}")
+    if kind not in cases.CALL_KINDS:
+        raise HTTPException(400, f"kind must be one of {cases.CALL_KINDS}")
     res = cases.schedule_call(STORE, _worker_or_404(case_id), kind, None, now())
     if not res["ok"]:
         raise HTTPException(502, res["error"])

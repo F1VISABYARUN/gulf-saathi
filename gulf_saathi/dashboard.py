@@ -19,7 +19,8 @@ ANSWER_LABELS = [
     ("months_unpaid", "Months unpaid"), ("passport_with_worker", "Passport with worker"),
     ("food_ok", "Food and room OK"), ("threatened", "Threats or violence"),
     ("movement_restricted", "Stopped from going out"), ("needs_help", "Asked for help"),
-    ("code_phrase_used", "Said the danger phrase"), ("notes", "Notes"),
+    ("code_phrase_used", "Said the danger phrase"), ("briefing_understood", "Understood the briefing"),
+    ("notes", "Notes"),
 ]
 
 
@@ -68,10 +69,14 @@ fieldset {{ border:1px solid var(--line); border-radius:10px; margin:0 0 16px; p
 legend {{ font-weight:700; padding:0 6px; }}
 #msg {{ margin-top:12px; font-weight:600; }}
 .nowrap {{ white-space:nowrap; }}
+.tiles {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:16px; }}
+.tile {{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }}
+.tile b {{ display:block; font-size:26px; line-height:1.2; }} .tile span {{ font-size:13px; color:var(--muted); }}
+.tile.warn b {{ color:#b42318; }}
 .flag {{ color:#b42318; font-size:13px; font-weight:600; }}
 .sms {{ background:#fef3f2; border:1px solid #fecdca; border-radius:8px; padding:10px; }}
 </style></head><body>
-<header><a href="/dashboard">Gulf Saathi</a><span class="sp"></span><a href="/dashboard/new">+ Register worker</a></header>
+<header><a href="/dashboard">Gulf Saathi</a><a href="/dashboard">Cases</a><a href="/dashboard/agents">Agents</a><span class="sp"></span><a href="/dashboard/new">+ Register worker</a></header>
 <main>{body}</main>
 <script>
 async function post(url, body, btn, okText) {{
@@ -98,7 +103,16 @@ def predeparture_flags(w: dict) -> list[str]:
     return flags
 
 
-def render_list(workers: list[dict], status: dict) -> str:
+def tiles(totals: dict) -> str:
+    items = [("registered", "Workers registered", False), ("in_india", "Still in India", False),
+             ("abroad", "Abroad", False), ("briefed", "Pre-departure briefing done", False),
+             ("at_risk", "At risk now (HIGH or CRITICAL)", True), ("red_flags", "Agent or fee red flags", True)]
+    return '<div class="tiles">' + "".join(
+        f'<div class="tile{" warn" if warn and totals.get(k) else ""}"><b>{esc(totals.get(k, 0))}</b><span>{esc(label)}</span></div>'
+        for k, label, warn in items) + "</div>"
+
+
+def render_list(workers: list[dict], status: dict, totals: dict | None = None) -> str:
     rows = []
     order = {"critical": 0, "high": 1, "medium": 2, "ok": 3}
     # Most serious first; within a level, most recently updated first.
@@ -120,9 +134,34 @@ def render_list(workers: list[dict], status: dict) -> str:
 <tbody>{''.join(rows)}</tbody></table></div>""")
     counts = {lvl: sum(1 for w in workers if (w.get("risk_level") or "ok") == lvl) for lvl in order}
     summary = " &nbsp; ".join(f"{badge(l)} {counts[l]}" for l in order)
-    return page("Cases", f"""<h1>Cases</h1>
+    return page("Cases", f"""<h1>Cases</h1>{tiles(totals) if totals else ""}
 <div class="card">{summary}<div class="muted" style="margin-top:8px">{status_line(status)} · refreshes every 15 seconds</div></div>
 <div class="card">{table}</div>""", refresh=15)
+
+
+def render_agents(stats: list[dict]) -> str:
+    rows = []
+    for g in stats:
+        listed = ('<span class="muted">in licensed list</span>' if g["licensed"] else
+                  '<span class="flag">not found in licensed list</span>' if g["not_in_list"] else
+                  '<span class="muted">not confirmed</span>')
+        cases = " ".join(f'<a class="nowrap" href="/dashboard/case/{esc(c)}">{esc(c)}</a>' for c in g["case_ids"])
+        risk = (f'{badge("critical")} {g["critical"]} ' if g["critical"] else "") + \
+               (f'{badge("high")} {g["at_risk"] - g["critical"]}' if g["at_risk"] - g["critical"] else "")
+        rows.append(f"""<tr><td><b>{esc(g['agent'])}</b><div>{listed}</div></td>
+<td>{esc(g['cases'])}<div class="muted" style="font-size:12px">{cases}</div></td>
+<td>{risk or '<span class="muted">—</span>'}</td>
+<td>{esc(g['over_cap']) if g['over_cap'] else '<span class="muted">—</span>'}</td>
+<td>{esc(', '.join(g['districts'])) or '<span class="muted">—</span>'}</td>
+<td>{'<br>'.join(esc(e) for e in g['employers']) or '<span class="muted">—</span>'}</td></tr>""")
+    table = ("<p class='muted'>No agents recorded yet.</p>" if not rows else
+             f"""<div class="wrap"><table><thead><tr><th>Agent</th><th>Workers</th><th>At risk now</th>
+<th>Paid over limit</th><th>District</th><th>Employers abroad</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>""")
+    return page("Agents", f"""<h1>Agents behind our cases</h1>
+<p class="muted">Every recruiting agent named in a Saathi case, riskiest first: how many of their workers are in trouble now,
+how many paid over the Rs 35,400 limit, and which employers abroad they sent people to. This describes our cases, not a
+finding about any agent.</p>
+<div class="card">{table}</div>""")
 
 
 def status_line(status: dict) -> str:
@@ -265,6 +304,14 @@ def render_case(w: dict, events: list[dict], status: dict) -> str:
     calls_disabled = "" if status["bolna"] else "disabled title='Bolna is not configured'"
     case_id = esc(w["case_id"])
 
+    briefings = [e["checkin"] for e in events if e["type"] == "checkin" and e["checkin"].get("kind") == "briefing"]
+    if briefings:
+        understood = (briefings[0].get("answers") or {}).get("briefing_understood")
+        briefing = (f"Briefing: done {esc(fmt_ist(briefings[0]['created_at']))}"
+                    + {True: " (understood)", False: " (did NOT understand: repeat it)"}.get(understood, ""))
+    else:
+        briefing = "Briefing: not done yet"
+
     # Things the caseworker should fix or do, shown above everything else.
     notices = []
     arrival_at = w.get("arrival_call_at")
@@ -286,11 +333,12 @@ def render_case(w: dict, events: list[dict], status: dict) -> str:
   <p>
     <button class="btn" {calls_disabled} onclick="post('/api/cases/{case_id}/call', {{kind:'arrival'}}, this, 'Arrival call requested')">Call now: arrival check</button>
     <button class="btn" {calls_disabled} onclick="post('/api/cases/{case_id}/call', {{kind:'weekly'}}, this, 'Weekly check-in call requested')">Call now: weekly check-in</button>
+    <button class="btn" {calls_disabled} onclick="post('/api/cases/{case_id}/call', {{kind:'briefing'}}, this, 'Briefing call requested')">Call now: pre-departure briefing</button>
     <a class="btn secondary" href="/dashboard/case/{case_id}/packet.txt">Download English case packet</a>
     <a class="btn secondary" href="/dashboard/case/{case_id}/edit">Edit details</a>
   </p><div id="msg"></div>
   <div class="muted">Status: {esc(w.get('status'))} · Last contact: {esc(fmt_ist(w.get('last_contact_at')))} ·
-  Missed in a row: {esc(w.get('missed_checkins') or 0)} · Next call: {esc(fmt_ist(w.get('next_call_at')))} · refreshes every 20 seconds</div>
+  Missed in a row: {esc(w.get('missed_checkins') or 0)} · Next call: {esc(fmt_ist(w.get('next_call_at')))} · {briefing} · refreshes every 20 seconds</div>
 </div>
 <div class="card"><h2>Pre-departure trail</h2><div class="grid">
   {kv('Worker phone', w.get('worker_phone'))}{kv('Family', ' · '.join(x for x in [w.get('family_name'), w.get('family_relation'), w.get('family_phone')] if x))}

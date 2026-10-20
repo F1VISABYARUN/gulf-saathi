@@ -20,7 +20,8 @@ IST = timezone(timedelta(hours=5, minutes=30))  # India has no daylight saving
 CHECKIN_DAYS = int(os.getenv("GS_CHECKIN_DAYS", "7"))
 RETRY_HOURS = {"arrival": 3, "weekly": 24}  # after a missed call
 DEFAULT_CODE_PHRASE = "అమ్మ బాగుందా"  # "Is Amma well?": says "I can't talk freely" without saying it
-CHECKIN_KINDS = ("arrival", "weekly")
+CHECKIN_KINDS = ("arrival", "weekly")  # calls that count towards misses and alerts
+CALL_KINDS = (*CHECKIN_KINDS, "briefing")  # briefing: pre-departure, before the worker flies
 
 LEVELS = ("ok", "medium", "high", "critical")
 
@@ -167,6 +168,7 @@ def normalize_answers(raw: dict) -> dict:
         "movement_restricted": yes_no(raw.get("movement_restricted")),
         "needs_help": yes_no(raw.get("needs_help")),
         "code_phrase_used": yes_no(raw.get("code_phrase_used")),
+        "briefing_understood": yes_no(raw.get("briefing_understood")),
         "notes": text("notes"),
     }
 
@@ -479,14 +481,17 @@ def record_checkin(store, data: dict, now: datetime) -> dict:
         return {"ok": False, "instruction": "The case was not found. Thank the caller, do not promise anything, "
                                             "and say Saathi will call back."}
     kind = str(data.get("call_kind") or "weekly").strip().lower()
-    kind = kind if kind in CHECKIN_KINDS else "weekly"
+    kind = kind if kind in CALL_KINDS else "weekly"
     answers = normalize_answers(data)
+    # Danger answers count on any call, a briefing included.
     level, reasons = assess(answers)
     store.insert("checkins", {"worker_id": worker["id"], "kind": kind, "answers": answers,
                               "risk_level": level, "risk_reasons": reasons, "created_at": iso(now)})
     escalation = escalate(store, worker, level, reasons, now) if rank(level) >= rank("high") else None
-    changes = {"last_contact_at": iso(now), "missed_checkins": 0, "risk_reasons": reasons,
-               "risk_level": overall_level(store, worker["id"], level), "updated_at": iso(now)}
+    changes = {"last_contact_at": iso(now), "missed_checkins": 0, "updated_at": iso(now)}
+    if kind != "briefing" or level != "ok":
+        # A quiet briefing says nothing about safety abroad: leave the risk as it is.
+        changes.update({"risk_reasons": reasons, "risk_level": overall_level(store, worker["id"], level)})
     if kind == "arrival":
         changes["status"] = "abroad"
     store.update("workers", {"id": worker["id"]}, changes)
@@ -505,9 +510,71 @@ def record_checkin(store, data: dict, now: datetime) -> dict:
     elif level == "high":
         say = ("Say: we have told your family and prepared your complaint. Do not promise that the salary or the "
                "passport will be recovered. Say Saathi will call again soon.")
+    elif kind == "briefing":
+        say = ("Thank them warmly. Say Saathi will call on the day they land, and every week after that. "
+               "Remind them to keep this number.")
     else:
         say = "Thank them warmly. Say Saathi will call again next week."
     return {"ok": True, "risk_level": level, "escalated": bool(escalation), "instruction": say}
+
+
+def briefed_worker_ids(store) -> dict:
+    """worker id -> the latest briefing check-in, for workers who had one."""
+    out = {}
+    for ch in store.select("checkins", order="created_at", desc=False):
+        if ch.get("kind") == "briefing":
+            out[ch["worker_id"]] = ch
+    return out
+
+
+def has_predeparture_flags(w: dict) -> bool:
+    return w.get("agent_check") in ("not_found", "need_more_info") or w.get("fee_status") == "over_cap"
+
+
+def summary_counts(workers: list[dict], briefed: dict) -> dict:
+    """The numbers a state office asks for first."""
+    return {
+        "registered": len(workers),
+        "in_india": sum(1 for w in workers if w.get("status") == "registered"),
+        "abroad": sum(1 for w in workers if w.get("status") == "abroad"),
+        "briefed": sum(1 for w in workers if w["id"] in briefed),
+        "at_risk": sum(1 for w in workers if rank(w.get("risk_level")) >= rank("high")),
+        "red_flags": sum(1 for w in workers if has_predeparture_flags(w)),
+    }
+
+
+def _agent_key(w: dict) -> str | None:
+    detail = w.get("agent_check_detail") or {}
+    if w.get("agent_check") == "confirmed_in_list" and detail.get("candidates"):
+        return detail["candidates"][0]["agency"].upper()
+    name = w.get("agent_name") or w.get("agent_owner")
+    return " ".join(name.split()).upper() if name else None
+
+
+def agent_stats(workers: list[dict]) -> list[dict]:
+    """Per recruiting agent named in our cases: how its workers are doing. The
+    evidence a state agent register would want; no claim about the agent itself."""
+    groups: dict[str, dict] = {}
+    for w in workers:
+        key = _agent_key(w)
+        if not key:
+            continue
+        g = groups.setdefault(key, {"agent": key, "licensed": False, "cases": 0, "not_in_list": 0, "over_cap": 0,
+                                    "at_risk": 0, "critical": 0, "districts": set(), "employers": set(), "case_ids": []})
+        g["cases"] += 1
+        g["case_ids"].append(w["case_id"])
+        g["licensed"] |= w.get("agent_check") == "confirmed_in_list"
+        g["not_in_list"] += w.get("agent_check") in ("not_found", "need_more_info")
+        g["over_cap"] += w.get("fee_status") == "over_cap"
+        g["at_risk"] += rank(w.get("risk_level")) >= rank("high")
+        g["critical"] += w.get("risk_level") == "critical"
+        if w.get("agent_district"):
+            g["districts"].add(" ".join(w["agent_district"].split()).title())
+        if w.get("employer_name"):
+            where = ", ".join(x for x in (w.get("dest_city"), w.get("dest_country")) if x)
+            g["employers"].add(" ".join(w["employer_name"].split()) + (f" ({where})" if where else ""))
+    out = [{**g, "districts": sorted(g["districts"]), "employers": sorted(g["employers"])} for g in groups.values()]
+    return sorted(out, key=lambda g: (-g["critical"], -g["at_risk"], -g["not_in_list"], -g["over_cap"], -g["cases"], g["agent"]))
 
 
 def resolve_escalation(store, escalation_id: str, now: datetime) -> dict | None:

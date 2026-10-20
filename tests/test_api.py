@@ -159,3 +159,25 @@ def test_book_arrival_without_a_time(mem):
                                                       "family_phone": "9441808262"})
     r = client.post(f"/api/cases/{r.json()['case_id']}/book-arrival", auth=AUTH)
     assert r.status_code == 400 and "no arrival-day call time" in r.json()["detail"]
+
+
+def test_state_view_agents_page_and_briefing(mem):
+    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "M", "worker_phone": "9491750870",
+                                                      "family_phone": "9441808262", "agent_name": "<b>Fake</b> Overseas",
+                                                      "payments": "300000"})
+    case_id = r.json()["case_id"]
+    assert client.get("/dashboard/agents").status_code == 401
+    agents = client.get("/dashboard/agents", auth=AUTH).text
+    assert "&lt;B&gt;FAKE&lt;/B&gt; OVERSEAS" in agents and "<b>FAKE" not in agents
+    assert "not found in licensed list" in agents and case_id in agents
+
+    home = client.get("/dashboard", auth=AUTH).text
+    assert "Workers registered" in home and "Agent or fee red flags" in home
+
+    # "Call now" accepts a briefing (Bolna is off in tests, so it reports that).
+    r = client.post(f"/api/cases/{case_id}/call", auth=AUTH, json={"kind": "briefing"})
+    assert r.status_code == 502
+    assert "Briefing: not done yet" in client.get(f"/dashboard/case/{case_id}", auth=AUTH).text
+    client.post("/tools/record-checkin", json={"case_id": case_id, "call_kind": "briefing", "briefing_understood": "yes"})
+    page = client.get(f"/dashboard/case/{case_id}", auth=AUTH).text
+    assert "Briefing: done" in page and "(understood)" in page and "Understood the briefing" in page

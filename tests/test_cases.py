@@ -392,3 +392,49 @@ def test_edit_clears_a_next_call_time_with_nothing_booked(store, licensed, place
 
     booked = register(store, licensed)["worker"]  # arrival call really booked for 25 Oct
     assert cases.update_worker(store, licensed, booked, YADAIAH, NOW)["next_call_at"] == "2026-10-25T04:00:00+00:00"
+
+
+# --- CM's three points: state view and pre-departure briefing ------------------------
+
+def test_summary_counts_and_agent_stats(store, licensed, placed, texts):
+    a = register(store, licensed, arrival_call_at="", payments="20000")["worker"]  # licensed Gagan, fee ok
+    b = register(store, licensed, arrival_call_at="", agent_name="Golconda Overseas", agent_owner="",
+                 agent_district="jagtial", employer_name="Al Noor Cleaning LLC")["worker"]
+    c = register(store, licensed, arrival_call_at="", agent_name="GOLCONDA  OVERSEAS", agent_owner="",
+                 agent_district="Jagtial", employer_name="Desert Star", dest_city="Riyadh", dest_country="Saudi Arabia")["worker"]
+    record_checkin(store, {"case_id": c["case_id"], "call_kind": "arrival", "pickup_status": "other_person"}, NOW)
+    record_checkin(store, {"case_id": a["case_id"], "call_kind": "briefing", "briefing_understood": "yes"}, NOW)
+
+    workers = store.select("workers")
+    totals = cases.summary_counts(workers, cases.briefed_worker_ids(store))
+    assert totals == {"registered": 3, "in_india": 2, "abroad": 1, "briefed": 1, "at_risk": 1, "red_flags": 2}
+
+    stats = cases.agent_stats(workers)
+    golconda, gagan = stats  # riskiest first
+    assert golconda["agent"] == "GOLCONDA OVERSEAS"  # spacing and case don't split the group
+    assert (golconda["cases"], golconda["not_in_list"], golconda["over_cap"], golconda["critical"]) == (2, 2, 2, 1)
+    assert golconda["districts"] == ["Jagtial"]
+    assert golconda["employers"] == ["Al Noor Cleaning LLC (Dubai, UAE)", "Desert Star (Riyadh, Saudi Arabia)"]
+    assert gagan["agent"] == "GAGAN MAN POWER CONSULTANTS" and gagan["licensed"] and gagan["over_cap"] == 0
+
+
+def test_briefing_is_recorded_without_touching_risk(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    record_checkin(store, {"case_id": w["case_id"], "salary_received": "no"}, NOW)  # medium
+    r = record_checkin(store, {"case_id": w["case_id"], "call_kind": "briefing", "briefing_understood": "no"}, NOW)
+    assert r["risk_level"] == "ok" and "land" in r["instruction"]
+    assert store.get("workers", id=w["id"])["risk_level"] == "medium"  # unchanged
+    assert cases.briefed_worker_ids(store)[w["id"]]["answers"]["briefing_understood"] is False
+
+
+def test_danger_on_a_briefing_call_still_alerts(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    r = record_checkin(store, {"case_id": w["case_id"], "call_kind": "briefing", "threatened": "yes"}, NOW)
+    assert r["risk_level"] == "critical" and r["escalated"] and len(texts) == 1
+
+
+def test_missed_briefing_is_not_a_missed_checkin(store, licensed, placed, texts):
+    w = register(store, licensed, arrival_call_at="")["worker"]
+    r = process_call_record(store, payload("exec-br", w["case_id"], "briefing", "no-answer", talked=False), NOW)
+    assert r["processed"] is False
+    assert store.get("workers", id=w["id"])["missed_checkins"] == 0 and texts == [] and placed == []
