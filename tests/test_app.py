@@ -52,3 +52,10 @@ def test_check_agent_tolerates_missing_fields_from_bolna():
     r = c.post("/check-agent", json=body)
     assert r.status_code == 200
     assert r.json()["candidates"][0]["agency"] == "GAGAN MAN POWER CONSULTANTS"
+
+
+def test_check_agent_from_browser_link():
+    from gulf_saathi.api import app as api
+
+    r = TestClient(api).get("/check-agent", params={"owner": "బొల్లె గంగా నరసయ్య"}).json()
+    assert r["candidates"][0]["agency"] == "GAGAN MAN POWER CONSULTANTS"

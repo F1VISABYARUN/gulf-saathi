@@ -42,6 +42,12 @@ def health():
     return {"service": "gulf-saathi", "licensed_agents_loaded": len(licensed.agents)}
 
 
+@app.get("/check-agent")
+def check_agent_get(agency: str = "", owner: str = "", district: str = "", licence_no: str = "", query: str = ""):
+    """Same check from a browser link, e.g. /check-agent?owner=Seedi Kavitha"""
+    return check_agent(AgentQuery(agency=agency, owner=owner, district=district, licence_no=licence_no, query=query))
+
+
 @app.post("/check-agent")
 def check_agent(q: AgentQuery):
     """Bolna custom tool: is this agent in the MEA licensed list?
