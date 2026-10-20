@@ -383,3 +383,12 @@ def test_edit_corrects_details_and_keeps_the_case(store, licensed, placed):
     assert edited["status"] == "registered" and edited["risk_level"] == "ok"
     with pytest.raises(CaseError, match="too easy"):
         cases.update_worker(store, licensed, w, {**YADAIAH, "code_phrase": "anna"}, NOW)
+
+
+def test_edit_clears_a_next_call_time_with_nothing_booked(store, licensed, placed):
+    w = register(store, licensed, arrival_call_at="")["worker"]
+    store.update("workers", {"id": w["id"]}, {"next_call_at": "2026-10-30T10:57:00+00:00"})  # stale, as on GS-W9HWSY
+    assert cases.update_worker(store, licensed, w, YADAIAH, NOW)["next_call_at"] is None
+
+    booked = register(store, licensed)["worker"]  # arrival call really booked for 25 Oct
+    assert cases.update_worker(store, licensed, booked, YADAIAH, NOW)["next_call_at"] == "2026-10-25T04:00:00+00:00"

@@ -326,7 +326,11 @@ def update_worker(store, licensed: LicensedList, worker: dict, data: dict, now: 
     """Correct a case's details. The case ID, status, risk and timeline stay as they are.
     Does not book or move calls: the case page offers that."""
     fields = clean_case_fields(data, licensed)
-    store.update("workers", {"id": worker["id"]}, {**fields, "updated_at": iso(now)})
+    changes = {**fields, "updated_at": iso(now)}
+    if not _other_booked_call(store, worker["id"], "", now):
+        # Clears a "next call" time saved when booking had actually failed.
+        changes["next_call_at"] = None
+    store.update("workers", {"id": worker["id"]}, changes)
     return store.get("workers", id=worker["id"])
 
 
