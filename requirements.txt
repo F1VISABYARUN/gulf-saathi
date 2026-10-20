@@ -1,8 +1,4 @@
+# Runtime dependencies for the deployed API (keep in sync with pyproject.toml).
 fastapi>=0.110
-uvicorn>=0.29
-python-multipart>=0.0.9
-twilio>=9.0
 rapidfuzz>=3.0
 indic-transliteration>=2.3
-pytest>=8.0
-httpx>=0.27

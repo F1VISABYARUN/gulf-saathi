@@ -30,3 +30,14 @@ def test_offer_analyze_api():
 def test_admin_requires_token():
     assert client.get("/admin/escalations").status_code == 401
     assert client.get("/admin/escalations", headers={"X-Admin-Token": "test-token"}).status_code == 200
+
+
+def test_bolna_check_agent_api():
+    from gulf_saathi.api import app as api
+
+    c = TestClient(api)
+    assert c.get("/").json()["licensed_agents_loaded"] == 2447
+    r = c.post("/check-agent", json={"owner": "Seedi Kavitha"}).json()
+    assert r["match"] == "needs_confirmation" and r["candidates"][0]["agency"] == "GTM INTERNATIONAL"
+    assert c.post("/check-agent", json={"query": "చెల్లా మల్లేశం జగిత్యాల్"}).json()["match"] == "confirmed_in_list"
+    assert c.post("/check-agent", json={"agency": "Golconda Overseas"}).json()["match"] == "not_found"

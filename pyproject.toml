@@ -1,0 +1,13 @@
+[project]
+name = "gulf-saathi"
+version = "0.1.0"
+requires-python = ">=3.10"
+# Runtime dependencies for the deployed API. Dev/test-only packages are in requirements-dev.txt.
+dependencies = [
+    "fastapi>=0.110",
+    "rapidfuzz>=3.0",
+    "indic-transliteration>=2.3",
+]
+
+[tool.vercel]
+entrypoint = "gulf_saathi.api:app"

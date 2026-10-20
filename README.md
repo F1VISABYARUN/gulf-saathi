@@ -24,7 +24,7 @@ cap, passport deposits, GPay or cash payments and "today only" pressure.
 ## Run it
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 python -m pytest                      # 25 tests
 python -m gulf_saathi.simulate        # talk to the line in a terminal
 python -m gulf_saathi.simulate --checkin --lang te
