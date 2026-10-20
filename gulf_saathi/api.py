@@ -57,13 +57,15 @@ def require_bolna_token(token: str = "") -> None:
 
 def require_dashboard(request: Request) -> None:
     """Browser password prompt. The dashboard shows workers' and families' personal data."""
-    expected = os.getenv("GS_DASHBOARD_PASSWORD", "")
+    # Spaces or a line break copied along with a value pasted into Vercel would
+    # otherwise make the right password fail.
+    expected = os.getenv("GS_DASHBOARD_PASSWORD", "").strip()
     if not expected:
         raise HTTPException(503, "Dashboard is off: set GS_DASHBOARD_PASSWORD in Vercel and redeploy.")
     auth = request.headers.get("authorization", "")
     if auth.lower().startswith("basic "):
         try:
-            given = base64.b64decode(auth[6:]).decode("utf-8").split(":", 1)[1]
+            given = base64.b64decode(auth[6:]).decode("utf-8").split(":", 1)[1].strip()
         except Exception:
             given = ""
         if secrets.compare_digest(given.encode(), expected.encode()):
@@ -111,7 +113,7 @@ async def api_demo_call(request: Request):
     """"Get a call from Saathi" on the home page. Needs the demo code, since every
     call costs Bolna credits."""
     data = await json_object(request)
-    expected = os.getenv("GS_DEMO_CODE", "")
+    expected = os.getenv("GS_DEMO_CODE", "").strip()
     if not expected or not demo_agent_id():
         raise HTTPException(503, "Demo calls are off (GS_DEMO_CODE / BOLNA_AGENT_ID not set).")
     if not secrets.compare_digest(str(data.get("code") or "").strip().encode(), expected.encode()):

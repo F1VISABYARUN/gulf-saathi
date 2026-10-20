@@ -228,3 +228,13 @@ def test_report_problem_tool(mem):
     r = client.post("/tools/report-problem", json={"caller_phone": "+971501112222", "needs_help": "yes",
                                                    "case_id": "%(case_id)s"}).json()
     assert r["ok"] and r["risk_level"] == "critical" and r["new_case"]
+
+
+def test_passwords_ignore_spaces_pasted_into_vercel(mem, monkeypatch):
+    monkeypatch.setenv("GS_DASHBOARD_PASSWORD", " pw-123\n")
+    assert client.get("/dashboard", auth=("x", "pw-123")).status_code == 200
+    monkeypatch.setenv("GS_DEMO_CODE", "judge-2026 \n")
+    monkeypatch.setenv("BOLNA_AGENT_ID", "agent-1")
+    monkeypatch.setattr(api.bolna, "place_call", lambda *a, **k: {"ok": True, "execution_id": "e", "error": None})
+    api._last_demo_call.clear()
+    assert client.post("/api/demo-call", json={"phone": "9876543210", "code": "judge-2026"}).status_code == 200
