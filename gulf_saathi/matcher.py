@@ -309,7 +309,8 @@ def _result(match: str, cands: list[tuple[Agent, float]], reason: str) -> dict:
     }[match]
     return {
         "match": match,
-        "candidates": [{**a.public(), "score": round(s, 1)} for a, s in cands],
+        # Scores are for ranking; the district bonus can push one past 100, so cap what's shown.
+        "candidates": [{**a.public(), "score": round(min(s, 100), 1)} for a, s in cands],
         "reason": reason,
         "instruction": say,
     }
