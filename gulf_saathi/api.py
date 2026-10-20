@@ -5,8 +5,10 @@ Deployed on Vercel (see pyproject.toml). Run locally with:
 """
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from .matcher import LicensedList
 
@@ -20,6 +22,19 @@ class AgentQuery(BaseModel):
     district: str = ""
     licence_no: str = ""
     query: str = ""  # free text, when the caller's words weren't split into fields
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def blank_if_missing(cls, v: Any) -> str:
+        # Bolna fills a request template from what its LLM extracted. A field the
+        # caller never mentioned can arrive as null, an unfilled placeholder such as
+        # {"$var": "district"} or "%(district)s", or "none". Treat all of these as blank.
+        if not isinstance(v, str):
+            return ""
+        v = v.strip()
+        if v.startswith("%(") or v.lower() in ("none", "null", "unknown", "n/a", "na", "-"):
+            return ""
+        return v
 
 
 @app.get("/")

@@ -41,3 +41,14 @@ def test_bolna_check_agent_api():
     assert r["match"] == "needs_confirmation" and r["candidates"][0]["agency"] == "GTM INTERNATIONAL"
     assert c.post("/check-agent", json={"query": "చెల్లా మల్లేశం జగిత్యాల్"}).json()["match"] == "confirmed_in_list"
     assert c.post("/check-agent", json={"agency": "Golconda Overseas"}).json()["match"] == "not_found"
+
+
+def test_check_agent_tolerates_missing_fields_from_bolna():
+    from gulf_saathi.api import app as api
+
+    c = TestClient(api)
+    body = {"agency": "Gagan Manpower", "owner": None, "district": {"$var": "district"},
+            "licence_no": "%(licence_no)s", "query": "unknown"}
+    r = c.post("/check-agent", json=body)
+    assert r.status_code == 200
+    assert r.json()["candidates"][0]["agency"] == "GAGAN MAN POWER CONSULTANTS"
