@@ -1,0 +1,147 @@
+"""Must-pass cases for the agent matcher against the real 2,447-agent licensed list.
+
+Includes the exact speech-to-text strings from the first live Bolna test calls.
+"""
+import pytest
+
+from gulf_saathi.matcher import LicensedList
+
+GAGAN = "GAGAN MAN POWER CONSULTANTS"
+CMR = "CMR INTERNATIONAL MANPOWER CONSULTANCY"
+GTM = "GTM INTERNATIONAL"
+
+
+@pytest.fixture(scope="module")
+def agents():
+    return LicensedList.load()
+
+
+def top(result):
+    return result["candidates"][0]["agency"] if result["candidates"] else None
+
+
+def test_full_list_loaded(agents):
+    assert len(agents.agents) == 2447
+
+
+# --- Real agents are found ------------------------------------------------
+
+@pytest.mark.parametrize("kwargs, agency", [
+    ({"owner": "Bolle Ganga Narsaiah"}, GAGAN),
+    ({"query": "బొల్లె గంగా నరసయ్య"}, GAGAN),
+    ({"agency": "Gagan Manpower"}, GAGAN),
+    ({"query": "గగన్ మ్యాన్‌పవర్"}, GAGAN),
+    ({"owner": "Chella Mallesham"}, CMR),
+    ({"agency": "CMR International"}, CMR),
+    ({"query": "సి ఎం ఆర్ ఇంటర్నేషనల్"}, CMR),
+    ({"owner": "Cheeti Kavitha"}, GTM),
+    ({"agency": "GTM International"}, GTM),
+])
+def test_real_agent_is_top_candidate(agents, kwargs, agency):
+    r = agents.check(**kwargs)
+    assert r["match"] in ("confirmed_in_list", "needs_confirmation")
+    assert top(r) == agency
+
+
+def test_gagan_manpower_is_not_gagan_overseas(agents):
+    r = agents.check(agency="Gagan Manpower")
+    assert top(r) == GAGAN
+    assert r["match"] == "needs_confirmation"  # name alone never confirms
+
+
+# --- Confirmation needs more than one piece of evidence -------------------
+
+@pytest.mark.parametrize("kwargs, agency", [
+    ({"agency": "Gagan Manpower", "owner": "Bolle Ganga Narsaiah"}, GAGAN),
+    ({"agency": "Gagan Manpower", "district": "Jagtial"}, GAGAN),
+    ({"agency": "Gagan Manpower", "district": "జగిత్యాల"}, GAGAN),
+    ({"query": "గగన్ మ్యాన్‌పవర్ జగిత్యాల"}, GAGAN),
+    ({"query": "చెల్లా మల్లేశం జగిత్యాల్"}, CMR),
+    ({"licence_no": "RA5596427"}, GAGAN),
+    ({"licence_no": "B-1293"}, GAGAN),
+    ({"licence_no": "B-1293/TEL/PART/100/5/9657/2019"}, GAGAN),
+])
+def test_confirmed(agents, kwargs, agency):
+    r = agents.check(**kwargs)
+    assert r["match"] == "confirmed_in_list"
+    assert top(r) == agency
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"owner": "Bolle Ganga Narsaiah"},
+    {"owner": "Cheeti Kavitha"},
+    {"agency": "CMR International"},
+])
+def test_one_name_alone_only_needs_confirmation(agents, kwargs):
+    assert agents.check(**kwargs)["match"] == "needs_confirmation"
+
+
+def test_wrong_district_does_not_confirm(agents):
+    r = agents.check(agency="Gagan Manpower", district="Nizamabad")
+    assert r["match"] != "confirmed_in_list"
+
+
+# --- Misheard names become candidates, never a wrong confirmation ---------
+
+@pytest.mark.parametrize("kwargs, agency", [
+    ({"owner": "Seedi Kavitha"}, GTM),
+    ({"query": "సీది కవిత"}, GTM),  # from live call 1
+    ({"query": "బొండె గంగా నరసయ్య"}, GAGAN),  # from live call 2
+    ({"query": "చెల్లా మల్లేశ్వరం"}, CMR),  # from live call 1
+])
+def test_misheard_name_needs_confirmation(agents, kwargs, agency):
+    r = agents.check(**kwargs)
+    assert r["match"] == "needs_confirmation"
+    assert top(r) == agency
+
+
+def test_vision_tours_does_not_confirm_vision_overseas(agents):
+    r = agents.check(agency="Vision Tours and Travels")
+    assert r["match"] != "confirmed_in_list"
+    assert top(r) == "M/s VISION TOURS AND TRAVELS"
+
+
+def test_made_up_name_sharing_a_real_word_is_only_a_candidate(agents):
+    # "Telangana" is the distinctive word of TOMCOM's own registration, so the
+    # line should ask "did you mean TOMCOM?", not say "not found" or confirm.
+    r = agents.check(query="Telangana Gulf Placements Nirmal")
+    assert r["match"] == "needs_confirmation"
+    assert top(r) == "TELANGANA OVERSEAS MANPOWER COMPANY LIMITED"
+
+
+def test_common_first_name_gives_several_candidates(agents):
+    r = agents.check(query="కవిత")
+    assert r["match"] == "needs_confirmation" and len(r["candidates"]) > 1
+
+
+# --- Made-up agents are not found -----------------------------------------
+
+FAKES = [
+    "Golconda Overseas", "Ramesh Travels Jagtial", "Charminar Gulf Jobs", "Kakatiya Dubai Manpower",
+    "Godavari Overseas Nizamabad", "Sircilla Gulf Consultants", "Lakshmi Narasimha Travels Kamareddy",
+    "Bathukamma Overseas", "Yadagiri Manpower Services", "Ramagundam Recruitment Agency",
+    "Pochampally Recruiters", "Bhadradri Overseas Consultancy", "Warangal Fort Travels",
+    "Moosi River Manpower", "Saudi Dream Jobs Jagtial", "Dubai Fast Visa Services", "Ankapur Overseas",
+    "Metpally Gulf Agency", "Korutla Travels and Tours", "Armoor International Manpower",
+    "Bodhan Desert Jobs", "Vemulawada Overseas", "Dharmapuri Gulf Consultants", "Raju Bhai Visa Agent",
+    # Garbled live-call utterances (call 1 wrongly answered "Vision Tours is licensed" to the first)
+    "విజన్ పేరు చిల్లా మల్లేష్ అంజే దేకి త్యాగు", "చెల్లా మలేషియన్ బైక్", "జగతి అల్లు",
+]
+
+
+@pytest.mark.parametrize("name", FAKES)
+def test_made_up_agent_not_found(agents, name):
+    assert agents.check(query=name)["match"] == "not_found"
+    assert agents.check(agency=name)["match"] == "not_found"
+
+
+@pytest.mark.parametrize("name", ["Overseas", "Manpower Consultants", "Gulf Travels", ""])
+def test_generic_words_alone_find_nobody(agents, name):
+    assert agents.check(agency=name)["match"] == "not_found"
+
+
+def test_result_never_uses_endorsement_words(agents):
+    for kwargs in ({"licence_no": "RA5596427"}, {"agency": "Gagan Manpower"}, {"agency": "Golconda Overseas"}):
+        text = str(agents.check(**kwargs)).lower()
+        for word in ("safe", "trusted", "genuine", "good agent"):
+            assert word not in text
