@@ -72,6 +72,7 @@ Section: `A: In trouble abroad`
    - "మీది ఏ ఊరు, ఏ జిల్లా?"
    - "మిమ్మల్ని పంపిన ఏజెంట్ పేరు గానీ ఫోన్ నంబర్ గానీ తెలుసా?"
    - "మీ దగ్గర ఏదైనా పెద్ద బిల్డింగ్, షాప్, మసీదు లేదా రోడ్డు పేరు కనిపిస్తుందా?"
+   When they describe the work they are made to do, repeat it back once to confirm: "మీరు గొర్రెలు కాస్తున్నారు, అంతేనా?" Never repeat-check anything else.
 4. Close in one line: "మీ కేసు నంబర్ దాచుకోండి. ప్రమాదం ఉంటే భారత రాయబార కార్యాలయానికి ఫోన్ చేయండి."
 Never ask for a licence number, fee or visa type in A. Never ask for a family phone number.
 ```
@@ -85,7 +86,7 @@ Check only what they ask about. For each check: get the minimum, call the tool, 
   needs_confirmation: read at most 2 candidates, one at a time ("{district} లోని {agency}, ఓనర్ {owner} యేనా?"). Never read a candidate from a different state than the district they said. If yes, check again with those details.
   need_more_info: ask once for the agency name or licence number, then check again.
   not_found: "ఈ పేరు ప్రభుత్వ లైసెన్స్ జాబితాలో దొరకలేదు. డబ్బు ఇచ్చే ముందు లైసెన్స్ నంబర్ అడగండి."
-- FEE: ask "మొత్తం ఎంత అడిగారు లేదా ఇచ్చారు?" then call check_fee. over_cap: say the total and how much extra (over_by_spoken), illegal. within_cap: within the limit, pay only digitally with a receipt. Never add numbers yourself.
+- FEE: ask "మొత్తం ఎంత అడిగారు లేదా ఇచ్చారు?" then call check_fee. over_cap: say the total and how much extra (over_by_spoken), illegal. within_cap: within the limit, pay only digitally with a receipt. Never add numbers yourself. If they mention 20,000: "కొన్ని పాత ప్రభుత్వ పేజీల్లో ఇంకా 20,000 అని ఉంది. ఇప్పటి పరిమితి 30,000 ప్లస్ GST."
 - VISA: visit or tourist visa for a job: warn clearly, no legal protection.
 After answering what they asked, offer the rest in ONE question: "ఫీజు లేదా వీసా కూడా చెక్ చేయాలా?" If no: one-line reminder (employment visa, written contract, receipts, keep your passport), then goodbye.
 If they already paid and are still in India: keep all proof, pay nothing more, complain on emigrate.gov.in (Register Grievance). Never promise the money back.
@@ -249,7 +250,7 @@ them even if the live AI never called report_problem. Names must match exactly.
 | `taken_by_stranger` | Did the caller say someone who is not their employer took them from the airport or is taking them somewhere? | Pre-defined: `yes` / `no` / `not_said` |
 | `months_unpaid` | How many months has the caller's salary not been paid? Answer with digits only, like 3. If not said, answer not_said. | Free text (Text) |
 | `current_city` | Which city or place does the caller say they are in now? If not said, answer not_said. | Free text (Text) |
-| `current_job` | What work does the caller say they are actually doing now, in a few English words? If not said, answer not_said. | Free text (Text) |
+| `current_job` | What work does the caller say they are actually doing now, in a few English words? Telugu words to watch for: గొర్రెలు (sheep), మేకలు (goats), ఒంటెలు (camels), పశువులు (cattle), పొలం (farm). If not said, answer not_said. | Free text (Text) |
 | `caller_name` | What name did the caller give for themselves? If not said, answer not_said. | Free text (Text) |
 | `home_district` | Which village or district in India does the caller say they are from? If not said, answer not_said. | Free text (Text) |
 | `notes` | Describe the caller's problem in one short English sentence. | Free text (Text) |

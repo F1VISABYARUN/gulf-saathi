@@ -8,20 +8,20 @@ from __future__ import annotations
 from .dashboard import esc
 
 GATES = [
-    ("Agent", "ఏజెంట్", "Is this agent in the government licensed list? Saathi checks the MEA list by name, owner, district or licence number.",
-     "check_agent"),
+    ("Agent", "ఏజెంట్", "Is this agent in the government licensed list? Saathi checks the MEA eMigrate active list "
+     "(8 Apr 2026) by name, owner, district or licence number.", "live"),
     ("Job", "ఉద్యోగం", "The job the agent promises is written into the case, so it can be compared with the visa and with the work done abroad.",
-     "case"),
+     "live"),
     ("Payment", "డబ్బు", "Every payment is added up and compared with the legal service-fee limit (Rs 30,000 + 18% GST). Who the money went to is recorded.",
-     "check_fee"),
+     "live"),
     ("Visa", "వీసా", "A visit or tourist visa for a job, or a visa naming a different job, is flagged: do not pay more or travel until it is sorted out.",
-     "case"),
+     "live"),
     ("Contract", "ఒప్పందం", "A short pre-departure briefing call explains contract, passport and receipts in Telugu, then checks they understood.",
-     "briefing"),
+     "testing"),
     ("Airport", "విమానాశ్రయం", "On arrival day Saathi calls: did the registered employer pick you up, or someone else?",
-     "arrival"),
+     "testing"),
     ("Workplace", "పని చోటు", "Every week: salary, passport, food, threats, freedom to go out, and is this the job and city you were promised?",
-     "weekly"),
+     "testing"),
 ]
 
 STYLE = """
@@ -61,6 +61,8 @@ h2{font-size:26px;margin:0 0 8px;letter-spacing:-.01em} .lede{color:var(--muted)
 .callbox input{width:100%;max-width:360px;padding:10px 12px;border-radius:10px;border:1px solid #4b5a68;background:#0f151b;color:#fff;font:inherit}
 #msg{margin-top:12px;font-weight:700;min-height:1.6em}
 .honest{font-size:14px;color:var(--muted)}
+.gate .st{display:inline-block;margin-top:10px;font-size:12px;font-weight:700;letter-spacing:.04em;border-radius:999px;padding:2px 10px}
+.gate .st.live{background:#d1fadf;color:#05603a} .gate .st.testing{background:#fef0c7;color:#93370d}
 .honest li{margin-bottom:4px}
 footer{padding:24px 0 40px;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
 """
@@ -83,8 +85,9 @@ It never says an agent is safe or genuine. Inspired by Aadujeevitham (The Goat L
 
 
 def render_home(counts: dict, demo_calls_on: bool) -> str:
-    gates = "".join(f'<div class="gate"><h3>{esc(en)}</h3><div class="t">{esc(te)}</div><p>{esc(text)}</p></div>'
-                    for en, te, text, _ in GATES)
+    label = {"live": "WORKING ON REAL CALLS", "testing": "BUILT, BEING TESTED"}
+    gates = "".join(f'<div class="gate"><h3>{esc(en)}</h3><div class="t">{esc(te)}</div><p>{esc(text)}</p>'
+                    f'<span class="st {st}">{label[st]}</span></div>' for en, te, text, st in GATES)
     demo_note = (f'<p class="honest"><span class="tag">INCLUDES DEMO DATA</span> {esc(counts["demo"])} of these cases are made-up '
                  "demo cases.</p>" if counts.get("demo") else
                  '<p class="honest">No real worker data is shown here, only totals.</p>')
@@ -132,7 +135,8 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <p>In the film, a man is promised a job in the Gulf and ends up herding goats in the desert, alone, with no way to tell anyone.</p>
   <p><b>With Saathi:</b> before he flies, the visa job ("agricultural worker") does not match the promised job ("cleaner"), so Saathi
   says: do not pay more, do not travel until this is sorted out. If he flies anyway, Saathi calls on arrival day and every week.
-  When he says "herding goats", fixed rules mark it CRITICAL, his family gets a Telugu SMS, and a complaint-ready packet is prepared.</p>
+  When he says "herding goats", fixed rules mark it CRITICAL, a Telugu SMS for his family is prepared (demo: shown on the dashboard, not sent yet),
+  and so is a complaint-ready packet.</p>
   <p><a href="/demo">Run this story on the demo →</a></p>
 </div></section>
 
@@ -140,9 +144,9 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <h2>How Saathi works</h2>
   <div class="steps">
     <div class="step"><b>1. Before paying</b>The worker calls Saathi. "Is this agent in the government licensed list?" "Is this fee legal?" Answers in Telugu.</div>
-    <div class="step"><b>2. Before flying</b>A helper registers the worker: promised job, visa, payments, family number. Red flags show at once. The family gets one SMS with the case number.</div>
+    <div class="step"><b>2. Before flying</b>A helper registers the worker: promised job, visa, payments, family number. Red flags show at once. One Telugu SMS for the family with the case number (demo: shown on the dashboard, not sent yet).</div>
     <div class="step"><b>3. Arrival day and every week</b>Saathi calls the worker: who picked you up, salary, passport, and is this the job and city you were promised?</div>
-    <div class="step"><b>4. When something is wrong</b>The family gets a Telugu SMS. A caseworker sees it on the dashboard and has a complaint-ready packet in English.</div>
+    <div class="step"><b>4. When something is wrong</b>A Telugu SMS for the family (demo: shown on the dashboard, not sent yet). A caseworker sees it on the dashboard and has a complaint-ready packet in English.</div>
     <div class="step"><b>5. Patterns</b>The same village agent's phone or payment account in several cases is shown as "seen in N cases, needs review". Never as a verdict.</div>
     <div class="step"><b>6. Help line</b>A worker abroad can call the same Saathi number and report a problem. The same rules apply.</div>
   </div>
@@ -163,7 +167,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <ul class="honest" style="color:#b9c4cf">
     <li>This prototype runs on a Bolna trial account, which may only be able to call numbers verified in that account.</li>
     <li>Calls to Gulf numbers have not been tested yet.</li>
-    <li>Saathi starts in Hindi for a second; say "తెలుగు" and it switches.</li>
+    <li>When Saathi answers, say "తెలుగు".</li>
   </ul>
 </div></section>
 """, "Gulf Saathi: a Telugu voice line that checks agents, fees, visas, and calls workers on arrival day and every week.")
@@ -183,7 +187,7 @@ def render_demo() -> str:
   <div class="step"><b>1. Registered before flying</b>Yadaiah was promised a <b>cleaner</b> job in Riyadh. He paid the agent Rs 90,000 in two parts.</div>
   <div class="step"><b>2. Red flags at once</b>The agent is not found in the licensed list. Rs 90,000 is over the Rs 35,400 limit.
     The visa says <b>agricultural worker</b>, not cleaner: "do not pay more or travel until this is sorted out".</div>
-  <div class="step"><b>3. Family SMS</b>His wife gets one Telugu SMS with the case number.</div>
+  <div class="step"><b>3. Family SMS</b>One Telugu SMS for his wife with the case number (shown, not sent).</div>
   <div class="step"><b>4. Arrival-day call</b>A stranger picked him up. He says he is <b>herding goats</b> in Al Kharj, and his passport was taken.
     Fixed rules mark it CRITICAL.</div>
   <div class="step"><b>5. Family alert and packet</b>A Telugu alert SMS (shown, not sent) and an English complaint-ready packet.</div>

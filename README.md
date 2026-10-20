@@ -68,7 +68,7 @@ python -m gulf_saathi.matcher "చెల్లా మల్లేశం జగ�
 
 ## Not done, or not verified
 
-- **Policy figures:** the Rs 35,400 fee cap and the PBBY and ex gratia figures must be checked against official sources before any public claim (marked VERIFY in `config.py`).
+- **Policy figures:** the Rs 35,400 fee cap is Rs 30,000 + 18% GST (Emigration (Amendment) Rules 2017, MEA advisories); older pages still show the 2009 Rs 20,000 rule. The PBBY and ex gratia figures in the Rules PDF still need checking against official sources.
 - **Bolna call API:** placing calls (`POST /call`) is written from Hark's notes on Bolna's docs and hasn't been tried against the live API yet.
 - **Family SMS:** demo mode until Plivo and DLT registration are set up.
 - **Filing:** MADAD has no public API that we know of. The case packet is filed by a person.
