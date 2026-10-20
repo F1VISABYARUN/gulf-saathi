@@ -16,6 +16,12 @@ PUBLIC_BASE_URL = os.getenv("GS_PUBLIC_BASE_URL", "http://localhost:8000")
 # from a worker under the Emigration Rules (check emigrate.gov.in).
 MAX_SERVICE_FEE_INR = int(os.getenv("GS_MAX_SERVICE_FEE", "30000"))
 
+# VERIFY: GST on that service charge, and the resulting total a worker may be asked
+# to pay: 30,000 + 18% = 35,400. All payments to the agent are added up and
+# compared with this total.
+GST_PERCENT = int(os.getenv("GS_GST_PERCENT", "18"))
+FEE_CAP_INR = round(MAX_SERVICE_FEE_INR * (100 + GST_PERCENT) / 100)
+
 # VERIFY: Telangana ex gratia for a Gulf worker's death (TOMCOM / NRI dept).
 EX_GRATIA_INR = int(os.getenv("GS_EX_GRATIA", "500000"))
 

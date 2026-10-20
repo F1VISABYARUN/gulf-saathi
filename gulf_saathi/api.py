@@ -10,6 +10,7 @@ from typing import Any
 from fastapi import FastAPI
 from pydantic import BaseModel, field_validator
 
+from .fees import check_fee as compute_fee
 from .matcher import LicensedList
 
 app = FastAPI(title="Gulf Saathi API")
@@ -56,3 +57,30 @@ def check_agent(q: AgentQuery):
     `instruction` tells the voice agent what to say. It never endorses an agent.
     """
     return licensed.check(q.agency, q.owner, q.district, q.licence_no, q.query)
+
+
+class FeeQuery(BaseModel):
+    # Digits only, one payment each, separated by semicolons: "10000; 25000".
+    # A real list of numbers is accepted too.
+    payments: Any = ""
+
+    @field_validator("payments", mode="before")
+    @classmethod
+    def blank_if_unfilled(cls, v: Any) -> Any:
+        if v is None or isinstance(v, dict):
+            return ""
+        if isinstance(v, str) and (v.strip().startswith("%(") or v.strip().lower() in ("none", "null", "unknown", "n/a", "na", "-")):
+            return ""
+        return v
+
+
+@app.get("/check-fee")
+def check_fee_get(payments: str = ""):
+    """Same check from a browser link, e.g. /check-fee?payments=10000;25000"""
+    return compute_fee(payments)
+
+
+@app.post("/check-fee")
+def check_fee(q: FeeQuery):
+    """Bolna custom tool: add up every payment to the agent and compare with the legal cap."""
+    return compute_fee(q.payments)
