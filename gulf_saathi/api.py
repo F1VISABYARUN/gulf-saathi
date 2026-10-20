@@ -97,12 +97,12 @@ def home():
         counts = {**cases.summary_counts(workers, {}), "demo": sum(1 for w in workers if w.get("is_demo"))}
     except StoreError:
         counts = {}
-    return site.render_home(counts, demo_calls_on=bool(os.getenv("GS_DEMO_CODE") and demo_agent_id()))
+    return site.render_home(counts, demo_calls_on=bool(os.getenv("GS_DEMO_CODE", "").strip() and demo_agent_id()))
 
 
 def demo_agent_id() -> str:
     """The Gulf Saathi agent (the one workers call before paying an agent)."""
-    return os.getenv("BOLNA_AGENT_ID", "")
+    return os.getenv("BOLNA_AGENT_ID", "").strip()
 
 
 _last_demo_call: dict[str, datetime] = {}  # per server instance only: a speed bump, not a guarantee
@@ -160,6 +160,9 @@ def health():
         "sms": sms.provider(),
         "dashboard": bool(os.getenv("GS_DASHBOARD_PASSWORD")),
         "webhook_token": bool(os.getenv("GS_WEBHOOK_TOKEN")),
+        # "Get a call from Saathi" needs both. Shows only whether each is set, never the value.
+        "demo_calls": {"GS_DEMO_CODE": bool(os.getenv("GS_DEMO_CODE", "").strip()),
+                       "BOLNA_AGENT_ID": bool(demo_agent_id())},
     }
 
 
