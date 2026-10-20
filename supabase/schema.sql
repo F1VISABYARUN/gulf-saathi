@@ -104,3 +104,15 @@ alter table workers enable row level security;
 alter table calls enable row level security;
 alter table checkins enable row level security;
 alter table escalations enable row level security;
+
+-- Added October 2026: promise vs reality, repeated-risk signals, help calls,
+-- family welcome SMS and demo cases. Safe to run again.
+alter table workers add column if not exists visa_job text;            -- job written on the visa (typed by a helper)
+alter table workers add column if not exists visa_type text;           -- employment / visit / tourist / unknown
+alter table workers add column if not exists sub_agent_name text;      -- village sub-agent
+alter table workers add column if not exists sub_agent_phone text;
+alter table workers add column if not exists payment_to text;          -- UPI ID / account / number money went to
+alter table workers add column if not exists welcome_sms text;
+alter table workers add column if not exists welcome_sms_status text;
+alter table workers add column if not exists source text;              -- dashboard / help_call / demo
+alter table workers add column if not exists is_demo boolean not null default false;

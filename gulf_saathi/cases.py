@@ -11,7 +11,7 @@ import re
 import secrets
 from datetime import date, datetime, timedelta, timezone
 
-from . import bolna, sms
+from . import bolna, promise, sms
 from .calls import parse_call
 from .fees import check_fee, fmt_rupees
 from .matcher import LicensedList
@@ -22,6 +22,9 @@ RETRY_HOURS = {"arrival": 3, "weekly": 24}  # after a missed call
 DEFAULT_CODE_PHRASE = "అమ్మ బాగుందా"  # "Is Amma well?": says "I can't talk freely" without saying it
 CHECKIN_KINDS = ("arrival", "weekly")  # calls that count towards misses and alerts
 CALL_KINDS = (*CHECKIN_KINDS, "briefing")  # briefing: pre-departure, before the worker flies
+# "help": the worker called the Gulf Saathi line themselves and asked for help. Not a
+# scheduled call, so it is recorded as a check-in but never booked or counted as missed.
+CHECKIN_RECORD_KINDS = (*CALL_KINDS, "help")
 
 LEVELS = ("ok", "medium", "high", "critical")
 
@@ -36,10 +39,14 @@ REASONS = {
     "needs_help": ("critical", "Asked for urgent help", "వెంటనే సహాయం కావాలని అడిగారు"),
     "code_phrase": ("critical", "Said the agreed danger phrase: may not be able to speak freely",
                     "ముందే చెప్పుకున్న ప్రమాద సంకేతం చెప్పారు"),
+    "job_mismatch": ("high", "Doing different work from the job promised: {detail}",
+                     "చెప్పిన ఉద్యోగం కాకుండా వేరే పని చేయిస్తున్నారు"),
     "passport_taken": ("high", "Passport is not with the worker", "పాస్‌పోర్ట్ వారి దగ్గర లేదు"),
     "unpaid_2plus": ("high", "Salary unpaid for {n} months", "{n} నెలలుగా జీతం రాలేదు"),
     "missed_2plus": ("high", "{n} check-in calls missed in a row", "వరుసగా {n} కాల్స్‌కు జవాబు రాలేదు"),
     "unpaid_1": ("medium", "Salary unpaid this month", "ఈ నెల జీతం రాలేదు"),
+    "city_mismatch": ("medium", "In a different city from the one promised: {detail}",
+                      "చెప్పిన ఊరు కాకుండా వేరే చోట ఉన్నారు"),
     "food_not_ok": ("medium", "Problems with food or accommodation", "భోజనం లేదా వసతి సరిగా లేదు"),
     "missed_1": ("medium", "Missed the last check-in call", "చివరి కాల్‌కు జవాబు రాలేదు"),
 }
@@ -119,7 +126,7 @@ def new_case_id(store) -> str:
 
 def reason_text(reason: dict, lang: str = "en") -> str:
     level, en, te = REASONS[reason["code"]]
-    return (te if lang == "te" else en).format(n=reason.get("n", ""))
+    return (te if lang == "te" else en).format(n=reason.get("n", ""), detail=reason.get("detail", ""))
 
 
 # --- answers and risk -----------------------------------------------------------
@@ -160,6 +167,8 @@ def normalize_answers(raw: dict) -> dict:
         "pickup_status": pickup,
         "pickup_person": text("pickup_person"),
         "current_location": text("current_location"),
+        "current_job": text("current_job"),
+        "current_city": text("current_city"),
         "salary_received": yes_no(raw.get("salary_received")),
         "months_unpaid": as_int(raw.get("months_unpaid")),
         "passport_with_worker": yes_no(raw.get("passport_with_worker")),
@@ -173,7 +182,9 @@ def normalize_answers(raw: dict) -> dict:
     }
 
 
-def assess(answers: dict, missed_in_row: int = 0) -> tuple[str, list[dict]]:
+def assess(answers: dict, missed_in_row: int = 0, worker: dict | None = None) -> tuple[str, list[dict]]:
+    """Fixed rules turn answers into a risk level. With the worker's case, also
+    compares the work and city they describe now with what they were promised."""
     reasons = []
     if answers.get("pickup_status") == "other_person":
         reasons.append({"code": "wrong_pickup"})
@@ -183,6 +194,9 @@ def assess(answers: dict, missed_in_row: int = 0) -> tuple[str, list[dict]]:
                       ("needs_help", "needs_help"), ("code_phrase_used", "code_phrase")):
         if answers.get(key) is True:
             reasons.append({"code": code})
+    if worker and promise.compare_jobs(worker.get("job_title"), answers.get("current_job")) == "conflict":
+        reasons.append({"code": "job_mismatch",
+                        "detail": f'promised "{worker["job_title"]}", says "{answers["current_job"]}"'})
     if answers.get("passport_with_worker") is False:
         reasons.append({"code": "passport_taken"})
     months = answers.get("months_unpaid")
@@ -192,6 +206,9 @@ def assess(answers: dict, missed_in_row: int = 0) -> tuple[str, list[dict]]:
         reasons.append({"code": "unpaid_2plus", "n": months})
     elif months == 1:
         reasons.append({"code": "unpaid_1"})
+    if worker and promise.compare_places(worker.get("dest_city"), answers.get("current_city")) == "conflict":
+        reasons.append({"code": "city_mismatch",
+                        "detail": f'promised "{worker["dest_city"]}", says "{answers["current_city"]}"'})
     if answers.get("food_ok") is False:
         reasons.append({"code": "food_not_ok"})
     if missed_in_row >= 2:
@@ -232,7 +249,7 @@ def escalate(store, worker: dict, level: str, reasons: list[dict], now: datetime
         if rank(e["level"]) >= rank(level) and codes <= {r["code"] for r in e.get("reasons") or []}:
             return None
     text = family_sms(worker, level, reasons)
-    status = sms.send_sms(worker.get("family_phone") or "", text)
+    status = "demo: not sent" if worker.get("is_demo") else sms.send_sms(worker.get("family_phone") or "", text)
     return store.insert("escalations", {
         "worker_id": worker["id"], "level": level, "reasons": reasons,
         "family_sms": text, "sms_status": status, "status": "open", "created_at": iso(now),
@@ -289,6 +306,10 @@ def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
         salary = float(str(salary).replace(",", "")) if str(salary or "").strip() else None
     except ValueError:
         raise CaseError(f"salary must be a number: {salary}")
+    visa_type = (_text(data, "visa_type", 20) or "").lower() or None
+    if visa_type and visa_type not in promise.VISA_TYPES:
+        raise CaseError(f"visa type must be one of {', '.join(promise.VISA_TYPES)}: {visa_type}")
+    sub_agent_phone = normalize_phone(data.get("sub_agent_phone")) if data.get("sub_agent_phone") else None
     code_phrase = _text(data, "code_phrase") or DEFAULT_CODE_PHRASE
     if not code_phrase_ok(code_phrase):
         raise CaseError(f'danger code phrase "{code_phrase}" is too easy to say by accident. {CODE_PHRASE_HELP}')
@@ -302,8 +323,11 @@ def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
         "sponsor_name": _text(data, "sponsor_name"), "sponsor_id": _text(data, "sponsor_id"),
         "dest_country": _text(data, "dest_country"), "dest_city": _text(data, "dest_city"),
         "job_title": _text(data, "job_title"),
+        "visa_job": _text(data, "visa_job"), "visa_type": visa_type,
         "contract_salary": salary, "salary_currency": _text(data, "salary_currency", 10),
         **agent, "agent_check": agent_check, "agent_check_detail": agent_detail,
+        "sub_agent_name": _text(data, "sub_agent_name"), "sub_agent_phone": sub_agent_phone,
+        "payment_to": _text(data, "payment_to"),
         "payments": fee["payments"], "amount_paid_total": fee["total"], "fee_status": fee["status"],
         "departure_date": departure, "flight_no": _text(data, "flight_no", 20),
         "arrival_call_at": iso(arrival_call_at) if arrival_call_at else None,
@@ -312,13 +336,28 @@ def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
     }
 
 
-def register_worker(store, licensed: LicensedList, data: dict, now: datetime) -> dict:
-    """Create the pre-departure case. Returns {"worker": ..., "arrival_call": ...}."""
+def welcome_sms(worker: dict) -> str:
+    """The one SMS the family gets at registration, so they know the number and the case."""
+    name = worker.get("worker_name_te") or worker["worker_name"]
+    return (f"గల్ఫ్ సాథీ: {name} గారి వివరాలు నమోదు చేశాం. కేసు నంబర్ {worker['case_id']}. "
+            "వారు చేరిన రోజు, తర్వాత ప్రతి వారం సాథీ వారికి ఫోన్ చేస్తుంది. "
+            "ఏదైనా సమస్య ఉంటే మీకు మెసేజ్ వస్తుంది. ఈ నంబర్ దాచుకోండి.")
+
+
+def register_worker(store, licensed: LicensedList, data: dict, now: datetime, is_demo: bool = False,
+                    send_welcome: bool = True) -> dict:
+    """Create the pre-departure case and text the family once.
+    Returns {"worker": ..., "arrival_call": ...}."""
     fields = clean_case_fields(data, licensed)
     worker = store.insert("workers", {
         "case_id": new_case_id(store), "created_at": iso(now), "updated_at": iso(now), **fields,
         "status": "registered", "risk_level": "ok", "risk_reasons": [], "missed_checkins": 0,
+        "source": "demo" if is_demo else "dashboard", "is_demo": is_demo,
     })
+    if send_welcome:
+        text = welcome_sms(worker)
+        status = "demo: not sent" if is_demo else sms.send_sms(worker["family_phone"], text)
+        store.update("workers", {"id": worker["id"]}, {"welcome_sms": text, "welcome_sms_status": status})
     arrival_at = parse_ts(fields["arrival_call_at"])
     arrival = schedule_call(store, worker, "arrival", arrival_at, now) if arrival_at else None
     return {"worker": store.get("workers", id=worker["id"]), "arrival_call": arrival}
@@ -357,6 +396,7 @@ def call_user_data(worker: dict, kind: str) -> dict:
         "case_id": worker["case_id"], "call_kind": kind,
         "worker_name": worker.get("worker_name_te") or worker["worker_name"],
         "employer_name": worker.get("employer_name") or "",
+        "promised_job": worker.get("job_title") or "",
         "employer_phone": worker.get("employer_phone") or "",
         "sponsor_name": worker.get("sponsor_name") or "",
         "dest_city": worker.get("dest_city") or "", "dest_country": worker.get("dest_country") or "",
@@ -450,7 +490,7 @@ def process_call_record(store, payload: dict, now: datetime) -> dict:
         # wipe what the tool recorded.
         answers = normalize_answers(c["extracted"])
         has_answers = any(val not in (None, "") for val in answers.values())
-        level, reasons = assess(answers) if has_answers else (None, [])
+        level, reasons = assess(answers, worker=worker) if has_answers else (None, [])
         changes = {"missed_checkins": 0, "last_contact_at": iso(now)}
         if kind == "arrival":
             changes["status"] = "abroad"
@@ -481,10 +521,10 @@ def record_checkin(store, data: dict, now: datetime) -> dict:
         return {"ok": False, "instruction": "The case was not found. Thank the caller, do not promise anything, "
                                             "and say Saathi will call back."}
     kind = str(data.get("call_kind") or "weekly").strip().lower()
-    kind = kind if kind in CALL_KINDS else "weekly"
+    kind = kind if kind in CHECKIN_RECORD_KINDS else "weekly"
     answers = normalize_answers(data)
     # Danger answers count on any call, a briefing included.
-    level, reasons = assess(answers)
+    level, reasons = assess(answers, worker=worker)
     store.insert("checkins", {"worker_id": worker["id"], "kind": kind, "answers": answers,
                               "risk_level": level, "risk_reasons": reasons, "created_at": iso(now)})
     escalation = escalate(store, worker, level, reasons, now) if rank(level) >= rank("high") else None
@@ -510,12 +550,54 @@ def record_checkin(store, data: dict, now: datetime) -> dict:
     elif level == "high":
         say = ("Say: we have told your family and prepared your complaint. Do not promise that the salary or the "
                "passport will be recovered. Say Saathi will call again soon.")
+    elif kind == "help":
+        say = ("Say: we have noted your problem in your case, and a Saathi helper will look at it. Do not promise "
+               "that anyone will come or that money will be recovered. If they are in danger right now, tell them to "
+               "call the Indian Embassy.")
     elif kind == "briefing":
         say = ("Thank them warmly. Say Saathi will call on the day they land, and every week after that. "
                "Remind them to keep this number.")
     else:
         say = "Thank them warmly. Say Saathi will call again next week."
     return {"ok": True, "risk_level": level, "escalated": bool(escalation), "instruction": say}
+
+
+def report_problem(store, data: dict, now: datetime) -> dict:
+    """Bolna tool for the Gulf Saathi line: a worker who calls in with a problem.
+    Finds their case by case number or phone, or opens a minimal help case, then
+    records the answers like a check-in, so the same rules and family alert apply."""
+    case_id = str(data.get("case_id") or "").strip().upper()
+    worker = store.get("workers", case_id=case_id) if case_id else None
+    phone = ""
+    try:
+        phone = normalize_phone(data.get("caller_phone"))
+    except CaseError:
+        pass
+    if not worker and phone:
+        worker = store.get("workers", worker_phone=phone)
+    opened = False
+    if not worker:
+        if not phone:
+            return {"ok": False, "instruction": "Ask for their phone number with the country code, or their Saathi "
+                                                 "case number, then call report_problem again."}
+        family = ""
+        try:
+            family = normalize_phone(data.get("family_phone"))
+        except CaseError:
+            pass
+        worker = store.insert("workers", {
+            "case_id": new_case_id(store), "created_at": iso(now), "updated_at": iso(now),
+            "worker_name": _text(data, "caller_name") or "Caller (name not given)", "worker_phone": phone,
+            "family_phone": family or None, "dest_city": _text(data, "current_city"),
+            "code_phrase": DEFAULT_CODE_PHRASE, "status": "abroad", "risk_level": "ok", "risk_reasons": [],
+            "missed_checkins": 0, "source": "help_call", "notes": "Opened from a call to the Gulf Saathi line.",
+        })
+        opened = True
+    out = record_checkin(store, {**data, "case_id": worker["case_id"], "call_kind": "help"}, now)
+    if out["ok"] and opened:
+        out["instruction"] += (f" Also tell them their case number is {' '.join(worker['case_id'][3:])} "
+                               "and ask them to keep it.")
+    return {**out, "case_id": worker["case_id"], "new_case": opened}
 
 
 def briefed_worker_ids(store) -> dict:
@@ -528,7 +610,7 @@ def briefed_worker_ids(store) -> dict:
 
 
 def has_predeparture_flags(w: dict) -> bool:
-    return w.get("agent_check") in ("not_found", "need_more_info") or w.get("fee_status") == "over_cap"
+    return bool(promise.predeparture_checks(w))
 
 
 def summary_counts(workers: list[dict], briefed: dict) -> dict:

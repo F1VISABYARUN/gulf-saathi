@@ -9,13 +9,15 @@ from html import escape
 
 from .cases import CODE_PHRASE_HELP, IST, code_phrase_ok, fmt_ist, parse_ts, reason_text
 from .fees import fmt_rupees
+from .promise import STOP_FLAGS, VISA_TYPES, predeparture_checks, promise_rows
 
 BADGE = {"critical": "#b42318", "high": "#c4320a", "medium": "#a15c07", "ok": "#067647"}
 PICKUP = {"employer": "Registered employer", "other_person": "Someone else", "nobody": "Nobody came",
           "not_arrived": "Not arrived yet"}
 ANSWER_LABELS = [
     ("pickup_status", "Who picked them up"), ("pickup_person", "Person at pickup"),
-    ("current_location", "Where they are now"), ("salary_received", "Salary received"),
+    ("current_location", "Where they are now"), ("current_job", "Work they are doing now"),
+    ("current_city", "City they are in now"), ("salary_received", "Salary received"),
     ("months_unpaid", "Months unpaid"), ("passport_with_worker", "Passport with worker"),
     ("food_ok", "Food and room OK"), ("threatened", "Threats or violence"),
     ("movement_restricted", "Stopped from going out"), ("needs_help", "Asked for help"),
@@ -75,8 +77,13 @@ legend {{ font-weight:700; padding:0 6px; }}
 .tile.warn b {{ color:#b42318; }}
 .flag {{ color:#b42318; font-size:13px; font-weight:600; }}
 .sms {{ background:#fef3f2; border:1px solid #fecdca; border-radius:8px; padding:10px; }}
+.sms.info {{ background:#f0f9ff; border-color:#b9e6fe; }}
+.stop {{ background:#b42318; color:#fff; border-radius:8px; padding:10px 14px; font-weight:700; margin:8px 0; }}
+.demo {{ background:#fef0c7; color:#93370d; border-radius:999px; padding:1px 8px; font-size:11px; font-weight:700; letter-spacing:.04em; }}
+.v-conflict {{ color:#b42318; font-weight:700; }} .v-match {{ color:#067647; }} .v-unknown {{ color:var(--muted); }}
+select {{ width:100%; padding:8px; border:1px solid #d0d5dd; border-radius:8px; font:inherit; background:#fff; }}
 </style></head><body>
-<header><a href="/dashboard">Gulf Saathi</a><a href="/dashboard">Cases</a><a href="/dashboard/agents">Agents</a><span class="sp"></span><a href="/dashboard/new">+ Register worker</a></header>
+<header><a href="/">Gulf Saathi</a><a href="/dashboard">Cases</a><a href="/dashboard/agents">Agents</a><a href="/demo">Demo story</a><span class="sp"></span><a href="/dashboard/new">+ Register worker</a></header>
 <main>{body}</main>
 <script>
 async function post(url, body, btn, okText) {{
@@ -95,18 +102,48 @@ async function post(url, body, btn, okText) {{
 
 def predeparture_flags(w: dict) -> list[str]:
     """Problems found at registration, before the worker flies."""
-    flags = []
-    if w.get("agent_check") in ("not_found", "need_more_info"):
-        flags.append("Agent not found in the licensed list")
-    if w.get("fee_status") == "over_cap" and w.get("amount_paid_total"):
-        flags.append(f"Paid agent Rs {fmt_rupees(int(w['amount_paid_total']))}, over the Rs 35,400 limit")
-    return flags
+    return [f["text"] for f in predeparture_checks(w)]
+
+
+def demo_tag(w: dict) -> str:
+    return ' <span class="demo">DEMO</span>' if w.get("is_demo") else ""
+
+
+def signals_table(signals: list[dict], intro: bool = True) -> str:
+    """The same phone number, payment account or sponsor in several cases. A reason
+    to look, never a finding."""
+    if not signals:
+        return "<p class='muted'>No phone number, payment account or sponsor appears in more than one case.</p>"
+    rows = []
+    for g in signals:
+        cases = " ".join(f'<a class="nowrap" href="/dashboard/case/{esc(c)}">{esc(c)}</a>' for c in g["cases"])
+        rows.append(f"""<tr><td>{esc(g['label'])}{' <span class="demo">DEMO DATA</span>' if g['demo'] else ''}</td>
+<td><b>{esc(g['value'])}</b></td><td>Seen in {len(g['cases'])} cases<div class="muted" style="font-size:12px">{cases}</div></td>
+<td>{esc(g['at_risk']) if g['at_risk'] else '<span class="muted">0</span>'}</td>
+<td>{esc(g['flagged']) if g['flagged'] else '<span class="muted">0</span>'}</td></tr>""")
+    note = ("<p class='muted'>Seen in more than one case: needs a person to review. This is not a finding of fraud "
+            "against anyone. Names are not matched, only phone numbers, payment accounts and sponsor IDs.</p>") if intro else ""
+    return note + f"""<div class="wrap"><table><thead><tr><th>What</th><th>Value</th><th>Cases</th><th>At risk now</th>
+<th>Pre-departure red flags</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>"""
+
+
+def promise_table(w: dict, latest_answers: dict) -> str:
+    out = []
+    word = {"conflict": "Does not match", "match": "Matches", "unknown": "Not enough to compare"}
+    for r in promise_rows(w, latest_answers):
+        cell = lambda v: esc(v) if v not in (None, "") else "<span class='muted'>—</span>"
+        out.append(f"<tr><td class='muted'>{esc(r['what'])}</td><td>{cell(r['promised'])}</td><td>{cell(r['papers'])}</td>"
+                   f"<td>{cell(r['now'])}</td><td class='v-{r['verdict']}'>{word[r['verdict']]}</td></tr>")
+    return ("<div class='wrap'><table><thead><tr><th></th><th>Agent promised</th><th>Visa papers say</th>"
+            "<th>Worker says now</th><th>Check</th></tr></thead><tbody>" + "".join(out) + "</tbody></table></div>"
+            "<p class='muted' style='font-size:13px'>\"Visa papers\" is what a helper typed from the visa. "
+            "\"Now\" is from the latest arrival, weekly or help call. Fixed word lists decide the match; the AI only writes down what was said.</p>")
 
 
 def tiles(totals: dict) -> str:
     items = [("registered", "Workers registered", False), ("in_india", "Still in India", False),
              ("abroad", "Abroad", False), ("briefed", "Pre-departure briefing done", False),
-             ("at_risk", "At risk now (HIGH or CRITICAL)", True), ("red_flags", "Agent or fee red flags", True)]
+             ("at_risk", "At risk now (HIGH or CRITICAL)", True), ("red_flags", "Pre-departure red flags", True)]
     return '<div class="tiles">' + "".join(
         f'<div class="tile{" warn" if warn and totals.get(k) else ""}"><b>{esc(totals.get(k, 0))}</b><span>{esc(label)}</span></div>'
         for k, label, warn in items) + "</div>"
@@ -121,7 +158,7 @@ def render_list(workers: list[dict], status: dict, totals: dict | None = None) -
         rows.append(f"""<tr>
 <td>{badge(w.get('risk_level'))}</td>
 <td class="nowrap"><a href="/dashboard/case/{esc(w['case_id'])}"><b>{esc(w['case_id'])}</b></a></td>
-<td>{esc(w['worker_name'])}<div class="muted">{esc(w.get('worker_phone'))}</div>{''.join(f'<div class="flag">{esc(f)}</div>' for f in predeparture_flags(w))}</td>
+<td>{esc(w['worker_name'])}{demo_tag(w)}<div class="muted">{esc(w.get('worker_phone'))}</div>{''.join(f'<div class="flag">{esc(f)}</div>' for f in predeparture_flags(w))}</td>
 <td>{esc(w.get('dest_city'))}{', ' if w.get('dest_city') and w.get('dest_country') else ''}{esc(w.get('dest_country'))}</td>
 <td>{esc(w.get('employer_name'))}</td>
 <td>{esc(w.get('status'))}</td>
@@ -139,7 +176,7 @@ def render_list(workers: list[dict], status: dict, totals: dict | None = None) -
 <div class="card">{table}</div>""", refresh=15)
 
 
-def render_agents(stats: list[dict]) -> str:
+def render_agents(stats: list[dict], signals: list[dict] | None = None) -> str:
     rows = []
     for g in stats:
         listed = ('<span class="muted">in licensed list</span>' if g["licensed"] else
@@ -161,7 +198,9 @@ def render_agents(stats: list[dict]) -> str:
 <p class="muted">Every recruiting agent named in a Saathi case, riskiest first: how many of their workers are in trouble now,
 how many paid over the Rs 35,400 limit, and which employers abroad they sent people to. This describes our cases, not a
 finding about any agent.</p>
-<div class="card">{table}</div>""")
+<div class="card">{table}</div>
+<h2>Repeated across cases</h2>
+<div class="card">{signals_table(signals or [])}</div>""")
 
 
 def status_line(status: dict) -> str:
@@ -179,11 +218,16 @@ FIELDS = [
                               ("employer_phone", "Employer phone (with country code)", "+971 50 123 4567"),
                               ("sponsor_name", "Sponsor (kafeel) name", ""), ("sponsor_id", "Sponsor ID", ""),
                               ("dest_country", "Country", "UAE"), ("dest_city", "City", "Dubai"),
-                              ("job_title", "Job", "Cleaner"), ("contract_salary", "Contract salary", "1500"),
+                              ("job_title", "Job the agent promised", "Cleaner"), ("contract_salary", "Contract salary", "1500"),
                               ("salary_currency", "Currency", "AED")]),
     ("Recruiting agent", [("agent_name", "Agency name", "Gagan Manpower"), ("agent_owner", "Owner name", "Bolle Ganga Narsaiah"),
                           ("agent_district", "Agent's district", "Jagtial"), ("agent_licence", "Licence / RA number", ""),
-                          ("payments", "Every payment to the agent, separated by ;", "50000; 30000")]),
+                          ("sub_agent_name", "Village sub-agent name", ""),
+                          ("sub_agent_phone", "Village sub-agent phone", "98480 12345"),
+                          ("payments", "Every payment to the agent, separated by ;", "50000; 30000"),
+                          ("payment_to", "Money paid to (UPI ID / account / phone)", "agent@upi")]),
+    ("Visa papers (type exactly what the visa says)", [("visa_type", "Visa type", ""),
+                                                       ("visa_job", "Job written on the visa", "Agricultural worker")]),
     ("Travel", [("departure_date", "Departure date", ""), ("flight_no", "Flight", "EK 527"),
                 ("arrival_call_at", "Arrival-day call (India time)", "")]),
 ]
@@ -211,6 +255,12 @@ def render_form(values: dict | None = None, case_id: str | None = None) -> str:
     for legend, fields in FIELDS:
         inputs = []
         for name, label, ph in fields:
+            if name == "visa_type":
+                current = _form_value(name, values)
+                opts = "".join(f'<option value="{t}"{" selected" if current == t else ""}>{t}</option>'
+                               for t in ("", *VISA_TYPES))
+                inputs.append(f'<div><label for="{name}">{esc(label)}</label><select id="{name}" name="{name}">{opts}</select></div>')
+                continue
             kind = "date" if name == "departure_date" else "datetime-local" if name == "arrival_call_at" else "text"
             hint = f'<div class="muted" style="font-size:12px">{esc(CODE_PHRASE_HELP)}</div>' if name == "code_phrase" else ""
             inputs.append(f'<div><label for="{name}">{esc(label)}</label>'
@@ -259,7 +309,7 @@ def _answers_table(answers: dict) -> str:
     return f"<table>{''.join(rows)}</table>" if rows else "<span class='muted'>No answers recorded</span>"
 
 
-def render_case(w: dict, events: list[dict], status: dict) -> str:
+def render_case(w: dict, events: list[dict], status: dict, signals: list[dict] | None = None) -> str:
     kv = lambda label, value: f'<div class="kv"><b>{esc(label)}</b>{esc(value) if value not in (None, "") else "<span class=muted>—</span>"}</div>'
     reasons = "".join(f"<li>{esc(reason_text(r))}</li>" for r in (w.get("risk_reasons") or []))
     fee = ""
@@ -269,7 +319,14 @@ def render_case(w: dict, events: list[dict], status: dict) -> str:
     salary = w.get("contract_salary")
     if isinstance(salary, float) and salary.is_integer():
         salary = int(salary)
-    flags = "".join(f'<p class="flag">{esc(f)}</p>' for f in predeparture_flags(w))
+    checks = predeparture_checks(w)
+    flags = "".join(f'<p class="flag">{esc(f["text"])}</p>' for f in checks)
+    if w.get("status") == "registered" and any(f["code"] in STOP_FLAGS for f in checks):
+        flags = ('<div class="stop">Tell the worker: do not pay the agent any more money and do not travel until this '
+                 'is sorted out.</div>') + flags
+    # Latest answers from a call made after arrival, for the "worker says now" column.
+    latest = next((e["checkin"].get("answers") or {} for e in events
+                   if e["type"] == "checkin" and e["checkin"].get("kind") in ("arrival", "weekly", "help")), {})
     candidates = (w.get("agent_check_detail") or {}).get("candidates") or []
     matched = "; ".join(f"{c['agency']} ({c['owner']}, {c['district']})" for c in candidates)
 
@@ -327,7 +384,10 @@ def render_case(w: dict, events: list[dict], status: dict) -> str:
     if not w.get("worker_name_te"):
         notices.append(f'<p class="muted">The family SMS will use the English name. Add the name in Telugu: '
                        f'<a href="/dashboard/case/{case_id}/edit">Edit details</a></p>')
-    return page(w["case_id"], f"""<h1>{case_id} · {esc(w['worker_name'])} {badge(w.get('risk_level'))}</h1>
+    welcome = (f'<div class="sms info" style="margin-top:12px"><b>Welcome SMS to family</b> ({esc(w.get("welcome_sms_status"))}):'
+               f'<br>{esc(w["welcome_sms"])}</div>' if w.get("welcome_sms") else "")
+    sig = (f'<div class="card"><h2>Repeated across cases</h2>{signals_table(signals)}</div>' if signals else "")
+    return page(w["case_id"], f"""<h1>{case_id} · {esc(w['worker_name'])}{demo_tag(w)} {badge(w.get('risk_level'))}</h1>
 <div class="card">
   {f'<ul>{reasons}</ul>' if reasons else '<p class="muted">No current risk signals.</p>'}{flags}{''.join(notices)}
   <p>
@@ -340,6 +400,8 @@ def render_case(w: dict, events: list[dict], status: dict) -> str:
   <div class="muted">Status: {esc(w.get('status'))} · Last contact: {esc(fmt_ist(w.get('last_contact_at')))} ·
   Missed in a row: {esc(w.get('missed_checkins') or 0)} · Next call: {esc(fmt_ist(w.get('next_call_at')))} · {briefing} · refreshes every 20 seconds</div>
 </div>
+<div class="card"><h2>Promise vs reality</h2>{promise_table(w, latest)}</div>
+{sig}
 <div class="card"><h2>Pre-departure trail</h2><div class="grid">
   {kv('Worker phone', w.get('worker_phone'))}{kv('Family', ' · '.join(x for x in [w.get('family_name'), w.get('family_relation'), w.get('family_phone')] if x))}
   {kv('Employer', w.get('employer_name'))}{kv('Employer phone', w.get('employer_phone'))}
@@ -349,7 +411,10 @@ def render_case(w: dict, events: list[dict], status: dict) -> str:
   {kv('Departure', ' · '.join(x for x in [w.get('departure_date'), w.get('flight_no')] if x))}
   {kv('Agency', w.get('agent_name'))}{kv('Agent owner', w.get('agent_owner'))}
   {kv('Licence check (MEA list)', w.get('agent_check'))}{kv('Closest list entries', matched)}
-  {kv('Paid to agent', fee)}{kv('Danger code phrase', w.get('code_phrase'))}
-</div></div>
+  {kv('Paid to agent', fee)}{kv('Money paid to', w.get('payment_to'))}
+  {kv('Village sub-agent', ' · '.join(x for x in [w.get('sub_agent_name'), w.get('sub_agent_phone')] if x))}
+  {kv('Visa type (papers)', w.get('visa_type'))}{kv('Job on visa (papers)', w.get('visa_job'))}
+  {kv('Danger code phrase', w.get('code_phrase'))}
+</div>{welcome}</div>
 <div class="card"><h2>Timeline</h2>{''.join(evs)}</div>""", refresh=20)
 

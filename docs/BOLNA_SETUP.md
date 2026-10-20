@@ -4,7 +4,7 @@ Gulf Saathi uses two Bolna agents:
 
 | Agent | What it does | Tools |
 |---|---|---|
-| **Gulf Saathi** (exists) | Worker calls before paying an agent: licence check, fee check, visa warnings | `check_agent`, `check_fee` |
+| **Gulf Saathi** (exists) | Worker calls before paying an agent: licence check, fee check, visa warnings. Also the help line for workers abroad | `check_agent`, `check_fee`, `report_problem` |
 | **Saathi Check-in** (new) | Saathi calls the worker: arrival day, then weekly | `record_checkin` |
 
 Server: `https://gulf-saathi-psi.vercel.app`
@@ -68,13 +68,126 @@ NEVER ENDORSE AN AGENT
 - Never call any agent safe, సేఫ్, సురక్షితం, మంచోడు, మంచివాడు, ఓకే, బాగుంది, నమ్మకమైన, good or genuine, even if asked.
 - If asked "is he good?": "ఆ పేరు ప్రభుత్వ లైసెన్స్ జాబితాలో ఉంది. కానీ ఆయన మంచివారా కాదా నేను చెప్పలేను. ఉద్యోగ వీసా, రాతపూర్వక కాంట్రాక్ట్, ప్రతి చెల్లింపుకు రసీదు తప్పకుండా చూసుకోండి."
 
+HELP PATH (the caller is ALREADY ABROAD and has a problem)
+If the caller says they are already in the Gulf and something is wrong (salary, passport, threats, not allowed out, different job, wants to come home):
+1. Say you are sorry, and that you will note it so a Saathi helper can look at it.
+2. If they say they are in danger right now, call report_problem IMMEDIATELY with needs_help = yes, then do what it says.
+3. Otherwise ask, one at a time, only what you still need: their phone number with country code (or their Saathi case number), their name, which city they are in, what work they are doing now, is the passport with them, how many months salary is unpaid, are they threatened or not allowed to go out, and a family member's phone number in India.
+4. Call report_problem with the answers. Say in Telugu what its "instruction" tells you. If it says a new case number, read it out slowly.
+Never promise rescue, money, or that anyone will come.
+
 OTHER RULES
 - For rules about fees, visas, PBBY and complaints, use the knowledge base (Rules document). If unsure: "నాకు ఖచ్చితంగా తెలియదు. emigrate.gov.in లో చూడండి."
 - Never ask for passport numbers, bank details or OTPs.
 ```
 
-Tools: `check_agent` (URL `/check-agent`) and `check_fee` (URL `/check-fee`), as already set up.
+Tools: `check_agent` (URL `/check-agent`) and `check_fee` (URL `/check-fee`), as already set up,
+plus the new `report_problem` below.
 Knowledge base: `Gulf_Saathi_Rules.pdf` only.
+
+**Tool: `report_problem`** (Tools tab → Add a Custom Tool → Write manually)
+
+```json
+{
+  "name": "report_problem",
+  "description": "Use only when the caller is ALREADY ABROAD and reports a problem. Saves it in their Saathi case (or opens one) and alerts the family if serious. Then say what its instruction tells you.",
+  "pre_call_message": "సరే, నోట్ చేస్తున్నాను.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "case_id": {
+        "type": "string",
+        "description": "Their Saathi case number if they know it, like GS-ABC234. Empty string if not."
+      },
+      "caller_phone": {
+        "type": "string",
+        "description": "Their phone number with country code, digits only, e.g. 971501112222. Empty string if not given."
+      },
+      "caller_name": {
+        "type": "string",
+        "description": "Their name. Empty string if not given."
+      },
+      "family_phone": {
+        "type": "string",
+        "description": "A family member's phone number in India, digits only. Empty string if not given."
+      },
+      "current_city": {
+        "type": "string",
+        "description": "Which city or place they are in now. Empty string if not asked."
+      },
+      "current_job": {
+        "type": "string",
+        "description": "What work they are actually doing now, in their words. Empty string if not asked."
+      },
+      "months_unpaid": {
+        "type": "string",
+        "description": "Months of salary unpaid, as digits. Empty string if none or not asked."
+      },
+      "passport_with_worker": {
+        "type": "string",
+        "description": "yes, no or unknown. Empty string if not asked."
+      },
+      "threatened": {
+        "type": "string",
+        "description": "yes if they report threats or violence, otherwise no. Empty string if not asked."
+      },
+      "movement_restricted": {
+        "type": "string",
+        "description": "yes if they are NOT allowed to go out, otherwise no. Empty string if not asked."
+      },
+      "needs_help": {
+        "type": "string",
+        "description": "yes if they say they need urgent help or are in danger now, otherwise no."
+      },
+      "notes": {
+        "type": "string",
+        "description": "Their problem in short English. Empty string if nothing."
+      }
+    },
+    "required": [
+      "case_id",
+      "caller_phone",
+      "caller_name",
+      "family_phone",
+      "current_city",
+      "current_job",
+      "months_unpaid",
+      "passport_with_worker",
+      "threatened",
+      "movement_restricted",
+      "needs_help",
+      "notes"
+    ]
+  },
+  "key": "custom_task",
+  "value": {
+    "method": "POST",
+    "param": {
+      "case_id": "%(case_id)s",
+      "caller_phone": "%(caller_phone)s",
+      "caller_name": "%(caller_name)s",
+      "family_phone": "%(family_phone)s",
+      "current_city": "%(current_city)s",
+      "current_job": "%(current_job)s",
+      "months_unpaid": "%(months_unpaid)s",
+      "passport_with_worker": "%(passport_with_worker)s",
+      "threatened": "%(threatened)s",
+      "movement_restricted": "%(movement_restricted)s",
+      "needs_help": "%(needs_help)s",
+      "notes": "%(notes)s"
+    },
+    "url": "https://gulf-saathi-psi.vercel.app/tools/report-problem",
+    "api_token": null,
+    "headers": {},
+    "pre_call_webhook_url": null,
+    "pre_call_webhook_param": null
+  }
+}
+```
+
+> I could not confirm whether Bolna gives the agent the caller's own number as a
+> variable, so the prompt asks the caller for it. If Bolna has such a variable, it can
+> replace that question.
 
 ## 1. Create the "Saathi Check-in" agent
 
@@ -99,6 +212,7 @@ THIS CALL
 - Worker: {{worker_name}}
 - Registered employer: {{employer_name}}, phone {{employer_phone}}, sponsor {{sponsor_name}}
 - Destination: {{dest_city}}, {{dest_country}}
+- Job the agent promised: {{promised_job}}
 - Danger code phrase: "{{code_phrase}}"
 
 DANGER CODE PHRASE (most important)
@@ -107,8 +221,9 @@ If the worker says "{{code_phrase}}" at any time, they may not be able to talk f
 ARRIVAL CALL (call type arrival)
 1. Ask: మీరు {{dest_city}} చేరుకున్నారా?
 2. Ask who came to pick them up. Was it {{employer_name}}, or someone who showed that company's name or phone number?
-3. Ask where they are now.
-4. Call record_checkin with pickup_status = employer / other_person / nobody / not_arrived.
+3. Ask where they are now: which city or place?
+4. Ask: అక్కడ మీరు ఏ పని చేస్తున్నారు? (what work are you doing there?) Write down their own words.
+5. Call record_checkin with current_job and current_city in their words, and pickup_status = employer / other_person / nobody / not_arrived.
 
 WEEKLY CALL (call type weekly)
 Ask one at a time:
@@ -117,7 +232,8 @@ Ask one at a time:
 3. భోజనం, ఉండే చోటు బాగున్నాయా?
 4. ఎవరైనా బెదిరిస్తున్నారా లేదా కొడుతున్నారా?
 5. మిమ్మల్ని బయటకు వెళ్లనిస్తున్నారా? (If they say no, movement_restricted = yes.)
-6. ఏమైనా సహాయం కావాలా?
+6. ఇప్పుడు ఏ ఊరిలో ఉన్నారు, ఏ పని చేస్తున్నారు? (which city, what work now?)
+7. ఏమైనా సహాయం కావాలా?
 Then call record_checkin with all the answers.
 
 BRIEFING CALL (call type briefing: before they fly, about 3 minutes)
@@ -156,6 +272,8 @@ OTHER RULES
       "pickup_status": {"type": "string", "description": "Arrival call only: employer, other_person, nobody, not_arrived or unknown. Empty string on weekly calls."},
       "pickup_person": {"type": "string", "description": "Who picked them up, in the worker's words. Empty string if not asked."},
       "current_location": {"type": "string", "description": "Where they are now. Empty string if not asked."},
+      "current_job": {"type": "string", "description": "The work they say they are doing now, in their own words. Empty string if not asked."},
+      "current_city": {"type": "string", "description": "The city or place they say they are in now. Empty string if not asked."},
       "salary_received": {"type": "string", "description": "yes, no or unknown. Empty string if not asked."},
       "months_unpaid": {"type": "string", "description": "Number of months salary is unpaid, as digits. Empty string if none or not asked."},
       "passport_with_worker": {"type": "string", "description": "yes, no or unknown. Empty string if not asked."},
@@ -167,7 +285,7 @@ OTHER RULES
       "briefing_understood": {"type": "string", "description": "Briefing calls only: yes if they answered both check questions correctly, otherwise no. Empty string on other calls."},
       "notes": {"type": "string", "description": "Anything else important, in short English. Empty string if nothing."}
     },
-    "required": ["case_id", "call_kind", "pickup_status", "pickup_person", "current_location", "salary_received", "months_unpaid", "passport_with_worker", "food_ok", "threatened", "movement_restricted", "needs_help", "code_phrase_used", "briefing_understood", "notes"]
+    "required": ["case_id", "call_kind", "pickup_status", "pickup_person", "current_location", "current_job", "current_city", "salary_received", "months_unpaid", "passport_with_worker", "food_ok", "threatened", "movement_restricted", "needs_help", "code_phrase_used", "briefing_understood", "notes"]
   },
   "key": "custom_task",
   "value": {
@@ -175,6 +293,7 @@ OTHER RULES
     "param": {
       "case_id": "%(case_id)s", "call_kind": "%(call_kind)s", "pickup_status": "%(pickup_status)s",
       "pickup_person": "%(pickup_person)s", "current_location": "%(current_location)s",
+      "current_job": "%(current_job)s", "current_city": "%(current_city)s",
       "salary_received": "%(salary_received)s", "months_unpaid": "%(months_unpaid)s",
       "passport_with_worker": "%(passport_with_worker)s", "food_ok": "%(food_ok)s",
       "threatened": "%(threatened)s", "movement_restricted": "%(movement_restricted)s",
@@ -201,7 +320,9 @@ OTHER RULES
 | `SUPABASE_SERVICE_KEY` | Supabase **secret** key `sb_secret_...` (already set; `SUPABASE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_KEY` also work) |
 | `BOLNA_API_KEY` | Bolna API key (already set) |
 | `BOLNA_CHECKIN_AGENT_ID` | Agent ID of **Saathi Check-in** |
-| `GS_DASHBOARD_PASSWORD` | Any password; the dashboard asks for it |
+| `GS_DASHBOARD_PASSWORD` | Any password; the dashboard and the demo story page ask for it |
+| `BOLNA_AGENT_ID` | Agent ID of **Gulf Saathi**: the home page's "Get a call from Saathi" button uses it |
+| `GS_DEMO_CODE` | Any short code. The "Get a call from Saathi" button needs it, so strangers can't spend your Bolna credits |
 | `GS_WEBHOOK_TOKEN` | Optional. If set, add `?token=<it>` to the end of every Bolna webhook and `record_checkin` URL |
 | `GS_LOG_WEBHOOK` | Optional. `0` stops copying raw call data into the Vercel logs |
 | `PLIVO_AUTH_ID`, `PLIVO_AUTH_TOKEN`, `PLIVO_FROM` | Optional. Without them the family SMS is shown on the dashboard but not sent |
@@ -210,7 +331,7 @@ Redeploy after changing any of these.
 
 ## 3. Check it
 
-1. `https://gulf-saathi-psi.vercel.app/` shows `"storage": "supabase"` and `"bolna_checkin_calls": true`.
+1. `https://gulf-saathi-psi.vercel.app/` shows the public home page. `https://gulf-saathi-psi.vercel.app/health` shows `"storage": "supabase"` and `"bolna_checkin_calls": true`.
 2. `https://gulf-saathi-psi.vercel.app/health/db` shows `"ok": true`. If a table shows an error,
    run `supabase/schema.sql` in Supabase's SQL editor. A "permission denied" error means the
    publishable key was used instead of the secret key.

@@ -58,7 +58,8 @@ YADAIAH = {
 
 
 def register(store, licensed, **overrides):
-    return register_worker(store, licensed, {**YADAIAH, **overrides}, NOW)
+    # The welcome SMS has its own test; leaving it out keeps `texts` to alerts only.
+    return register_worker(store, licensed, {**YADAIAH, **overrides}, NOW, send_welcome=False)
 
 
 def payload(call_id, case_id, kind, status="completed", talked=True, extracted=None):
@@ -438,3 +439,70 @@ def test_missed_briefing_is_not_a_missed_checkin(store, licensed, placed, texts)
     r = process_call_record(store, payload("exec-br", w["case_id"], "briefing", "no-answer", talked=False), NOW)
     assert r["processed"] is False
     assert store.get("workers", id=w["id"])["missed_checkins"] == 0 and texts == [] and placed == []
+
+
+# --- promise vs reality, welcome SMS, help line ---------------------------------------
+
+def test_welcome_sms_once_at_registration(store, licensed, placed, texts):
+    w = register_worker(store, licensed, YADAIAH, NOW)["worker"]
+    assert len(texts) == 1 and texts[0][0] == "+919123456780"
+    assert w["case_id"] in texts[0][1] and "యాదయ్య" in texts[0][1]
+    assert not re.search(r"[A-Za-z]", texts[0][1].replace(w["case_id"], ""))  # Telugu only
+    assert w["welcome_sms_status"] == "demo: not sent" and w["source"] == "dashboard" and w["is_demo"] is False
+
+
+def test_different_work_on_arrival_is_flagged(store, licensed, placed, texts):
+    w = register(store, licensed, visa_type="employment", visa_job="Cleaner")
+    w = w["worker"]
+    r = record_checkin(store, {"case_id": w["case_id"], "call_kind": "arrival", "pickup_status": "employer",
+                               "current_job": "herding goats", "current_city": "Al Ain"}, NOW)
+    assert r["risk_level"] == "high" and r["escalated"]
+    codes = [x["code"] for x in store.get("workers", id=w["id"])["risk_reasons"]]
+    assert codes == ["job_mismatch", "city_mismatch"]
+    assert "herding goats" in cases.reason_text(store.get("workers", id=w["id"])["risk_reasons"][0])
+
+
+def test_same_work_is_not_flagged(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    r = record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly", "current_job": "cleaning offices",
+                               "current_city": "Dubai Marina", "salary_received": "yes"}, NOW)
+    assert r["risk_level"] == "ok" and texts == []
+
+
+def test_visa_fields_and_red_flags(store, licensed, placed):
+    w = register(store, licensed, visa_type="Visit", visa_job="Shepherd", sub_agent_phone="98480 12345")["worker"]
+    assert w["visa_type"] == "visit" and w["sub_agent_phone"] == "+919848012345"
+    assert cases.has_predeparture_flags(w)
+    with pytest.raises(CaseError):
+        register(store, licensed, visa_type="business")
+
+
+def test_help_line_opens_a_case_and_alerts(store, licensed, placed, texts):
+    r = cases.report_problem(store, {"caller_phone": "+971 50 111 2222", "caller_name": "Srinu",
+                                     "family_phone": "9000012345", "threatened": "yes", "notes": "boss beats me"}, NOW)
+    assert r["ok"] and r["new_case"] and r["risk_level"] == "critical" and r["escalated"]
+    w = store.get("workers", case_id=r["case_id"])
+    assert w["source"] == "help_call" and w["worker_phone"] == "+971501112222"
+    assert texts and texts[0][0] == "+919000012345"
+    assert store.select("checkins", {"worker_id": w["id"]})[0]["kind"] == "help"
+    # Calling again finds the same case by phone.
+    r2 = cases.report_problem(store, {"caller_phone": "971501112222", "months_unpaid": "3"}, NOW)
+    assert r2["case_id"] == r["case_id"] and not r2["new_case"]
+
+
+def test_help_line_needs_a_way_to_find_the_caller(store, placed, texts):
+    r = cases.report_problem(store, {"needs_help": "yes"}, NOW)
+    assert r["ok"] is False and "phone number" in r["instruction"]
+
+
+def test_demo_story_never_calls_or_texts(store, licensed, placed, texts):
+    from gulf_saathi.demo import run_demo
+    from gulf_saathi.signals import repeated_signals
+    out = run_demo(store, licensed, NOW)
+    assert placed == [] and texts == []
+    y = store.get("workers", case_id=out["yadaiah"])
+    assert y["is_demo"] and y["risk_level"] == "critical"
+    assert {"job_mismatch", "city_mismatch", "wrong_pickup", "passport_taken"} <= {r["code"] for r in y["risk_reasons"]}
+    assert store.select("escalations")[0]["sms_status"] == "demo: not sent"
+    sig = repeated_signals(store.select("workers"))
+    assert sig and all(s["demo"] for s in sig) and set(sig[0]["cases"]) == {out["yadaiah"], out["ramesh"]}

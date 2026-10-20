@@ -19,7 +19,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, field_validator
 
-from . import bolna, cases, dashboard, sms
+from . import bolna, cases, dashboard, demo, signals, site, sms
 from .db import TABLES, MemoryStore, StoreError, SupabaseStore
 from .fees import check_fee as compute_fee
 from .matcher import LicensedList
@@ -85,9 +85,70 @@ async def json_object(request: Request) -> dict:
     return data
 
 
+# --- public website ---------------------------------------------------------------
+
+@app.get("/", response_class=HTMLResponse)
+def home():
+    """Public home page. Shows totals only, never a name or number."""
+    try:
+        workers = STORE.select("workers", order="updated_at")
+        counts = {**cases.summary_counts(workers, {}), "demo": sum(1 for w in workers if w.get("is_demo"))}
+    except StoreError:
+        counts = {}
+    return site.render_home(counts, demo_calls_on=bool(os.getenv("GS_DEMO_CODE") and demo_agent_id()))
+
+
+def demo_agent_id() -> str:
+    """The Gulf Saathi agent (the one workers call before paying an agent)."""
+    return os.getenv("BOLNA_AGENT_ID", "")
+
+
+_last_demo_call: dict[str, datetime] = {}  # per server instance only: a speed bump, not a guarantee
+
+
+@app.post("/api/demo-call")
+async def api_demo_call(request: Request):
+    """"Get a call from Saathi" on the home page. Needs the demo code, since every
+    call costs Bolna credits."""
+    data = await json_object(request)
+    expected = os.getenv("GS_DEMO_CODE", "")
+    if not expected or not demo_agent_id():
+        raise HTTPException(503, "Demo calls are off (GS_DEMO_CODE / BOLNA_AGENT_ID not set).")
+    if not secrets.compare_digest(str(data.get("code") or "").strip().encode(), expected.encode()):
+        raise HTTPException(403, "Wrong demo code.")
+    try:
+        phone = cases.normalize_phone(data.get("phone"))
+    except cases.CaseError as e:
+        raise HTTPException(400, str(e))
+    if not phone.startswith("+91"):
+        raise HTTPException(400, "Indian numbers only for now.")
+    last = _last_demo_call.get(phone)
+    if last and (now() - last).total_seconds() < 120:
+        raise HTTPException(429, "Saathi called this number less than 2 minutes ago. Please wait.")
+    res = bolna.place_call(phone, {"source": "website_demo"}, agent_id=demo_agent_id())
+    if not res["ok"]:
+        raise HTTPException(502, res["error"])
+    _last_demo_call[phone] = now()
+    return {"ok": True, "execution_id": res["execution_id"]}
+
+
+@app.get("/demo", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
+def demo_page():
+    return site.render_demo()
+
+
+@app.post("/api/demo/run", dependencies=[Depends(require_dashboard)])
+def api_demo_run():
+    """Creates made-up demo cases (is_demo). No real call or SMS."""
+    try:
+        return demo.run_demo(STORE, licensed, now())
+    except StoreError as e:
+        raise HTTPException(503, f"Could not save the demo cases. Has supabase/schema.sql been run again? {e}")
+
+
 # --- health -------------------------------------------------------------------
 
-@app.get("/")
+@app.get("/health")
 def health():
     return {
         "service": "gulf-saathi",
@@ -100,6 +161,10 @@ def health():
     }
 
 
+NEW_WORKER_COLUMNS = ("visa_job", "visa_type", "sub_agent_name", "sub_agent_phone", "payment_to",
+                      "welcome_sms", "welcome_sms_status", "source")
+
+
 @app.get("/health/db")
 def health_db():
     """Can we read each table? Shows Supabase's error message, never data."""
@@ -110,6 +175,12 @@ def health_db():
             tables[t] = "ok"
         except Exception as e:  # noqa: BLE001 - report whatever went wrong
             tables[t] = str(e)[:300]
+    try:
+        # Filtering on a column fails if it doesn't exist: catches a schema.sql not re-run.
+        STORE.select("workers", {c: "x" for c in NEW_WORKER_COLUMNS}, limit=1)
+        tables["workers (new columns)"] = "ok"
+    except Exception as e:  # noqa: BLE001
+        tables["workers (new columns)"] = "missing: run supabase/schema.sql again. " + str(e)[:200]
     return {"storage": STORE.kind, "ok": all(v == "ok" for v in tables.values()), "tables": tables}
 
 
@@ -177,6 +248,19 @@ async def tool_record_checkin(request: Request):
                                             "promise anything, and say Saathi will call back."}
 
 
+@app.post("/tools/report-problem", dependencies=[Depends(require_bolna_token)])
+async def tool_report_problem(request: Request):
+    """The Gulf Saathi line: a worker abroad calls in with a problem. Opens or finds
+    their case, applies the same risk rules, and alerts the family when HIGH or CRITICAL."""
+    data = await json_object(request)
+    try:
+        return cases.report_problem(STORE, clean_tool_args(data), now())
+    except StoreError as e:
+        log.error("report_problem failed: %s", e)
+        return {"ok": False, "instruction": "The system is not available right now. If they are in danger, tell them "
+                                            "to call the Indian Embassy. Say Saathi will call back."}
+
+
 # --- Bolna webhook ----------------------------------------------------------------
 
 @app.post("/webhooks/bolna", dependencies=[Depends(require_bolna_token)])
@@ -211,7 +295,8 @@ def dashboard_list():
 
 @app.get("/dashboard/agents", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
 def dashboard_agents():
-    return dashboard.render_agents(cases.agent_stats(STORE.select("workers", order="updated_at")))
+    workers = STORE.select("workers", order="updated_at")
+    return dashboard.render_agents(cases.agent_stats(workers), signals.repeated_signals(workers))
 
 
 @app.get("/dashboard/new", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
@@ -222,7 +307,8 @@ def dashboard_new():
 @app.get("/dashboard/case/{case_id}", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
 def dashboard_case(case_id: str):
     w = _worker_or_404(case_id)
-    return dashboard.render_case(w, cases.timeline(STORE, w), status())
+    sig = signals.signals_for_case(w, STORE.select("workers", order="updated_at"))
+    return dashboard.render_case(w, cases.timeline(STORE, w), status(), sig)
 
 
 @app.get("/dashboard/case/{case_id}/edit", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])

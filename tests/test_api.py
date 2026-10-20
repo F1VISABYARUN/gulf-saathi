@@ -6,7 +6,7 @@ client = TestClient(app)
 
 
 def test_health_reports_agents_loaded():
-    assert client.get("/").json()["licensed_agents_loaded"] == 2447
+    assert client.get("/health").json()["licensed_agents_loaded"] == 2447
 
 
 def test_check_agent_post():
@@ -104,10 +104,11 @@ def test_record_checkin_tool_checks_token(mem, monkeypatch):
 
 
 def test_health_shows_config_and_db(mem):
-    h = client.get("/").json()
+    h = client.get("/health").json()
     assert h["storage"] == "memory" and h["dashboard"] is True and h["bolna_checkin_calls"] is False
     assert client.get("/health/db").json() == {"storage": "memory", "ok": True,
-                                                "tables": {t: "ok" for t in ("workers", "calls", "checkins", "escalations")}}
+                                                "tables": {t: "ok" for t in ("workers", "calls", "checkins", "escalations",
+                                                                              "workers (new columns)")}}
 
 
 def test_case_page_notices_edit_and_book_arrival(mem):
@@ -172,7 +173,7 @@ def test_state_view_agents_page_and_briefing(mem):
     assert "not found in licensed list" in agents and case_id in agents
 
     home = client.get("/dashboard", auth=AUTH).text
-    assert "Workers registered" in home and "Agent or fee red flags" in home
+    assert "Workers registered" in home and "Pre-departure red flags" in home
 
     # "Call now" accepts a briefing (Bolna is off in tests, so it reports that).
     r = client.post(f"/api/cases/{case_id}/call", auth=AUTH, json={"kind": "briefing"})
@@ -181,3 +182,49 @@ def test_state_view_agents_page_and_briefing(mem):
     client.post("/tools/record-checkin", json={"case_id": case_id, "call_kind": "briefing", "briefing_understood": "yes"})
     page = client.get(f"/dashboard/case/{case_id}", auth=AUTH).text
     assert "Briefing: done" in page and "(understood)" in page and "Understood the briefing" in page
+
+
+def test_home_page_is_public_and_shows_totals_only(mem):
+    client.post("/api/workers", auth=AUTH, json={"worker_name": "Secret Name", "worker_phone": "9876543210",
+                                                 "family_phone": "9123456780"})
+    page = client.get("/").text
+    assert "Get a call from Saathi" in page and "Aadujeevitham" in page
+    assert "Secret Name" not in page and "9876543210" not in page
+    for banned in ("fraud", "genuine", "government-ready"):
+        assert banned not in page.lower().replace("safe or genuine", "")
+
+
+def test_demo_call_needs_the_code(mem, monkeypatch):
+    calls = []
+    monkeypatch.setattr(api.bolna, "place_call",
+                        lambda phone, data, scheduled_at=None, agent_id="": calls.append((phone, agent_id)) or
+                        {"ok": True, "execution_id": "e1", "error": None})
+    monkeypatch.delenv("GS_DEMO_CODE", raising=False)
+    assert client.post("/api/demo-call", json={"phone": "9876543210", "code": "x"}).status_code == 503
+    monkeypatch.setenv("GS_DEMO_CODE", "judge-2026")
+    monkeypatch.setenv("BOLNA_AGENT_ID", "agent-1")
+    api._last_demo_call.clear()
+    assert client.post("/api/demo-call", json={"phone": "9876543210", "code": "nope"}).status_code == 403
+    assert client.post("/api/demo-call", json={"phone": "+971501112222", "code": "judge-2026"}).status_code == 400
+    assert client.post("/api/demo-call", json={"phone": "98765 43210", "code": "judge-2026"}).status_code == 200
+    assert calls == [("+919876543210", "agent-1")]
+    assert client.post("/api/demo-call", json={"phone": "9876543210", "code": "judge-2026"}).status_code == 429
+
+
+def test_demo_story_pages(mem):
+    assert client.get("/demo").status_code == 401
+    assert client.post("/api/demo/run").status_code == 401
+    out = client.post("/api/demo/run", auth=AUTH).json()
+    case = client.get(f"/dashboard/case/{out['yadaiah']}", auth=AUTH).text
+    assert "DEMO" in case and "Promise vs reality" in case and "herding goats" in case
+    assert "Seen in 2 cases" in case and "not a finding of fraud" in case
+    agents = client.get("/dashboard/agents", auth=AUTH).text
+    assert "Repeated across cases" in agents and "DEMO DATA" in agents
+    ramesh = client.get(f"/dashboard/case/{out['ramesh']}", auth=AUTH).text
+    assert "do not travel until" in ramesh
+
+
+def test_report_problem_tool(mem):
+    r = client.post("/tools/report-problem", json={"caller_phone": "+971501112222", "needs_help": "yes",
+                                                   "case_id": "%(case_id)s"}).json()
+    assert r["ok"] and r["risk_level"] == "critical" and r["new_case"]

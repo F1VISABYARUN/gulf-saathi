@@ -12,9 +12,11 @@ behind them, deployed on Vercel with a Supabase database.
 
 ```
 Worker's phone ── Bolna voice agent ──▶ /check-agent, /check-fee        (Gulf Saathi agent)
+                                    ──▶ /tools/report-problem            (Gulf Saathi agent, help line)
                                     ──▶ /tools/record-checkin            (Saathi Check-in agent)
                Bolna, after each call ──▶ /webhooks/bolna
-Caseworker ─────────── browser ──────▶ /dashboard
+Anyone ──────────────── browser ──────▶ /  (home page, "Get a call from Saathi")
+Caseworker ─────────── browser ──────▶ /dashboard, /demo
 Server ─────── Bolna API (POST /call) ──▶ arrival and weekly calls
 All data ─────────────────────────────▶ Supabase
 ```
@@ -26,14 +28,19 @@ All data ───────────────────────�
 | Worker case (`cases.py`) | Pre-departure trail: employer, sponsor, destination, salary, agent, payments, family. Case ID like `GS-7K3P9Q`. |
 | Calls (`cases.py`, `bolna.py`) | Books the arrival-day call, then a weekly call. A missed call is retried (3 hours for arrival, 24 hours for weekly). "Completed" counts as missed unless the worker actually spoke. |
 | Risk and alerts (`cases.py`, `sms.py`) | CRITICAL: wrong person or nobody at the airport, threats, not allowed out, asked for help, danger code phrase. HIGH: passport taken, 2+ months unpaid, 2 missed calls in a row. MEDIUM: 1 month unpaid, food or room problems, 1 missed call. HIGH and CRITICAL text the family in Telugu, once per open alert. |
+| Promise vs reality (`promise.py`) | Before flying: agent not in list, fee over the limit, visit or tourist visa, visa job different from the promised job. After arrival: the work and city the worker describes vs what was promised. Fixed word lists decide "same kind of work"; the AI only writes down what was said. |
+| Repeated-risk signals (`signals.py`) | The same sub-agent phone, payment account, sponsor ID or employer phone in 2+ cases: "seen in N cases, needs human review". Names are never matched. Not a finding of fraud. |
+| Help line (`cases.report_problem`) | A worker abroad calls the Gulf Saathi number with a problem: finds or opens their case and applies the same rules and alerts. |
+| Family welcome SMS | One Telugu SMS to the family at registration, with the case number. |
 | Case packet (`cases.py`) | English summary with the whole timeline, recordings and the latest transcript, for a person to file. |
-| Dashboard (`dashboard.py`) | Password-protected case list with risk badges, case page with timeline, "Call now", packet download, "Mark resolved". |
+| Dashboard (`dashboard.py`) | Password-protected case list with risk badges, case page with timeline, promise-vs-reality table, "Call now", packet download, "Mark resolved". |
+| Website (`site.py`, `demo.py`) | Public home page with totals only; "Get a call from Saathi" (needs `GS_DEMO_CODE`); a password-protected demo story that creates made-up cases marked DEMO, with no real call or SMS. |
 
 ## Setup
 
 1. **Supabase:** SQL Editor → paste [`supabase/schema.sql`](supabase/schema.sql) → Run.
 2. **Bolna and Vercel:** follow [`docs/BOLNA_SETUP.md`](docs/BOLNA_SETUP.md).
-3. **Check:** `/health/db` shows `"ok": true`, and `/dashboard` opens after the password.
+3. **Check:** `/health` and `/health/db` show `"ok": true`, and `/dashboard` opens after the password.
 
 ## Run locally
 
@@ -66,4 +73,6 @@ python -m gulf_saathi.matcher "చెల్లా మల్లేశం జగ�
 - **Family SMS:** demo mode until Plivo and DLT registration are set up.
 - **Filing:** MADAD has no public API that we know of. The case packet is filed by a person.
 - **Privacy:** the database holds workers' and families' phone numbers and call recordings. Get consent at registration and keep the dashboard password and Supabase secret key private.
+- **Demo calls:** a Bolna trial account may only call numbers verified in that account. Calls to Gulf numbers are untested.
+- **Job matching:** the word lists in `promise.py` cover common jobs only. Unrecognised work never raises a flag, so some mismatches will be missed.
 - **Language:** the Telugu wording (prompts, SMS) is machine-drafted and needs a native speaker's review.
