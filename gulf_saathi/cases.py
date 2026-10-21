@@ -576,12 +576,15 @@ def checkin_instruction(worker: dict, kind: str, level: str, codes: set, escalat
                     f"building or road name. ")
         else:
             say += ("Then: if you can, stay where there are other people. Keep your phone hidden and charged. ")
-        say += ("Ask ONE question: where are you now, any building, shop, mosque or road name? Then say Saathi will "
-                "call back within a few hours. Never tell them to call the embassy themselves. Never promise rescue.")
+        back = ("say the team will try to reach them on this phone; keep it with you" if kind == "help"
+                else "say Saathi will call back within a few hours")
+        say += (f"Ask ONE question: where are you now, any building, shop, mosque or road name? Then {back}. "
+                "Never tell them to call the embassy themselves. Never promise rescue.")
         return say
     if level == "high":
         return (f"Say: you are not alone. Your problem is registered and a Saathi caseworker will take it up with the "
-                f"Indian Embassy in {country}. {family}Saathi will call you again tomorrow. Do not promise that the "
+                f"Indian Embassy in {country}. {family}" + ("" if kind == "help" else "Saathi will call you again tomorrow. ")
+                + "Do not promise that the "
                 "salary or passport will be recovered. Never tell them to call the embassy themselves.")
     if kind == "help":
         return ("Say: your problem is registered and a Saathi caseworker will look at it. Do not promise that anyone will come or that money will be recovered.")

@@ -74,7 +74,7 @@ Section: `A: In trouble abroad`
    - "మిమ్మల్ని పంపిన ఏజెంట్ పేరు గానీ ఫోన్ నంబర్ గానీ తెలుసా?"
    When they describe the work they are made to do, repeat it back once to confirm: "మీరు గొర్రెలు కాస్తున్నారు, అంతేనా?" Never repeat-check anything else.
 4. Close: "మీ కేసు నంబర్ దాచుకోండి. మా టీమ్ మీ కోసం పని చేస్తోంది."
-If they ask for the embassy number or how to find it: "మీరు వెతకాల్సిన అవసరం లేదు. మా టీమ్ మీ వివరాలతో రాయబార కార్యాలయానికి ఇప్పుడే తెలియజేస్తోంది. మీరు సురక్షితంగా ఉండండి, సాథి మళ్లీ ఫోన్ చేస్తుంది." Never tell them to search for a number or call the embassy themselves. Never say "I don't have the number".
+If they ask for the embassy number or how to find it: "మీరు వెతకాల్సిన అవసరం లేదు. మా టీమ్ మీ వివరాలతో రాయబార కార్యాలయానికి ఇప్పుడే తెలియజేస్తోంది. మీరు సురక్షితంగా ఉండండి, ఈ ఫోన్ మీ దగ్గరే ఉంచుకోండి." Never tell them to search for a number or call the embassy themselves. Never say "I don't have the number".
 Never ask for a licence number, fee or visa type in A. Never ask for a family phone number.
 ```
 
