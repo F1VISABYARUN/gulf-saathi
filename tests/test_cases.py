@@ -590,3 +590,14 @@ def test_help_line_keeps_trace_details_on_the_case(store, texts):
     assert "Home: Jagtial" in w["notes"] and "Near: near a big mosque" in w["notes"] and w["dest_city"] == "Al Ain"
     ans = store.select("checkins")[0]["answers"]
     assert ans["landmark"] == "near a big mosque" and ans["home_district"] == "Jagtial"
+
+
+def test_arrival_call_scored_from_bolna_extraction_when_the_tool_was_missed(store, licensed, placed, texts):
+    # The live AI never called record_checkin; the after-call "checkin" extraction still scores it.
+    w = register(store, licensed)["worker"]
+    extracted = {"checkin": {"pickup_status": _x("other_person"), "current_job": _x(subjective="herding goats"),
+                             "current_city": _x(subjective="Al Kharj"), "threatened": _x("not_said")}}
+    out = process_call_record(store, payload("a1", w["case_id"], "arrival", extracted=extracted), NOW)
+    w = store.get("workers", id=w["id"])
+    assert out["processed"] and w["risk_level"] == "critical"
+    assert {"wrong_pickup", "job_mismatch", "city_mismatch"} <= {r["code"] for r in w["risk_reasons"]}

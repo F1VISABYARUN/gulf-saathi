@@ -507,7 +507,7 @@ def process_call_record(store, payload: dict, now: datetime) -> dict:
         # Answers normally arrive during the call through record_checkin. Only use
         # Bolna's extracted_data if it actually has some, so an empty one doesn't
         # wipe what the tool recorded.
-        answers = normalize_answers(c["extracted"])
+        answers = normalize_answers(flatten_extraction(c["extracted"]))
         has_answers = any(val not in (None, "") for val in answers.values())
         level, reasons = assess(answers, worker=worker) if has_answers else (None, [])
         changes = {"missed_checkins": 0, "last_contact_at": iso(now)}
