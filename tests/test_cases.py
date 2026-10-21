@@ -601,3 +601,21 @@ def test_arrival_call_scored_from_bolna_extraction_when_the_tool_was_missed(stor
     w = store.get("workers", id=w["id"])
     assert out["processed"] and w["risk_level"] == "critical"
     assert {"wrong_pickup", "job_mismatch", "city_mismatch"} <= {r["code"] for r in w["risk_reasons"]}
+
+
+def test_extraction_arriving_with_completed_after_disconnect_is_scored(store, licensed, placed, texts):
+    # Live order: "call-disconnected" (transcript, no extraction) then "completed" (with extraction).
+    # The live AI never called record_checkin (Bolna attached no tools on 21 Oct).
+    w = register(store, licensed)["worker"]
+    first = process_call_record(store, payload("d1", w["case_id"], "arrival", "call-disconnected"), NOW)
+    assert first["processed"] and store.get("workers", id=w["id"])["risk_level"] == "ok"
+    extracted = {"help_check": {"taken_by_stranger": _x("yes"), "current_job": _x(subjective="herding sheep"),
+                                "passport_with_worker": _x("no"), "abroad": _x("yes")}}
+    late = process_call_record(store, payload("d1", w["case_id"], "arrival", "completed", extracted=extracted), NOW)
+    w = store.get("workers", id=w["id"])
+    assert late["late_extraction"] and w["risk_level"] == "critical"
+    assert {"wrong_pickup", "job_mismatch", "passport_taken"} <= {r["code"] for r in w["risk_reasons"]}
+    assert len(store.select("escalations")) == 1
+    again = process_call_record(store, payload("d1", w["case_id"], "arrival", "completed", extracted=extracted), NOW)
+    assert again["processed"] is False and len(store.select("escalations")) == 1
+    assert len(placed) == 1  # only the arrival call booked at registration; nothing extra

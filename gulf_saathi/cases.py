@@ -493,6 +493,12 @@ def process_call_record(store, payload: dict, now: datetime) -> dict:
             hw = store.get("workers", case_id=help_out["case_id"])
             store.update("calls", {"id": c["call_id"]}, {"processed_at": iso(now), "kind": "help", "worker_id": hw["id"]})
             return {"stored": True, "processed": True, "worker": hw["case_id"], "help": help_out}
+    if (c["terminal"] and worker and kind in CHECKIN_KINDS and (existing or {}).get("processed_at")
+            and c["extracted"] and not (existing or {}).get("extracted") and c["answered"]):
+        # Bolna sends "call-disconnected" (processed above) before "completed", and only
+        # "completed" carries the after-call extraction. Score it now: the safety net
+        # for when the live voice AI never called record_checkin.
+        return _apply_late_extraction(store, worker, kind, c, now)
     if not c["terminal"] or not worker or kind not in CHECKIN_KINDS or (existing or {}).get("processed_at"):
         return {"stored": True, "processed": False, "worker": worker["case_id"] if worker else None}
     store.update("calls", {"id": c["call_id"]}, {"processed_at": iso(now)})
@@ -529,6 +535,21 @@ def process_call_record(store, payload: dict, now: datetime) -> dict:
         next_call = schedule_call(store, worker, next_kind, next_when, now)
     return {"stored": True, "processed": True, "worker": worker["case_id"], "missed": c["missed"],
             "risk_level": worker["risk_level"], "escalated": bool(escalation), "next_call": next_call}
+
+
+def _apply_late_extraction(store, worker: dict, kind: str, c: dict, now: datetime) -> dict:
+    answers = normalize_answers(flatten_extraction(c["extracted"]))
+    if not any(v not in (None, "") for v in answers.values()):
+        return {"stored": True, "processed": False, "worker": worker["case_id"]}
+    answers["notes"] = ("From the after-call summary. " + (answers.get("notes") or "")).strip()
+    level, reasons = assess(answers, worker=worker)
+    store.insert("checkins", {"worker_id": worker["id"], "kind": kind, "answers": answers,
+                              "risk_level": level, "risk_reasons": reasons, "created_at": iso(now)})
+    escalation = escalate(store, worker, level, reasons, now) if rank(level) >= rank("high") else None
+    store.update("workers", {"id": worker["id"]}, {"risk_level": overall_level(store, worker["id"], level),
+                                                   "risk_reasons": reasons, "updated_at": iso(now)})
+    return {"stored": True, "processed": True, "worker": worker["case_id"], "late_extraction": True,
+            "risk_level": level, "escalated": bool(escalation)}
 
 
 def record_checkin(store, data: dict, now: datetime) -> dict:
