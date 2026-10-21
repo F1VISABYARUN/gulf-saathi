@@ -195,3 +195,11 @@ def test_one_first_name_never_reads_back_another_state(agents, kwargs):
 def test_one_name_in_the_right_district_still_only_needs_confirmation(agents):
     r = agents.check(owner="Narsaiah", district="Jagtial")
     assert r["match"] == "needs_confirmation" and r["candidates"][0]["district"] == "Jagtial"
+
+
+def test_one_name_with_extra_free_text_still_never_reads_another_state(agents):
+    # Live call 21 Oct 09:07: owner "Ramesh" + district + a long free-text query
+    # brought back RAMESH S of Chennai again.
+    r = agents.check(owner="Ramesh", district="Nizamabad",
+                     query="నిజామాబాద్‌లోని ఏజెంట్ రమేష్; వర్క్ వీసా వస్తే ఆయనే పంపిస్తానంటున్నారు")
+    assert all(c["district"] != "Chennai" for c in r["candidates"])

@@ -261,6 +261,7 @@ class LicensedList:
     def check(self, agency: str = "", owner: str = "", district: str = "", licence_no: str = "", query: str = "") -> dict:
         """Main entry point. `query` is free text when the caller's words weren't split up."""
         query_rest = ""
+        given = f"{agency} {owner}".strip()  # names the caller's words were split into, before free text
         if licence_no:
             a = self.by_number(licence_no)
             if a:
@@ -305,7 +306,11 @@ class LicensedList:
         # One word (a first name like "Ramesh") scores "strong" against agents all over
         # India, so with one word the district must match: never read back a stranger
         # from another state.
-        one_word = len(said_words) == 1 and not _canonical_generic(next(iter(said_words)))
+        # The name itself, when the caller's words were split into fields: free text in
+        # `query` ("agent Ramesh in Nizamabad, he says he'll send me") must not hide that
+        # only one name was given.
+        name_words = set(tokens(given)) if given else said_words
+        one_word = len(name_words) == 1 and not _canonical_generic(next(iter(name_words)))
 
         def plausible(x):
             _, score, o, g, d_ok = x
