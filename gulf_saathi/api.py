@@ -313,7 +313,7 @@ def dashboard_new():
 def dashboard_case(case_id: str):
     w = _worker_or_404(case_id)
     sig = signals.signals_for_case(w, STORE.select("workers", order="updated_at"))
-    return dashboard.render_case(w, cases.timeline(STORE, w), status(), sig)
+    return dashboard.render_case(w, cases.timeline(STORE, w), status(), sig, cases.embassy_alert(STORE, w, now()))
 
 
 @app.get("/dashboard/case/{case_id}/edit", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])

@@ -19,6 +19,9 @@ from .matcher import LicensedList
 IST = timezone(timedelta(hours=5, minutes=30))  # India has no daylight saving
 CHECKIN_DAYS = int(os.getenv("GS_CHECKIN_DAYS", "7"))
 RETRY_HOURS = {"arrival": 3, "weekly": 24}  # after a missed call
+# After an answered call, how soon Saathi calls back, by the worker's risk now:
+# a person in danger is not left for a week.
+FOLLOW_UP = {"critical": timedelta(hours=3), "high": timedelta(days=1)}
 DEFAULT_CODE_PHRASE = "అమ్మ బాగుందా"  # "Is Amma well?": says "I can't talk freely" without saying it
 CHECKIN_KINDS = ("arrival", "weekly")  # calls that count towards misses and alerts
 CALL_KINDS = (*CHECKIN_KINDS, "briefing")  # briefing: pre-departure, before the worker flies
@@ -519,7 +522,6 @@ def process_call_record(store, payload: dict, now: datetime) -> dict:
         changes = {"missed_checkins": 0, "last_contact_at": iso(now)}
         if kind == "arrival":
             changes["status"] = "abroad"
-        next_when = now + timedelta(days=CHECKIN_DAYS)
         next_kind = "weekly"
 
     escalation = escalate(store, worker, level, reasons, now) if level and rank(level) >= rank("high") else None
@@ -529,6 +531,8 @@ def process_call_record(store, payload: dict, now: datetime) -> dict:
     store.update("workers", {"id": worker["id"]}, changes)
     worker = store.get("workers", id=worker["id"])
 
+    if not c["missed"]:
+        next_when = now + FOLLOW_UP.get(worker.get("risk_level"), timedelta(days=CHECKIN_DAYS))
     # Book the next call unless another one is already booked for later.
     next_call = None
     if not _other_booked_call(store, worker["id"], c["call_id"], now):
@@ -550,6 +554,44 @@ def _apply_late_extraction(store, worker: dict, kind: str, c: dict, now: datetim
                                                    "risk_reasons": reasons, "updated_at": iso(now)})
     return {"stored": True, "processed": True, "worker": worker["case_id"], "late_extraction": True,
             "risk_level": level, "escalated": bool(escalation)}
+
+
+def checkin_instruction(worker: dict, kind: str, level: str, codes: set, escalation: dict | None) -> str:
+    """What the voice agent says after recording. Saathi acts for the worker: the
+    team alerts the embassy; the worker is never told to go and find a number."""
+    country = worker.get("dest_country") or "that country"
+    family = ("Their family has been sent a message. " if escalation and escalation.get("sms_status") == "sent" else "")
+    if "code_phrase" in codes:
+        return ("IMPORTANT: the worker said the danger phrase and may not be able to talk freely. Do NOT mention "
+                "danger, help, complaints, family or embassy. Chat normally for a few seconds and end the call politely.")
+    if level == "critical":
+        say = (f"Speak calmly and slowly. Say: you are not alone. Your case is registered as URGENT and the Saathi "
+               f"team is alerting the Indian Embassy in {country} now, with your name, phone number and what you told "
+               f"us. {family}")
+        if codes & {"wrong_pickup", "no_pickup"}:
+            employer = worker.get("employer_name") or "your registered employer"
+            say += (f"Then: if you are still inside the airport, stay inside. Go to the airport help desk or airport "
+                    f"police and tell them you are an Indian worker and need help. Do not go with anyone except "
+                    f"{employer}. If you are already in a vehicle, stay calm, do not fight, and look for any sign, "
+                    f"building or road name. ")
+        else:
+            say += ("Then: if you can, stay where there are other people. Keep your phone hidden and charged. ")
+        say += ("Ask ONE question: where are you now, any building, shop, mosque or road name? Then say Saathi will "
+                "call back within a few hours. Never tell them to call the embassy themselves. Never promise rescue.")
+        return say
+    if level == "high":
+        return (f"Say: you are not alone. Your problem is registered and a Saathi caseworker will take it up with the "
+                f"Indian Embassy in {country}. {family}Saathi will call you again tomorrow. Do not promise that the "
+                "salary or passport will be recovered. Never tell them to call the embassy themselves.")
+    if kind == "help":
+        return ("Say: your problem is registered and a Saathi caseworker will look at it. If anything gets worse, "
+                "call this number again. Do not promise that anyone will come or that money will be recovered.")
+    if kind == "briefing":
+        return ("Thank them warmly. Say: Saathi will call on the day you land. If something feels wrong at the "
+                "airport, stay inside near the help desk or airport police and call this number. Keep this number safe.")
+    if level == "medium":
+        return "Say: noted. Saathi will keep checking. Call this number if anything gets worse."
+    return "Say: good, everything is noted as fine. Saathi will call again next week."
 
 
 def record_checkin(store, data: dict, now: datetime) -> dict:
@@ -577,31 +619,7 @@ def record_checkin(store, data: dict, now: datetime) -> dict:
     store.update("workers", {"id": worker["id"]}, changes)
 
     codes = {r["code"] for r in reasons}
-    # Only claim the family was told when the SMS really went out (it doesn't in demo mode).
-    told = ("we have told your family and " if escalation and escalation.get("sms_status") == "sent"
-            else "we have noted this in your case and ")
-    if "code_phrase" in codes:
-        say = ("IMPORTANT: the worker said the danger phrase and may not be able to talk freely. Do NOT mention "
-               "danger, help, complaints, family or embassy. Chat normally for a few seconds and end the call politely.")
-    elif level == "critical":
-        say = (f"Speak calmly. Say: {told}prepared your complaint for the Indian Embassy. "
-               "If you are in danger right now, call the Indian Embassy. Do not promise rescue.")
-        if codes & {"wrong_pickup", "no_pickup"}:
-            employer = worker.get("employer_name") or "your registered employer"
-            say += (f" If they are still at the airport: do not go with anyone except {employer}; stay inside "
-                    "the airport and call the Indian Embassy.")
-    elif level == "high":
-        say = (f"Say: {told}prepared your complaint. Do not promise that the salary or the "
-               "passport will be recovered. Say Saathi will call again soon.")
-    elif kind == "help":
-        say = ("Say: we have noted your problem in your case, and a Saathi helper will look at it. Do not promise "
-               "that anyone will come or that money will be recovered. If they are in danger right now, tell them to "
-               "call the Indian Embassy.")
-    elif kind == "briefing":
-        say = ("Thank them warmly. Say Saathi will call on the day they land, and every week after that. "
-               "Remind them to keep this number.")
-    else:
-        say = "Thank them warmly. Say Saathi will call again next week."
+    say = checkin_instruction(worker, kind, level, codes, escalation)
     return {"ok": True, "risk_level": level, "escalated": bool(escalation), "instruction": say}
 
 
@@ -783,6 +801,37 @@ def resolve_escalation(store, escalation_id: str, now: datetime) -> dict | None:
     level = latest[0]["risk_level"] if latest else "ok"
     store.update("workers", {"id": w["id"]}, {"risk_level": overall_level(store, w["id"], level), "updated_at": iso(now)})
     return rows[0]
+
+
+def embassy_alert(store, worker: dict, now: datetime) -> dict:
+    """Short urgent message a caseworker sends to the Indian Embassy / Consulate (or
+    MADAD) for a worker in danger: who, where, what they said, how to reach them."""
+    w = worker
+    latest = next((ch for ch in store.select("checkins", {"worker_id": w["id"]}, limit=5)), None)
+    a = (latest or {}).get("answers") or {}
+    where = ", ".join(x for x in [a.get("current_city"), a.get("landmark"), a.get("current_location")] if x) \
+        or ", ".join(x for x in [w.get("dest_city"), w.get("dest_country")] if x) or "not known"
+    lines = [
+        f"URGENT: Indian worker may need help. Gulf Saathi case {w['case_id']}, {fmt_ist(now)}.",
+        "",
+        f"Name: {w['worker_name']}   Phone: {w['worker_phone']}",
+        f"Where (as told on the call): {where}",
+        f"Risk: {(w.get('risk_level') or 'ok').upper()}",
+    ]
+    lines += [f"  - {reason_text(r)}" for r in w.get("risk_reasons") or []]
+    lines += [
+        f"Employer: {w.get('employer_name') or 'not recorded'}   Sponsor: {w.get('sponsor_name') or 'not recorded'} "
+        f"(ID {w.get('sponsor_id') or 'not recorded'})",
+        f"Recruiting agent: {w.get('agent_name') or 'not recorded'}",
+        f"Family in India: {w.get('family_phone') or 'not recorded'}",
+    ]
+    if a.get("notes"):
+        lines.append(f"Worker said: {a['notes']}")
+    lines += ["", "Reported by phone to Gulf Saathi (Telangana) and not independently verified. "
+                  "Please contact the worker. Full case packet available on request."]
+    body = "\n".join(lines)
+    subject = f"URGENT: Indian worker in distress, {w.get('dest_country') or 'Gulf'}, case {w['case_id']}"
+    return {"subject": subject, "body": body}
 
 
 # --- case packet ------------------------------------------------------------------

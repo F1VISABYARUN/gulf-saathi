@@ -318,7 +318,8 @@ def _answers_table(answers: dict) -> str:
     return f"<table>{''.join(rows)}</table>" if rows else "<span class='muted'>No answers recorded</span>"
 
 
-def render_case(w: dict, events: list[dict], status: dict, signals: list[dict] | None = None) -> str:
+def render_case(w: dict, events: list[dict], status: dict, signals: list[dict] | None = None,
+                alert: dict | None = None) -> str:
     kv = lambda label, value: f'<div class="kv"><b>{esc(label)}</b>{esc(value) if value not in (None, "") else "<span class=muted>—</span>"}</div>'
     reasons = "".join(f"<li>{esc(reason_text(r))}</li>" for r in (w.get("risk_reasons") or []))
     fee = ""
@@ -397,6 +398,17 @@ def render_case(w: dict, events: list[dict], status: dict, signals: list[dict] |
     welcome = (f'<div class="sms info" style="margin-top:12px"><b>Welcome SMS to family</b> ({esc(w.get("welcome_sms_status"))}):'
                f'<br>{esc(w["welcome_sms"])}</div>' if w.get("welcome_sms") else "")
     sig = (f'<div class="card"><h2>Repeated across cases</h2>{signals_table(signals)}</div>' if signals else "")
+    embassy = ""
+    if alert and w.get("risk_level") in ("high", "critical"):
+        from urllib.parse import quote
+        mailto = f"mailto:?subject={quote(alert['subject'])}&body={quote(alert['body'])}"
+        embassy = f"""<div class="card" style="border-color:#b42318"><h2>Alert the Indian Embassy now</h2>
+<p class="muted">Saathi told the worker the team is alerting the embassy. Send this to the Indian Embassy or Consulate in
+{esc(w.get('dest_country') or 'that country')} (community welfare email or helpline) and register it on MADAD. Saathi cannot send it by itself.</p>
+<pre id="alert">{esc(alert['subject'])}\n\n{esc(alert['body'])}</pre>
+<p><button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('alert').innerText).then(() => this.textContent = 'Copied')">Copy alert</button>
+<a class="btn secondary" href="{esc(mailto)}">Open in email</a>
+<a class="btn secondary" href="https://madad.gov.in" target="_blank" rel="noopener">Open MADAD</a></p></div>"""
     return page(w["case_id"], f"""<h1>{case_id} · {esc(w['worker_name'])}{demo_tag(w)} {case_badge(w)}</h1>
 <div class="card">
   {f'<ul>{reasons}</ul>' if reasons else '<p class="muted">No current risk signals.</p>'}{flags}{''.join(notices)}
@@ -410,6 +422,7 @@ def render_case(w: dict, events: list[dict], status: dict, signals: list[dict] |
   <div class="muted">Status: {esc(w.get('status'))} · Last contact: {esc(fmt_ist(w.get('last_contact_at')))} ·
   Missed in a row: {esc(w.get('missed_checkins') or 0)} · Next call: {esc(fmt_ist(w.get('next_call_at')))} · {briefing} · refreshes every 20 seconds</div>
 </div>
+{embassy}
 <div class="card"><h2>Promise vs reality</h2>{promise_table(w, latest)}</div>
 {sig}
 <div class="card"><h2>Pre-departure trail</h2><div class="grid">

@@ -251,3 +251,15 @@ def test_demo_cases_are_never_called(mem, monkeypatch):
     page = client.get(f"/dashboard/case/{out['yadaiah']}", auth=AUTH).text
     assert "never calls demo numbers" in page
     assert "RED FLAGS" in client.get(f"/dashboard/case/{out['ramesh']}", auth=AUTH).text
+
+
+def test_case_page_offers_an_embassy_alert_when_at_risk(mem):
+    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "Mallaiah", "worker_phone": "9876543210",
+                                                     "family_phone": "9123456780", "dest_country": "UAE"})
+    cid = r.json()["case_id"]
+    assert "Alert the Indian Embassy now" not in client.get(f"/dashboard/case/{cid}", auth=AUTH).text
+    from gulf_saathi import cases
+    cases.record_checkin(mem, {"case_id": cid, "call_kind": "arrival", "pickup_status": "other_person",
+                               "current_city": "Al Ain", "landmark": "near a big mosque"}, api.now())
+    page = client.get(f"/dashboard/case/{cid}", auth=AUTH).text
+    assert "Alert the Indian Embassy now" in page and "Al Ain, near a big mosque" in page and "+919876543210" in page

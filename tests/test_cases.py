@@ -120,7 +120,8 @@ def test_wrong_person_at_airport_is_critical(store, licensed, placed, texts):
     r = record_checkin(store, {"case_id": w["case_id"].lower(), "call_kind": "arrival",
                                "pickup_status": "other_person", "pickup_person": "a man named Faisal"}, NOW)
     assert r["risk_level"] == "critical" and r["escalated"]
-    assert "Do not promise rescue" in r["instruction"]
+    assert "Never promise rescue" in r["instruction"] and "alerting the Indian Embassy in UAE" in r["instruction"]
+    assert "call the embassy themselves" in r["instruction"]  # forbidden, not suggested
     assert "Al Noor Cleaning LLC" in r["instruction"]  # don't go with anyone else
 
     w = store.get("workers", id=w["id"])
@@ -566,7 +567,7 @@ def test_a_caller_only_checking_an_agent_opens_no_case(store, texts):
 
 def test_taken_by_a_stranger_is_critical_with_airport_advice(store, texts):
     r = cases.report_problem(store, {"caller_phone": "+96890001111", "taken_by_stranger": "yes"}, NOW)
-    assert r["risk_level"] == "critical" and "stay inside the airport" in r["instruction"]
+    assert r["risk_level"] == "critical" and "airport help desk or airport police" in r["instruction"]
     assert "G S, " in r["instruction"]  # case number read letter by letter
 
 
@@ -574,11 +575,11 @@ def test_family_is_only_said_to_be_told_when_the_sms_went_out(store, monkeypatch
     monkeypatch.setattr(sms, "send_sms", lambda to, text: "demo: not sent (no SMS provider configured)")
     r = cases.report_problem(store, {"caller_phone": "+971501112222", "family_phone": "9000012345",
                                      "threatened": "yes"}, NOW)
-    assert "told your family" not in r["instruction"] and "noted this in your case" in r["instruction"]
+    assert "family has been sent a message" not in r["instruction"]
     monkeypatch.setattr(sms, "send_sms", lambda to, text: "sent")
     r = cases.report_problem(store, {"caller_phone": "+971502223333", "family_phone": "9000012346",
                                      "threatened": "yes"}, NOW)
-    assert "we have told your family" in r["instruction"]
+    assert "Their family has been sent a message" in r["instruction"]
 
 
 def test_help_line_keeps_trace_details_on_the_case(store, texts):
@@ -619,3 +620,14 @@ def test_extraction_arriving_with_completed_after_disconnect_is_scored(store, li
     again = process_call_record(store, payload("d1", w["case_id"], "arrival", "completed", extracted=extracted), NOW)
     assert again["processed"] is False and len(store.select("escalations")) == 1
     assert len(placed) == 1  # only the arrival call booked at registration; nothing extra
+
+
+def test_critical_answer_brings_saathi_back_within_hours(store, licensed, placed, texts):
+    # Someone in danger is not left for a week: the next call comes within 3 hours.
+    w = register(store, licensed, arrival_call_at="")["worker"]
+    record_checkin(store, {"case_id": w["case_id"], "call_kind": "arrival", "pickup_status": "other_person"}, NOW)
+    process_call_record(store, payload("c1", w["case_id"], "arrival"), NOW)
+    assert placed[-1]["scheduled_at"] == NOW + timedelta(hours=3)
+    w2 = register(store, licensed, arrival_call_at="", worker_phone="9876500000")["worker"]
+    process_call_record(store, payload("c2", w2["case_id"], "weekly"), NOW)
+    assert placed[-1]["scheduled_at"] == NOW + timedelta(days=7)
