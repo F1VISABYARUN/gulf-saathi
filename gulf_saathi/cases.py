@@ -584,13 +584,12 @@ def checkin_instruction(worker: dict, kind: str, level: str, codes: set, escalat
                 f"Indian Embassy in {country}. {family}Saathi will call you again tomorrow. Do not promise that the "
                 "salary or passport will be recovered. Never tell them to call the embassy themselves.")
     if kind == "help":
-        return ("Say: your problem is registered and a Saathi caseworker will look at it. If anything gets worse, "
-                "call this number again. Do not promise that anyone will come or that money will be recovered.")
+        return ("Say: your problem is registered and a Saathi caseworker will look at it. Do not promise that anyone will come or that money will be recovered.")
     if kind == "briefing":
         return ("Thank them warmly. Say: Saathi will call on the day you land. If something feels wrong at the "
-                "airport, stay inside near the help desk or airport police and call this number. Keep this number safe.")
+                "airport, stay inside near the help desk or airport police and ask them for help. Saathi will check on you.")
     if level == "medium":
-        return "Say: noted. Saathi will keep checking. Call this number if anything gets worse."
+        return "Say: noted. Saathi will keep checking on you. Tell Saathi on the next call if anything gets worse."
     return "Say: good, everything is noted as fine. Saathi will call again next week."
 
 
