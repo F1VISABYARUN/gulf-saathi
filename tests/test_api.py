@@ -294,3 +294,46 @@ def test_petition_page_and_status(mem):
     assert client.post(f"/api/cases/{cid}/petition", auth=AUTH, json={"status": "nope"}).status_code == 400
     assert client.post(f"/api/cases/{cid}/petition", auth=AUTH, json={"status": "submitted", "ref": "A1"}).json()["ok"]
     assert "handed in" in client.get(f"/dashboard/case/{cid}", auth=AUTH).text
+
+
+def test_death_report_from_the_dashboard(mem):
+    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "Rajanna", "worker_phone": "9876543210",
+                                                     "family_phone": "9123456780", "family_name": "Lakshmi",
+                                                     "dest_country": "Saudi Arabia", "dest_city": "Riyadh"})
+    cid = r.json()["case_id"]
+    page = client.get(f"/dashboard/case/{cid}", auth=AUTH).text
+    assert "Record a death report" in page and "Death reported" not in page
+    assert client.get(f"/dashboard/case/{cid}/death", auth=AUTH).status_code == 404
+    assert client.post(f"/api/cases/{cid}/death", json={}).status_code == 401
+    client.post(f"/api/cases/{cid}/death", auth=AUTH, json={"reported_by": "employer", "place": "King Saud hospital"})
+    page = client.get(f"/dashboard/case/{cid}", auth=AUTH).text
+    assert "Death reported" in page and "Tell the Indian Embassy about the death" in page and "King Saud hospital" in page
+    assert "A death was reported" in page  # call buttons disabled
+    papers = client.get(f"/dashboard/case/{cid}/death", auth=AUTH).text
+    assert "Lakshmi" in papers and "G.O. 216" in papers and "తెలంగాణ" in papers
+    assert client.post(f"/api/cases/{cid}/death-status", auth=AUTH,
+                       json={"remains": "papers_signed", "ex_gratia": "applied"}).json()["remains_status"] == "papers_signed"
+    assert client.post(f"/api/cases/{cid}/death-status", auth=AUTH, json={"remains": "x", "ex_gratia": "applied"}).status_code == 400
+    client.post(f"/api/cases/{cid}/death-clear", auth=AUTH)
+    assert "Record a death report" in client.get(f"/dashboard/case/{cid}", auth=AUTH).text
+
+
+def test_find_a_case_by_phone_or_employer(mem):
+    for name, phone, employer in (("Rajanna", "9876543210", "Al Safi Farms"), ("Mallesh", "9000011111", "Noor Cleaning")):
+        client.post("/api/workers", auth=AUTH, json={"worker_name": name, "worker_phone": phone,
+                                                     "family_phone": "9123456780", "employer_name": employer})
+    page = client.get("/dashboard", params={"q": "98765 43210"}, auth=AUTH).text
+    assert "Rajanna" in page and "Mallesh" not in page
+    page = client.get("/dashboard", params={"q": "noor"}, auth=AUTH).text
+    assert "Mallesh" in page and "Rajanna" not in page
+    assert "No case matches" in client.get("/dashboard", params={"q": "zzz"}, auth=AUTH).text
+
+
+def test_register_form_has_gender_and_age(mem):
+    page = client.get("/dashboard/new", auth=AUTH).text
+    assert 'name="worker_gender"' in page and 'name="worker_age"' in page
+    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "Saraswathi", "worker_phone": "9876543210",
+                                                     "family_phone": "9123456780", "worker_gender": "woman",
+                                                     "worker_age": "26", "job_title": "Housemaid", "visa_type": "tourist"})
+    page = client.get(f"/dashboard/case/{r.json()['case_id']}", auth=AUTH).text
+    assert "Woman going for housework on a tourist visa" in page and "do not travel" in page

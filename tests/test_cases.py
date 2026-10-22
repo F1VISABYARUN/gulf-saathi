@@ -513,6 +513,9 @@ def test_demo_story_never_calls_or_texts(store, licensed, placed, texts):
     assert store.select("escalations")[0]["sms_status"] == "demo: not sent"
     sig = repeated_signals(store.select("workers"))
     assert sig and all(s["demo"] for s in sig) and set(sig[0]["cases"]) == {out["yadaiah"], out["ramesh"]}
+    from gulf_saathi.promise import predeparture_checks
+    sara = store.get("workers", case_id=out["saraswathi"])
+    assert "domestic_visit_visa" in {f["code"] for f in predeparture_checks(sara)}
 
 
 # --- help line safety net (Bolna after-call extraction) -----------------------------
@@ -702,3 +705,123 @@ def test_petition_is_filled_from_the_case_and_its_status_is_told_to_callers(stor
     assert w["petition_submitted_at"] and "submitted" in cases.petition_line(w) and "PPV-123" in cases.petition_line(w)
     r = cases.report_problem(store, {"caller_phone": w["worker_phone"], "months_unpaid": "2"}, NOW)
     assert "petition is submitted" in r["instruction"]
+
+
+# --- women going for housework --------------------------------------------------------
+
+def test_woman_housemaid_on_tourist_visa_is_stopped(store, licensed, placed):
+    from gulf_saathi.promise import STOP_FLAGS, predeparture_checks
+    w = register(store, licensed, worker_gender="woman", worker_age="27", job_title="Housemaid",
+                 visa_type="tourist", payments="")["worker"]
+    codes = {f["code"] for f in predeparture_checks(w)}
+    assert {"domestic_visit_visa", "woman_under_30", "visit_visa"} <= codes
+    assert "domestic_visit_visa" in STOP_FLAGS
+    # A man with the same papers is not flagged as a woman sent for housework.
+    m = register(store, licensed, worker_gender="man", job_title="Housemaid", visa_type="tourist")["worker"]
+    assert not {"domestic_visit_visa", "woman_under_30"} & {f["code"] for f in predeparture_checks(m)}
+
+
+def test_woman_housemaid_on_employment_visa_gets_the_state_agency_flag(store, licensed, placed):
+    from gulf_saathi.promise import predeparture_checks
+    w = register(store, licensed, worker_gender="woman", worker_age="35", job_title="Driver",
+                 visa_job="House maid", visa_type="employment", payments="")["worker"]
+    codes = {f["code"] for f in predeparture_checks(w)}
+    assert "domestic_woman" in codes and "woman_under_30" not in codes
+
+
+@pytest.mark.parametrize("bad, message", [({"worker_gender": "female"}, "gender"), ({"worker_age": "7"}, "age")])
+def test_gender_and_age_are_checked(store, licensed, placed, bad, message):
+    with pytest.raises(CaseError, match=message):
+        register(store, licensed, **bad)
+
+
+def test_one_missed_call_is_high_for_a_woman_in_housework(store, licensed, placed, texts):
+    w = register(store, licensed, worker_gender="woman", job_title="Housemaid")["worker"]
+    process_call_record(store, payload("m1", w["case_id"], "weekly", talked=False, status="no-answer"), NOW)
+    w = store.get("workers", id=w["id"])
+    assert w["risk_level"] == "high" and w["risk_reasons"][0]["code"] == "missed_1_domestic"
+    # For other workers one missed call stays MEDIUM.
+    y = register(store, licensed, worker_phone="9876500000")["worker"]
+    process_call_record(store, payload("m2", y["case_id"], "weekly", talked=False, status="no-answer"), NOW)
+    assert store.get("workers", id=y["id"])["risk_level"] == "medium"
+
+
+def test_moved_to_another_employer_is_high(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    out = record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly", "employer_changed": "yes"}, NOW)
+    assert out["risk_level"] == "high"
+    assert store.get("workers", id=w["id"])["risk_reasons"][0]["code"] == "employer_changed"
+
+
+# --- when a worker dies abroad ---------------------------------------------------------
+
+def test_family_reports_a_death_on_the_line(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    out = cases.report_problem(store, {"caller_phone": "9123456780", "caller_relation": "wife",
+                                       "worker_died": "yes", "current_city": "Dubai",
+                                       "informed_by": "his roommate", "notes": "Heart attack at the camp"}, NOW)
+    assert out["ok"] and out["case_id"] == w["case_id"] and not out["new_case"]
+    assert "very sorry" in out["instruction"] and "support money" in out["instruction"]  # UAE: ex-gratia country
+    assert "G S," in out["instruction"]
+    w = store.get("workers", id=w["id"])
+    assert w["status"] == "death_reported" and w["risk_level"] == "critical"
+    assert "his roommate" in w["death_note"] and w["remains_status"] == "reported"
+    alert = store.select("escalations")[0]
+    assert alert["level"] == "critical" and alert["family_sms"] == "" and texts == []  # never by SMS
+    # Saathi stops calling the number, and a call booked earlier changes nothing when it comes back.
+    booked = len(placed)
+    assert cases.schedule_call(store, w, "weekly", None, NOW)["ok"] is False and len(placed) == booked
+    out2 = process_call_record(store, payload("late", w["case_id"], "arrival", talked=False, status="no-answer"), NOW)
+    assert out2["processed"] is False and texts == [] and len(placed) == booked
+    # The same report again opens no second alert.
+    cases.report_problem(store, {"caller_phone": "9123456780", "caller_relation": "wife", "worker_died": "yes"}, NOW)
+    assert len(store.select("escalations")) == 1
+
+
+def test_death_reported_by_a_stranger_to_saathi_opens_a_family_case(store, placed, texts):
+    out = cases.report_problem(store, {"caller_phone": "9000011111", "worker_died": "yes",
+                                       "worker_name": "Rajanna", "current_city": "Riyadh, Saudi Arabia"}, NOW)
+    w = store.get("workers", case_id=out["case_id"])
+    assert out["new_case"] and w["source"] == "family_call" and w["family_phone"] == "+919000011111"
+    assert w["worker_name"] == "Rajanna" and w["death_reported_at"]
+
+
+def test_death_papers_and_embassy_alert(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    w = cases.report_death(store, w, {"reported_by": "employer", "place": "Rashid Hospital, Dubai"}, NOW)
+    alert = cases.embassy_alert(store, w, NOW)
+    assert alert["subject"].startswith("Death of Indian worker reported")
+    assert "Lakshmi (wife), +919123456780" in alert["body"] and "Rashid Hospital" in alert["body"]
+    pkt = cases.death_packet(store, w, NOW)
+    text = json.dumps(pkt, ensure_ascii=False)
+    assert "Passport number: ____" in text and "G.O. 216" in text and "ICWF" in text
+    assert "ఎక్స్‌గ్రేషియా" in text
+    # Outside the countries the ex-gratia covers, it is not offered.
+    store.update("workers", {"id": w["id"]}, {"dest_country": "Malaysia", "dest_city": "Kuala Lumpur"})
+    other = cases.death_packet(store, store.get("workers", id=w["id"]), NOW)
+    assert "G.O. 216" not in json.dumps(other)
+    assert "DEATH REPORTED" in case_packet(store, w, NOW)
+
+
+def test_death_report_can_be_cleared_and_statuses_tracked(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    w = cases.report_death(store, w, {"reported_by": "a friend", "notes": "rumour on WhatsApp"}, NOW)
+    w = cases.update_death_status(store, w, "embassy_informed", "applied", NOW)
+    assert (w["remains_status"], w["ex_gratia_status"]) == ("embassy_informed", "applied")
+    with pytest.raises(CaseError):
+        cases.update_death_status(store, w, "lost", "applied", NOW)
+    w = cases.clear_death(store, w, NOW)
+    assert not w["death_reported_at"] and w["status"] == "abroad" and "rumour on WhatsApp" in w["notes"]
+    assert cases.schedule_call(store, w, "weekly", None, NOW)["ok"] is True
+
+
+def test_after_call_extraction_catches_a_death_report_from_india(store, placed, texts):
+    extracted = {"help_check": {"abroad": _x("no"), "worker_died": _x("yes"),
+                                "current_city": _x(subjective="Kuwait"), "notes": _x(subjective="Son died in Kuwait")}}
+    p = {"id": "d1", "status": "completed", "conversation_duration": 60, "transcript": "user: మా అబ్బాయి చనిపోయాడు",
+         "telephony_data": {"to_number": "+919000022222"}, "context_details": {"recipient_data": {}},
+         "extracted_data": extracted, "user_number": "+919000022222"}
+    out = process_call_record(store, p, NOW)
+    assert out.get("help"), out
+    w = store.get("workers", case_id=out["help"]["case_id"])
+    assert w["death_reported_at"] and "Son died in Kuwait" in w["death_note"]

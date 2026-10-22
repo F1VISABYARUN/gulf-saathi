@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from html import escape
 
-from .cases import CODE_PHRASE_HELP, IST, code_phrase_ok, fmt_ist, parse_ts, reason_text
+from .cases import (CODE_PHRASE_HELP, EX_GRATIA_STATUSES, GENDERS, IST, REMAINS_STATUSES, code_phrase_ok, fmt_ist,
+                    parse_ts, reason_text)
 from .fees import fmt_rupees
 from .promise import STOP_FLAGS, VISA_TYPES, predeparture_checks, promise_rows
 
@@ -21,7 +22,8 @@ ANSWER_LABELS = [
     ("agent_name", "Agent (as said)"), ("agent_phone", "Agent phone (as said)"), ("salary_received", "Salary received"),
     ("months_unpaid", "Months unpaid"), ("passport_with_worker", "Passport with worker"),
     ("food_ok", "Food and room OK"), ("threatened", "Threats or violence"),
-    ("movement_restricted", "Stopped from going out"), ("needs_help", "Asked for help"),
+    ("movement_restricted", "Stopped from going out"), ("employer_changed", "Moved to another employer / house"),
+    ("needs_help", "Asked for help"),
     ("code_phrase_used", "Said the danger phrase"), ("briefing_understood", "Understood the briefing"),
     ("notes", "Notes"),
 ]
@@ -160,7 +162,31 @@ def tiles(totals: dict) -> str:
         for k, label, warn in items) + "</div>"
 
 
-def render_list(workers: list[dict], status: dict, totals: dict | None = None) -> str:
+def search_workers(workers: list[dict], q: str) -> list[dict]:
+    """Find a case by name, phone digits, case number, employer, sponsor, place or notes.
+    For the embassy or a volunteer asking "whose family is this?"."""
+    q = " ".join((q or "").lower().split())
+    if not q:
+        return workers
+    digits = "".join(ch for ch in q if ch.isdigit())
+    keys = ("case_id", "worker_name", "worker_name_te", "employer_name", "sponsor_name", "sponsor_id", "dest_city",
+            "dest_country", "agent_name", "family_name", "notes")
+    out = []
+    for w in workers:
+        text = " ".join(str(w.get(k) or "") for k in keys).lower()
+        phones = "".join(str(w.get(k) or "") for k in ("worker_phone", "family_phone", "employer_phone"))
+        if all(word in text for word in q.split()) or (len(digits) >= 6 and digits in phones):
+            out.append(w)
+    return out
+
+
+def render_list(workers: list[dict], status: dict, totals: dict | None = None, q: str = "") -> str:
+    shown = search_workers(workers, q)
+    search = f"""<form method="get" action="/dashboard" class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<input name="q" value="{esc(q)}" placeholder="Find a case: name, phone, employer, sponsor, city" style="flex:1;min-width:220px">
+<button class="btn" type="submit">Find</button>{' <a href="/dashboard">Show all</a>' if q else ''}
+<span class="muted" style="font-size:13px;flex-basis:100%">For the embassy or a volunteer asking whose family a worker is.</span></form>"""
+    workers_all, workers = workers, shown
     rows = []
     order = {"critical": 0, "high": 1, "medium": 2, "ok": 3}
     # Most serious first; within a level, most recently updated first.
@@ -176,15 +202,20 @@ def render_list(workers: list[dict], status: dict, totals: dict | None = None) -
 <td>{esc(fmt_ist(w.get('last_contact_at')))}</td>
 <td>{esc(w.get('missed_checkins') or 0)}</td>
 <td>{esc(fmt_ist(w.get('next_call_at')))}</td></tr>""")
-    table = ("<p class='muted'>No workers yet. <a href='/dashboard/new'>Register the first one</a>.</p>" if not rows else
+    empty = (f"<p class='muted'>No case matches \"{esc(q)}\".</p>" if q else
+             "<p class='muted'>No workers yet. <a href='/dashboard/new'>Register the first one</a>.</p>")
+    table = (empty if not rows else
              f"""<div class="wrap"><table><thead><tr><th>Risk</th><th>Case</th><th>Worker</th><th>Destination</th>
 <th>Employer</th><th>Status</th><th>Last contact</th><th>Missed</th><th>Next call</th></tr></thead>
 <tbody>{''.join(rows)}</tbody></table></div>""")
-    counts = {lvl: sum(1 for w in workers if (w.get("risk_level") or "ok") == lvl) for lvl in order}
+    counts = {lvl: sum(1 for w in workers_all if (w.get("risk_level") or "ok") == lvl) for lvl in order}
     summary = " &nbsp; ".join(f"{badge(l)} {counts[l]}" for l in order)
     return page("Cases", f"""<h1>Cases</h1>{tiles(totals) if totals else ""}
 <div class="card">{summary}<div class="muted" style="margin-top:8px">{status_line(status)} · refreshes every 15 seconds</div></div>
-<div class="card">{table}</div>""", refresh=15)
+{search}<div class="card">{table}</div>
+<script>
+setInterval(() => {{ if (!document.querySelector('input:focus')) location.reload(); }}, 15000);
+</script>""")
 
 
 def reported_table(rows: list[dict]) -> str:
@@ -247,7 +278,8 @@ def status_line(status: dict) -> str:
 
 FIELDS = [
     ("Worker", [("worker_name", "Name (English) *", "Yadaiah"), ("worker_name_te", "Name in Telugu (for the family SMS)", "యాదయ్య"),
-                ("worker_phone", "Worker phone *", "98765 43210"), ("code_phrase", "Danger code phrase", "అమ్మ బాగుందా")]),
+                ("worker_phone", "Worker phone *", "98765 43210"), ("code_phrase", "Danger code phrase", "అమ్మ బాగుందా"),
+                ("worker_gender", "Woman or man", ""), ("worker_age", "Age", "34")]),
     ("Family", [("family_name", "Family member name", "Lakshmi"), ("family_relation", "Relation", "wife"),
                 ("family_phone", "Family phone *", "91234 56780")]),
     ("Employer and sponsor", [("employer_name", "Employer / company", "Al Noor Cleaning LLC"),
@@ -291,10 +323,10 @@ def render_form(values: dict | None = None, case_id: str | None = None) -> str:
     for legend, fields in FIELDS:
         inputs = []
         for name, label, ph in fields:
-            if name == "visa_type":
+            if name in ("visa_type", "worker_gender"):
                 current = _form_value(name, values)
                 opts = "".join(f'<option value="{t}"{" selected" if current == t else ""}>{t}</option>'
-                               for t in ("", *VISA_TYPES))
+                               for t in ("", *(VISA_TYPES if name == "visa_type" else GENDERS)))
                 inputs.append(f'<div><label for="{name}">{esc(label)}</label><select id="{name}" name="{name}">{opts}</select></div>')
                 continue
             kind = "date" if name == "departure_date" else "datetime-local" if name == "arrival_call_at" else "text"
@@ -395,7 +427,8 @@ def render_case(w: dict, events: list[dict], status: dict, signals: list[dict] |
                        f'<div class="sms" style="margin:8px 0"><b>Family SMS</b> ({esc(es.get("sms_status"))}):<br>{esc(es.get("family_sms"))}</div>'
                        f'{action}</div>')
 
-    calls_disabled = ("disabled title='Demo case: Saathi never calls demo numbers'" if w.get("is_demo") else
+    calls_disabled = ("disabled title='A death was reported: Saathi does not call this number'" if w.get("death_reported_at") else
+                      "disabled title='Demo case: Saathi never calls demo numbers'" if w.get("is_demo") else
                       "" if status["bolna"] else "disabled title='Bolna is not configured'")
     case_id = esc(w["case_id"])
 
@@ -426,17 +459,35 @@ def render_case(w: dict, events: list[dict], status: dict, signals: list[dict] |
                f'<br>{esc(w["welcome_sms"])}</div>' if w.get("welcome_sms") else "")
     sig = (f'<div class="card"><h2>Repeated across cases</h2>{signals_table(signals)}</div>' if signals else "")
     embassy = ""
-    if alert and w.get("risk_level") in ("high", "critical"):
+    dead = bool(w.get("death_reported_at"))
+    if alert and (dead or w.get("risk_level") in ("high", "critical")):
         from urllib.parse import quote
         mailto = f"mailto:?subject={quote(alert['subject'])}&body={quote(alert['body'])}"
-        embassy = f"""<div class="card" style="border-color:#b42318"><h2>Alert the Indian Embassy now</h2>
-<p class="muted">Saathi told the worker the team is alerting the embassy. Send this to the Indian Embassy or Consulate in
+        heading, why = (("Tell the Indian Embassy about the death", "Saathi told the family the team is informing the embassy.")
+                        if dead else ("Alert the Indian Embassy now", "Saathi told the worker the team is alerting the embassy."))
+        embassy = f"""<div class="card" style="border-color:#b42318"><h2>{heading}</h2>
+<p class="muted">{why} Send this to the Indian Embassy or Consulate in
 {esc(w.get('dest_country') or 'that country')} (community welfare email or helpline) and register it on MADAD. Saathi cannot send it by itself.</p>
 <pre id="alert">{esc(alert['subject'])}\n\n{esc(alert['body'])}</pre>
 <p><button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('alert').innerText).then(() => this.textContent = 'Copied')">Copy alert</button>
 <a class="btn secondary" href="{esc(mailto)}">Open in email</a>
 <a class="btn secondary" href="https://madad.gov.in" target="_blank" rel="noopener">Open MADAD</a></p></div>"""
+    death = death_card(w) if dead else ""
+    record_death = "" if dead else f"""<details class="card"><summary><b>Record a death report</b>
+<span class="muted">(if the employer, embassy or a volunteer tells you the worker died)</span></summary>
+<form onsubmit="return false"><div class="grid">
+<div><label for="d_by">Who reported it</label><input id="d_by" placeholder="e.g. employer, embassy, friend in Riyadh"></div>
+<div><label for="d_from">They heard it from</label><input id="d_from" placeholder="name and phone, if known"></div>
+<div><label for="d_place">Where</label><input id="d_place" placeholder="city, hospital"></div>
+<div><label for="d_when">When</label><input id="d_when" placeholder="date"></div></div>
+<label for="d_notes">What was said</label><textarea id="d_notes" rows="2"></textarea>
+<p class="muted">This stops Saathi's calls to this number and opens a CRITICAL alert. The family is NOT sent an SMS:
+a person must tell them.</p>
+<p><button class="btn" onclick="post('/api/cases/{case_id}/death', {{reported_by: d_by.value, informed_by: d_from.value,
+place: d_place.value, when: d_when.value, notes: d_notes.value}}, this, 'Recorded').then(j => j && location.reload())">Record death report</button></p>
+</form></details>"""
     return page(w["case_id"], f"""<h1>{case_id} · {esc(w['worker_name'])}{demo_tag(w)} {case_badge(w)}</h1>
+{death}
 <div class="card">
   {f'<ul>{reasons}</ul>' if reasons else '<p class="muted">No current risk signals.</p>'}{flags}{''.join(notices)}
   <p>
@@ -477,8 +528,53 @@ The caller hears the status when they call Saathi again.</p>
   {kv('Visa type (papers)', w.get('visa_type'))}{kv('Job on visa (papers)', w.get('visa_job'))}
   {kv('Danger code phrase', w.get('code_phrase'))}
 </div>{welcome}</div>
-<div class="card"><h2>Timeline</h2>{''.join(evs)}</div>""", refresh=20)
+<div class="card"><h2>Timeline</h2>{''.join(evs)}</div>
+{record_death}
+<script>
+// Refresh every 20 seconds, but never while someone is typing or reading an opened section.
+setInterval(() => {{ if (!document.querySelector('details[open], input:focus, textarea:focus, select:focus')) location.reload(); }}, 20000);
+</script>""")
 
+
+
+def death_card(w: dict) -> str:
+    case_id = esc(w["case_id"])
+    opts = lambda values, current: "".join(f'<option value="{x}"{" selected" if current == x else ""}>{x.replace("_", " ")}</option>'
+                                           for x in values)
+    return f"""<div class="card" style="border-color:#101828;border-width:2px"><h2>Death reported</h2>
+<p><b>{esc(fmt_ist(w.get('death_reported_at')))}</b> · {esc(w.get('death_note') or 'no details yet')}</p>
+<p class="muted">Not confirmed until the embassy or employer confirms it. Saathi has stopped calling this number and has not
+texted the family. If a call was booked with Bolna before this, cancel it in Bolna's call history: Saathi ignores its
+result, but cannot stop it ringing. Help the family with the steps in the support papers.</p>
+<p><a class="btn" href="/dashboard/case/{case_id}/death" target="_blank">Open family support papers (Telugu + English)</a></p>
+<form onsubmit="return false" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+<label style="margin:0">Body<select id="rst">{opts(REMAINS_STATUSES, w.get('remains_status'))}</select></label>
+<label style="margin:0">Telangana ex-gratia<select id="egst">{opts(EX_GRATIA_STATUSES, w.get('ex_gratia_status'))}</select></label>
+<button class="btn" onclick="post('/api/cases/{case_id}/death-status', {{remains: rst.value, ex_gratia: egst.value}}, this, 'Saved').then(j => j && location.reload())">Save</button>
+<button class="btn secondary" onclick="confirm('Clear the death report? Only if it was a mistake.') && post('/api/cases/{case_id}/death-clear', {{}}, this, 'Cleared').then(j => j && location.reload())">It was a mistake: clear</button>
+</form></div>"""
+
+
+def render_death_packet(w: dict, pkt: dict) -> str:
+    """Printable papers for a family after a death: Telugu steps first, then the English facts."""
+    te, en = pkt["telugu"], pkt["english"]
+    li = lambda xs: "".join(f"<li>{esc(x)}</li>" for x in xs)
+    body = f"""<p class="noprint"><button class="btn" onclick="window.print()">Print / save as PDF</button>
+<a class="btn secondary" href="/dashboard/case/{esc(w['case_id'])}">Back to case</a></p>
+<p class="noprint muted">For the family and the caseworker. The Telugu is machine-drafted: have a Telugu speaker read it
+first. Saathi does not make the NOC or consent form: the embassy gives its own, which the next of kin signs.</p>
+<div class="card petition">
+<p><b>{esc(te['title'])}</b></p><p>{esc(te['opening'])}</p><ol>{li(te['steps'])}</ol>
+<hr>
+<p><b>{esc(en['title'])}</b></p>
+<p><b>Facts</b></p><ul>{li(en['facts'])}</ul>
+<p><b>Steps</b></p><ol>{li(en['steps'])}</ol>
+<p>{esc(en['status'])}</p>
+<p class="muted">{esc(en['note'])}</p>
+</div>
+<style>@media print {{ header, .noprint {{ display:none }} .card {{ border:0 }} body {{ background:#fff }} }}
+.petition p, .petition li {{ margin:6px 0 }}</style>"""
+    return page(f"Family support {w['case_id']}", body)
 
 
 def render_petition(w: dict, pet: dict) -> str:

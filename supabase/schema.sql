@@ -141,3 +141,11 @@ alter table workers add column if not exists reported_by text;           -- self
 alter table workers add column if not exists petition_status text;       -- prepared / submitted / acknowledged / closed
 alter table workers add column if not exists petition_ref text;
 alter table workers add column if not exists petition_submitted_at timestamptz;
+
+-- Added 23 Oct 2026: women going for housework, and deaths abroad.
+alter table workers add column if not exists worker_gender text;         -- woman / man
+alter table workers add column if not exists worker_age int;
+alter table workers add column if not exists death_reported_at timestamptz;
+alter table workers add column if not exists death_note text;            -- who reported it, where, what was said
+alter table workers add column if not exists remains_status text;        -- reported / embassy_informed / ... / closed
+alter table workers add column if not exists ex_gratia_status text;      -- not_applied / applied / paid / rejected

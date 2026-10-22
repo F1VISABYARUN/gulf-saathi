@@ -1,35 +1,18 @@
-# Paste into Bolna and Supabase (22 Oct 2026)
+# Paste into Bolna and Supabase (23 Oct 2026)
 
 ## 1. Supabase → SQL Editor → New query → paste → Run
 
 ```sql
--- Added 22 Oct 2026: agent numbers heard on calls (Saathi Intelligence), family
--- callers and Pravasi Prajavani petition tracking. Safe to run again.
-create table if not exists contact_reports (
-  id uuid primary key default gen_random_uuid(),
-  created_at timestamptz not null default now(),
-  phone text,                     -- agent / sub-agent phone, normalised (+91...)
-  payment text,                   -- UPI ID / account the money goes to, lower case
-  amount_asked numeric,           -- what the agent asked for, in rupees
-  visa_type text,
-  agent_name text,
-  caller_district text,
-  reporter text,                  -- worker / family
-  caller_phone text,              -- who reported it: private, used only to count distinct callers
-  notes text,
-  is_demo boolean not null default false
-);
-create index if not exists contact_reports_phone_idx on contact_reports (phone);
-create index if not exists contact_reports_payment_idx on contact_reports (payment);
-alter table contact_reports enable row level security;
-
-alter table workers add column if not exists reported_by text;           -- self / family relation
-alter table workers add column if not exists petition_status text;       -- prepared / submitted / acknowledged / closed
-alter table workers add column if not exists petition_ref text;
-alter table workers add column if not exists petition_submitted_at timestamptz;
+-- Added 23 Oct 2026: women going for housework, and deaths abroad. Safe to run again.
+alter table workers add column if not exists worker_gender text;
+alter table workers add column if not exists worker_age int;
+alter table workers add column if not exists death_reported_at timestamptz;
+alter table workers add column if not exists death_note text;
+alter table workers add column if not exists remains_status text;
+alter table workers add column if not exists ex_gratia_status text;
 ```
 
-Check: `/health/db` shows "ok" for `contact_reports` and "workers (new columns)".
+Check: `/health/db` shows "ok" for "workers (new columns)".
 
 ## 2. Gulf Saathi agent → Agent tab
 Delete everything, add ONE section called `Gulf Saathi`, paste this, Save agent.
@@ -59,7 +42,7 @@ If at ANY moment the caller says they are abroad and something is wrong, switch 
 A: IN TROUBLE ABROAD
 1. Let them finish. Then say: "అర్థమైంది. మీరు ఒంటరి కాదు. ఇప్పుడే మీ సమస్య నమోదు చేస్తున్నాను." and IMMEDIATELY call report_problem. Ask nothing before this call.
    caller_phone = user_number from the call information. case_id = only a GS- number if they said one, else empty.
-   Fill only what they said: taken from the airport or being taken by someone who is not their employer = taken_by_stranger yes; beaten or threatened = threatened yes; passport taken, lost, or kept by the sponsor = passport_with_worker no; not paid = months_unpaid (digits); locked in = movement_restricted yes; asks for help or in danger = needs_help yes; their work, city, name if they said them; notes = their problem in short English.
+   Fill only what they said: taken from the airport or being taken by someone who is not their employer = taken_by_stranger yes; beaten or threatened = threatened yes; passport taken, lost, or kept by the sponsor = passport_with_worker no; sold or sent to another house or employer = employer_changed yes; not paid = months_unpaid (digits); locked in = movement_restricted yes; asks for help or in danger = needs_help yes; their work, city, name if they said them; notes = their problem in short English.
 2. Say in calm, simple Telugu what the tool's "instruction" says, including the case number letter by letter.
 3. Then gently, ONE question at a time, only what you don't know yet. After each answer call report_problem again with it:
    - "ఇప్పుడు మీరు ఎక్కడ ఉన్నారు? దగ్గర ఏదైనా బిల్డింగ్, షాప్, మసీదు లేదా రోడ్డు పేరు కనిపిస్తుందా?"
@@ -76,6 +59,7 @@ For a mother, wife, brother or son calling about someone abroad.
 1. Let them finish. Then say: "అర్థమైంది. మీరు ఒంటరి కాదు. ఇప్పుడే నమోదు చేస్తున్నాను." and IMMEDIATELY call report_problem with caller_relation = who they are (mother, wife...), caller_phone = user_number, worker_name, the place and what happened.
 2. Say in calm Telugu what its "instruction" says, including the case number letter by letter. It tells them they do not need to travel to Hyderabad for Pravasi Prajavani: Saathi prepares the petition and a caseworker hands it in.
 3. Then gently, ONE question at a time, only what you don't know yet, calling report_problem again after each answer: the worker's own phone number abroad (read it back digit by digit), which country and city, the agent's name or phone.
+If they say the worker has DIED: ask nothing first. Say slowly: "చాలా బాధగా ఉంది. మీరు ఒంటరి కాదు." and IMMEDIATELY call report_problem with worker_died = yes, caller_relation, caller_phone = user_number, worker_name, current_city = where it happened, informed_by = who told them, if said. Say its instruction gently. Never ask how it happened. Never send them to an office.
 If they are calling about an agent who keeps phoning them or asking for money: read the number back digit by digit, then call check_contact with reporter = family and say its instruction.
 Never promise rescue or money. Never ask for passport number, bank details or OTP.
 
@@ -88,6 +72,7 @@ Check only what they ask about. For each check: get the minimum, call the tool, 
   not_found: "ఈ పేరు ప్రభుత్వ లైసెన్స్ జాబితాలో దొరకలేదు. డబ్బు ఇచ్చే ముందు లైసెన్స్ నంబర్ అడగండి."
 - FEE: ask "మొత్తం ఎంత అడిగారు లేదా ఇచ్చారు?" then call check_fee. over_cap: say the total and how much extra (over_by_spoken), illegal. within_cap: within the limit, pay only digitally with a receipt. Never add numbers yourself. If they mention 20,000: "కొన్ని పాత ప్రభుత్వ పేజీల్లో ఇంకా 20,000 అని ఉంది. ఇప్పటి పరిమితి 30,000 ప్లస్ GST."
 - VISA: visit or tourist visa for a job: warn clearly, no legal protection.
+- A WOMAN GOING FOR HOUSEWORK (పనిమనిషి, ఇంటి పని): say calmly, once: on a visit or tourist visa this is the most dangerous route, do not go. With an ECR passport she must be at least 30, and only a state government recruiting agency can send her, never a private agent.
 - AGENT'S PHONE OR PAYMENT ACCOUNT: if they mention the agent's phone number, or the UPI ID / account they are asked to pay, first read it back digit by digit ("9 8 4 8 0 1 2 3 4 5, సరేనా?"). Once they say yes, call check_contact with it, plus the amount, visa type, agent name and district if they said them, and caller_phone = user_number. Say its instruction. If they don't know the number, don't push.
 After answering what they asked, offer the rest in ONE question: "ఫీజు లేదా వీసా కూడా చెక్ చేయాలా?" If no: one-line reminder (employment visa, written contract, receipts, keep your passport), then goodbye.
 If they already paid and are still in India: keep all proof, pay nothing more, complain on emigrate.gov.in (Register Grievance). Never promise the money back.
@@ -102,13 +87,14 @@ NEVER
 ```
 
 ## 3. Gulf Saathi agent → Tools tab
-Delete `report_problem` and `check_contact`, then add each again with Write manually. Save agent.
+Delete `report_problem`, then add it again with Write manually (3 new fields: worker_died, informed_by,
+employer_changed). `check_contact` has not changed: leave it. Save agent.
 
 ### report_problem
 ```json
 {
   "name": "report_problem",
-  "description": "Use when someone is ABROAD and in trouble, whether the caller is that worker or their family in India. Call it at once with what they said, and again after each new detail. Then say what its instruction tells you.",
+  "description": "Use when someone is ABROAD and in trouble, or has died there, whether the caller is that worker or their family in India. Call it at once with what they said, and again after each new detail. Then say what its instruction tells you.",
   "pre_call_message": "సరే, నోట్ చేస్తున్నాను.",
   "parameters": {
     "type": "object",
@@ -192,6 +178,18 @@ Delete `report_problem` and `check_contact`, then add each again with Write manu
       "worker_phone": {
         "type": "string",
         "description": "Family callers only: the worker's own phone abroad if they know it, digits with country code. Empty string otherwise."
+      },
+      "worker_died": {
+        "type": "string",
+        "description": "yes only if the caller clearly says the worker has died. Otherwise empty string."
+      },
+      "informed_by": {
+        "type": "string",
+        "description": "Death reports only: who told the family, and their phone if said. Otherwise empty string."
+      },
+      "employer_changed": {
+        "type": "string",
+        "description": "yes if they were sold or sent to another house or employer than the one who brought them. Otherwise empty string."
       }
     },
     "required": [
@@ -214,7 +212,10 @@ Delete `report_problem` and `check_contact`, then add each again with Write manu
       "notes",
       "caller_relation",
       "worker_name",
-      "worker_phone"
+      "worker_phone",
+      "worker_died",
+      "informed_by",
+      "employer_changed"
     ]
   },
   "key": "custom_task",
@@ -240,7 +241,10 @@ Delete `report_problem` and `check_contact`, then add each again with Write manu
       "notes": "%(notes)s",
       "caller_relation": "%(caller_relation)s",
       "worker_name": "%(worker_name)s",
-      "worker_phone": "%(worker_phone)s"
+      "worker_phone": "%(worker_phone)s",
+      "worker_died": "%(worker_died)s",
+      "informed_by": "%(informed_by)s",
+      "employer_changed": "%(employer_changed)s"
     },
     "url": "https://gulf-saathi-psi.vercel.app/tools/report-problem",
     "api_token": null,
@@ -251,79 +255,74 @@ Delete `report_problem` and `check_contact`, then add each again with Write manu
 }
 ```
 
-### check_contact
+## 4. Gulf Saathi agent → Extractions tab → category `help_check`
+Add one field, Save agent:
+
+| Name | Extraction prompt | Answer type |
+|---|---|---|
+| `worker_died` | Did the caller clearly say that the worker (their family member abroad) has died? | Pre-defined: `yes` / `no` / `not_said` |
+
+## 5. Saathi Check-in agent
+**Agent tab → section `Weekly call`**: replace its text with this, Save.
+
+```
+Only when call type is weekly. Ask one at a time, skipping anything they already said:
+1. "ఈ నెల జీతం వచ్చిందా?" If no: "ఎన్ని నెలలుగా రాలేదు?"
+2. "మీ పాస్‌పోర్ట్ మీ దగ్గరే ఉందా?"
+3. "భోజనం, ఉండే చోటు బాగున్నాయా?"
+4. "ఎవరైనా బెదిరిస్తున్నారా, కొడుతున్నారా? బయటకు వెళ్లనిస్తున్నారా?"
+5. "ఇప్పుడు ఏ ఊరిలో ఉన్నారు, ఏ పని చేస్తున్నారు?"
+6. "ఇంకా {{employer_name}} దగ్గరే పని చేస్తున్నారా?" If they were moved or sold to another house or employer: employer_changed = yes.
+If everything is fine, call record_checkin with all the answers; it will say it is noted as fine.
+If anything is wrong (locked in a room, no food, beaten, passport taken, no salary), follow Danger first.
+```
+
+**Tools tab**: delete `record_checkin`, add it again with Write manually (1 new field: employer_changed). Save.
+
 ```json
 {
-  "name": "check_contact",
-  "description": "Check an agent's phone number or the UPI ID / account money goes to: has it come up in other Saathi cases or been reported by other callers? Also saves it. Then say what its instruction tells you.",
-  "pre_call_message": "ఒక్క నిమిషం, చూస్తున్నాను.",
+  "name": "record_checkin",
+  "description": "Save the worker's answers for this call. Call it once after the questions, or IMMEDIATELY if the worker reports danger, asks for help, or says the danger code phrase. Then say what its instruction tells you.",
+  "pre_call_message": "సరే.",
   "parameters": {
     "type": "object",
     "properties": {
-      "phone": {
-        "type": "string",
-        "description": "The agent's or sub-agent's phone number, digits only. Empty string if not given."
-      },
-      "payment": {
-        "type": "string",
-        "description": "The UPI ID, account number or phone number the money is paid to. Empty string if not given."
-      },
-      "amount": {
-        "type": "string",
-        "description": "What the agent asked for or took, in rupees, digits only. Empty string if not said."
-      },
-      "visa_type": {
-        "type": "string",
-        "description": "visit, tourist or employment if they said which visa the agent offers. Empty string if not said."
-      },
-      "agent_name": {
-        "type": "string",
-        "description": "The agent's name if they said it. Empty string if not."
-      },
-      "district": {
-        "type": "string",
-        "description": "The caller's district or village if they said it. Empty string if not."
-      },
-      "reporter": {
-        "type": "string",
-        "description": "worker, or family if a family member is calling."
-      },
-      "caller_phone": {
-        "type": "string",
-        "description": "Always the user_number from the call information."
-      },
-      "notes": {
-        "type": "string",
-        "description": "Anything else about this agent in one short English sentence. Empty string if nothing."
-      }
+      "case_id": {"type": "string", "description": "Always exactly {{case_id}} from the prompt."},
+      "call_kind": {"type": "string", "description": "Always exactly {{call_kind}} from the prompt: briefing, arrival or weekly."},
+      "pickup_status": {"type": "string", "description": "Arrival call only: employer, other_person, nobody, not_arrived or unknown. Empty string on weekly calls."},
+      "pickup_person": {"type": "string", "description": "Who picked them up, in the worker's words. Empty string if not asked."},
+      "current_location": {"type": "string", "description": "Where they are now. Empty string if not asked."},
+      "current_job": {"type": "string", "description": "The work they say they are doing now, in their own words. Empty string if not asked."},
+      "current_city": {"type": "string", "description": "The city or place they say they are in now. Empty string if not asked."},
+      "salary_received": {"type": "string", "description": "yes, no or unknown. Empty string if not asked."},
+      "months_unpaid": {"type": "string", "description": "Number of months salary is unpaid, as digits. Empty string if none or not asked."},
+      "passport_with_worker": {"type": "string", "description": "yes, no or unknown. Empty string if not asked."},
+      "food_ok": {"type": "string", "description": "yes, no or unknown. Empty string if not asked."},
+      "threatened": {"type": "string", "description": "yes if they report threats or violence, otherwise no. Empty string if not asked."},
+      "movement_restricted": {"type": "string", "description": "yes if they are NOT allowed to go out, otherwise no. Empty string if not asked."},
+      "employer_changed": {"type": "string", "description": "yes if they were moved or sold to another house or employer, otherwise no. Empty string if not asked."},
+      "needs_help": {"type": "string", "description": "yes if they ask for help, otherwise no. Empty string if not asked."},
+      "code_phrase_used": {"type": "string", "description": "yes only if they said the danger code phrase, otherwise no."},
+      "briefing_understood": {"type": "string", "description": "Briefing calls only: yes if they answered both check questions correctly, otherwise no. Empty string on other calls."},
+      "notes": {"type": "string", "description": "Anything else important, in short English. Empty string if nothing."}
     },
-    "required": [
-      "phone",
-      "payment",
-      "amount",
-      "visa_type",
-      "agent_name",
-      "district",
-      "reporter",
-      "caller_phone",
-      "notes"
-    ]
+    "required": ["case_id", "call_kind", "pickup_status", "pickup_person", "current_location", "current_job", "current_city", "salary_received", "months_unpaid", "passport_with_worker", "food_ok", "threatened", "movement_restricted", "employer_changed", "needs_help", "code_phrase_used", "briefing_understood", "notes"]
   },
   "key": "custom_task",
   "value": {
     "method": "POST",
     "param": {
-      "phone": "%(phone)s",
-      "payment": "%(payment)s",
-      "amount": "%(amount)s",
-      "visa_type": "%(visa_type)s",
-      "agent_name": "%(agent_name)s",
-      "district": "%(district)s",
-      "reporter": "%(reporter)s",
-      "caller_phone": "%(caller_phone)s",
-      "notes": "%(notes)s"
+      "case_id": "%(case_id)s", "call_kind": "%(call_kind)s", "pickup_status": "%(pickup_status)s",
+      "pickup_person": "%(pickup_person)s", "current_location": "%(current_location)s",
+      "current_job": "%(current_job)s", "current_city": "%(current_city)s",
+      "salary_received": "%(salary_received)s", "months_unpaid": "%(months_unpaid)s",
+      "passport_with_worker": "%(passport_with_worker)s", "food_ok": "%(food_ok)s",
+      "threatened": "%(threatened)s", "movement_restricted": "%(movement_restricted)s",
+      "employer_changed": "%(employer_changed)s",
+      "needs_help": "%(needs_help)s", "code_phrase_used": "%(code_phrase_used)s",
+      "briefing_understood": "%(briefing_understood)s", "notes": "%(notes)s"
     },
-    "url": "https://gulf-saathi-psi.vercel.app/check-contact",
+    "url": "https://gulf-saathi-psi.vercel.app/tools/record-checkin",
     "api_token": null,
     "headers": {},
     "pre_call_webhook_url": null,
@@ -331,3 +330,10 @@ Delete `report_problem` and `check_contact`, then add each again with Write manu
   }
 }
 ```
+
+**Extractions tab → category `checkin`**: add one field, Save.
+
+| Name | Extraction prompt | Answer type |
+|---|---|---|
+| `employer_changed` | Did the worker say they were moved or sold to another house or employer? | Pre-defined: `yes` / `no` / `not_said` |
+

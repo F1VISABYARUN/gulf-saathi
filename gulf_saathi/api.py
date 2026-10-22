@@ -169,7 +169,7 @@ def health():
 
 NEW_WORKER_COLUMNS = ("visa_job", "visa_type", "sub_agent_name", "sub_agent_phone", "payment_to",
                       "welcome_sms", "welcome_sms_status", "source", "reported_by", "petition_status",
-                      "petition_ref")
+                      "petition_ref", "worker_gender", "death_note", "remains_status", "ex_gratia_status")
 
 
 @app.get("/health/db")
@@ -341,10 +341,10 @@ def _worker_or_404(case_id: str) -> dict:
 
 
 @app.get("/dashboard", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
-def dashboard_list():
+def dashboard_list(q: str = ""):
     workers = STORE.select("workers", order="updated_at")
     totals = cases.summary_counts(workers, cases.briefed_worker_ids(STORE))
-    return dashboard.render_list(workers, status(), totals)
+    return dashboard.render_list(workers, status(), totals, q[:100])
 
 
 @app.get("/dashboard/agents", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
@@ -394,6 +394,38 @@ async def api_petition(case_id: str, request: Request):
     except cases.CaseError as e:
         raise HTTPException(400, str(e))
     return {"ok": True, "petition_status": w["petition_status"]}
+
+
+@app.get("/dashboard/case/{case_id}/death", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
+def dashboard_death(case_id: str):
+    w = _worker_or_404(case_id)
+    if not w.get("death_reported_at"):
+        raise HTTPException(404, "no death reported for this case")
+    return dashboard.render_death_packet(w, cases.death_packet(STORE, w, now()))
+
+
+@app.post("/api/cases/{case_id}/death", dependencies=[Depends(require_dashboard)])
+async def api_death(case_id: str, request: Request):
+    """A caseworker records a death they heard about from the employer, embassy or a volunteer."""
+    w = cases.report_death(STORE, _worker_or_404(case_id), await json_object(request), now())
+    return {"ok": True, "case_id": w["case_id"]}
+
+
+@app.post("/api/cases/{case_id}/death-status", dependencies=[Depends(require_dashboard)])
+async def api_death_status(case_id: str, request: Request):
+    data = await json_object(request)
+    try:
+        w = cases.update_death_status(STORE, _worker_or_404(case_id), str(data.get("remains") or ""),
+                                      str(data.get("ex_gratia") or ""), now())
+    except cases.CaseError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "remains_status": w["remains_status"], "ex_gratia_status": w["ex_gratia_status"]}
+
+
+@app.post("/api/cases/{case_id}/death-clear", dependencies=[Depends(require_dashboard)])
+def api_death_clear(case_id: str):
+    cases.clear_death(STORE, _worker_or_404(case_id), now())
+    return {"ok": True}
 
 
 @app.post("/api/workers", dependencies=[Depends(require_dashboard)])

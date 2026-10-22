@@ -67,7 +67,7 @@ Section: `A: In trouble abroad`
 ```
 1. Let them finish. Then say: "అర్థమైంది. మీరు ఒంటరి కాదు. ఇప్పుడే మీ సమస్య నమోదు చేస్తున్నాను." and IMMEDIATELY call report_problem. Ask nothing before this call.
    caller_phone = user_number from the call information. case_id = only a GS- number if they said one, else empty.
-   Fill only what they said: taken from the airport or being taken by someone who is not their employer = taken_by_stranger yes; beaten or threatened = threatened yes; passport taken, lost, or kept by the sponsor = passport_with_worker no; not paid = months_unpaid (digits); locked in = movement_restricted yes; asks for help or in danger = needs_help yes; their work, city, name if they said them; notes = their problem in short English.
+   Fill only what they said: taken from the airport or being taken by someone who is not their employer = taken_by_stranger yes; beaten or threatened = threatened yes; passport taken, lost, or kept by the sponsor = passport_with_worker no; sold or sent to another house or employer = employer_changed yes; not paid = months_unpaid (digits); locked in = movement_restricted yes; asks for help or in danger = needs_help yes; their work, city, name if they said them; notes = their problem in short English.
 2. Say in calm, simple Telugu what the tool's "instruction" says, including the case number letter by letter.
 3. Then gently, ONE question at a time, only what you don't know yet. After each answer call report_problem again with it:
    - "ఇప్పుడు మీరు ఎక్కడ ఉన్నారు? దగ్గర ఏదైనా బిల్డింగ్, షాప్, మసీదు లేదా రోడ్డు పేరు కనిపిస్తుందా?"
@@ -87,6 +87,7 @@ For a mother, wife, brother or son calling about someone abroad.
 1. Let them finish. Then say: "అర్థమైంది. మీరు ఒంటరి కాదు. ఇప్పుడే నమోదు చేస్తున్నాను." and IMMEDIATELY call report_problem with caller_relation = who they are (mother, wife...), caller_phone = user_number, worker_name, the place and what happened.
 2. Say in calm Telugu what its "instruction" says, including the case number letter by letter. It tells them they do not need to travel to Hyderabad for Pravasi Prajavani: Saathi prepares the petition and a caseworker hands it in.
 3. Then gently, ONE question at a time, only what you don't know yet, calling report_problem again after each answer: the worker's own phone number abroad (read it back digit by digit), which country and city, the agent's name or phone.
+If they say the worker has DIED: ask nothing first. Say slowly: "చాలా బాధగా ఉంది. మీరు ఒంటరి కాదు." and IMMEDIATELY call report_problem with worker_died = yes, caller_relation, caller_phone = user_number, worker_name, current_city = where it happened, informed_by = who told them, if said. Say its instruction gently. Never ask how it happened. Never send them to an office.
 If they are calling about an agent who keeps phoning them or asking for money: read the number back digit by digit, then call check_contact with reporter = family and say its instruction.
 Never promise rescue or money. Never ask for passport number, bank details or OTP.
 ```
@@ -102,6 +103,7 @@ Check only what they ask about. For each check: get the minimum, call the tool, 
   not_found: "ఈ పేరు ప్రభుత్వ లైసెన్స్ జాబితాలో దొరకలేదు. డబ్బు ఇచ్చే ముందు లైసెన్స్ నంబర్ అడగండి."
 - FEE: ask "మొత్తం ఎంత అడిగారు లేదా ఇచ్చారు?" then call check_fee. over_cap: say the total and how much extra (over_by_spoken), illegal. within_cap: within the limit, pay only digitally with a receipt. Never add numbers yourself. If they mention 20,000: "కొన్ని పాత ప్రభుత్వ పేజీల్లో ఇంకా 20,000 అని ఉంది. ఇప్పటి పరిమితి 30,000 ప్లస్ GST."
 - VISA: visit or tourist visa for a job: warn clearly, no legal protection.
+- A WOMAN GOING FOR HOUSEWORK (పనిమనిషి, ఇంటి పని): say calmly, once: on a visit or tourist visa this is the most dangerous route, do not go. With an ECR passport she must be at least 30, and only a state government recruiting agency can send her, never a private agent.
 - AGENT'S PHONE OR PAYMENT ACCOUNT: if they mention the agent's phone number, or the UPI ID / account they are asked to pay, first read it back digit by digit ("9 8 4 8 0 1 2 3 4 5, సరేనా?"). Once they say yes, call check_contact with it, plus the amount, visa type, agent name and district if they said them, and caller_phone = user_number. Say its instruction. If they don't know the number, don't push.
 After answering what they asked, offer the rest in ONE question: "ఫీజు లేదా వీసా కూడా చెక్ చేయాలా?" If no: one-line reminder (employment visa, written contract, receipts, keep your passport), then goodbye.
 If they already paid and are still in India: keep all proof, pay nothing more, complain on emigrate.gov.in (Register Grievance). Never promise the money back.
@@ -211,7 +213,7 @@ It answers with counts only (never names or case numbers) and ignores demo cases
 ```json
 {
   "name": "report_problem",
-  "description": "Use when someone is ABROAD and in trouble, whether the caller is that worker or their family in India. Call it at once with what they said, and again after each new detail. Then say what its instruction tells you.",
+  "description": "Use when someone is ABROAD and in trouble, or has died there, whether the caller is that worker or their family in India. Call it at once with what they said, and again after each new detail. Then say what its instruction tells you.",
   "pre_call_message": "సరే, నోట్ చేస్తున్నాను.",
   "parameters": {
     "type": "object",
@@ -295,6 +297,18 @@ It answers with counts only (never names or case numbers) and ignores demo cases
       "worker_phone": {
         "type": "string",
         "description": "Family callers only: the worker's own phone abroad if they know it, digits with country code. Empty string otherwise."
+      },
+      "worker_died": {
+        "type": "string",
+        "description": "yes only if the caller clearly says the worker has died. Otherwise empty string."
+      },
+      "informed_by": {
+        "type": "string",
+        "description": "Death reports only: who told the family, and their phone if said. Otherwise empty string."
+      },
+      "employer_changed": {
+        "type": "string",
+        "description": "yes if they were sold or sent to another house or employer than the one who brought them. Otherwise empty string."
       }
     },
     "required": [
@@ -317,7 +331,10 @@ It answers with counts only (never names or case numbers) and ignores demo cases
       "notes",
       "caller_relation",
       "worker_name",
-      "worker_phone"
+      "worker_phone",
+      "worker_died",
+      "informed_by",
+      "employer_changed"
     ]
   },
   "key": "custom_task",
@@ -343,7 +360,10 @@ It answers with counts only (never names or case numbers) and ignores demo cases
       "notes": "%(notes)s",
       "caller_relation": "%(caller_relation)s",
       "worker_name": "%(worker_name)s",
-      "worker_phone": "%(worker_phone)s"
+      "worker_phone": "%(worker_phone)s",
+      "worker_died": "%(worker_died)s",
+      "informed_by": "%(informed_by)s",
+      "employer_changed": "%(employer_changed)s"
     },
     "url": "https://gulf-saathi-psi.vercel.app/tools/report-problem",
     "api_token": null,
@@ -365,6 +385,7 @@ them even if the live AI never called report_problem. Names must match exactly.
 | `passport_with_worker` | Does the caller have their own passport? Answer no if they said it was taken. | Pre-defined: `yes` / `no` / `not_said` |
 | `movement_restricted` | Did the caller say they are locked in or not allowed to go out? | Pre-defined: `yes` / `no` / `not_said` |
 | `needs_help` | Did the caller ask for help or say they are in danger? | Pre-defined: `yes` / `no` / `not_said` |
+| `worker_died` | Did the caller clearly say that the worker (their family member abroad) has died? | Pre-defined: `yes` / `no` / `not_said` |
 | `taken_by_stranger` | Did the caller say someone who is not their employer took them from the airport or is taking them somewhere? | Pre-defined: `yes` / `no` / `not_said` |
 | `months_unpaid` | How many months has the caller's salary not been paid? Answer with digits only, like 3. If not said, answer not_said. | Free text (Text) |
 | `current_city` | Which city or place does the caller say they are in now? If not said, answer not_said. | Free text (Text) |
@@ -447,6 +468,7 @@ Only when call type is weekly. Ask one at a time, skipping anything they already
 3. "భోజనం, ఉండే చోటు బాగున్నాయా?"
 4. "ఎవరైనా బెదిరిస్తున్నారా, కొడుతున్నారా? బయటకు వెళ్లనిస్తున్నారా?"
 5. "ఇప్పుడు ఏ ఊరిలో ఉన్నారు, ఏ పని చేస్తున్నారు?"
+6. "ఇంకా {{employer_name}} దగ్గరే పని చేస్తున్నారా?" If they were moved or sold to another house or employer: employer_changed = yes.
 If everything is fine, call record_checkin with all the answers; it will say it is noted as fine.
 If anything is wrong (locked in a room, no food, beaten, passport taken, no salary), follow Danger first.
 ```
@@ -495,12 +517,13 @@ Never ask for passport number, bank details or OTP. If they cannot talk now, ask
       "food_ok": {"type": "string", "description": "yes, no or unknown. Empty string if not asked."},
       "threatened": {"type": "string", "description": "yes if they report threats or violence, otherwise no. Empty string if not asked."},
       "movement_restricted": {"type": "string", "description": "yes if they are NOT allowed to go out, otherwise no. Empty string if not asked."},
+      "employer_changed": {"type": "string", "description": "yes if they were moved or sold to another house or employer, otherwise no. Empty string if not asked."},
       "needs_help": {"type": "string", "description": "yes if they ask for help, otherwise no. Empty string if not asked."},
       "code_phrase_used": {"type": "string", "description": "yes only if they said the danger code phrase, otherwise no."},
       "briefing_understood": {"type": "string", "description": "Briefing calls only: yes if they answered both check questions correctly, otherwise no. Empty string on other calls."},
       "notes": {"type": "string", "description": "Anything else important, in short English. Empty string if nothing."}
     },
-    "required": ["case_id", "call_kind", "pickup_status", "pickup_person", "current_location", "current_job", "current_city", "salary_received", "months_unpaid", "passport_with_worker", "food_ok", "threatened", "movement_restricted", "needs_help", "code_phrase_used", "briefing_understood", "notes"]
+    "required": ["case_id", "call_kind", "pickup_status", "pickup_person", "current_location", "current_job", "current_city", "salary_received", "months_unpaid", "passport_with_worker", "food_ok", "threatened", "movement_restricted", "employer_changed", "needs_help", "code_phrase_used", "briefing_understood", "notes"]
   },
   "key": "custom_task",
   "value": {
@@ -512,6 +535,7 @@ Never ask for passport number, bank details or OTP. If they cannot talk now, ask
       "salary_received": "%(salary_received)s", "months_unpaid": "%(months_unpaid)s",
       "passport_with_worker": "%(passport_with_worker)s", "food_ok": "%(food_ok)s",
       "threatened": "%(threatened)s", "movement_restricted": "%(movement_restricted)s",
+      "employer_changed": "%(employer_changed)s",
       "needs_help": "%(needs_help)s", "code_phrase_used": "%(code_phrase_used)s",
       "briefing_understood": "%(briefing_understood)s", "notes": "%(notes)s"
     },
@@ -536,6 +560,7 @@ the live AI misses record_checkin, the server still scores the call from these w
 | `food_ok` | Did the worker say food and room are fine? | Pre-defined: `yes` / `no` / `not_said` |
 | `threatened` | Did the worker say they are beaten, hit or threatened? | Pre-defined: `yes` / `no` / `not_said` |
 | `movement_restricted` | Did the worker say they are locked in or not allowed out? | Pre-defined: `yes` / `no` / `not_said` |
+| `employer_changed` | Did the worker say they were moved or sold to another house or employer? | Pre-defined: `yes` / `no` / `not_said` |
 | `needs_help` | Did the worker ask for help or say they are in danger? | Pre-defined: `yes` / `no` / `not_said` |
 | `code_phrase_used` | Did the worker say this exact phrase: {code_phrase}? | Pre-defined: `yes` / `no` / `not_said` |
 | `current_city` | Which city or place does the worker say they are in now? If not said, answer not_said. | Free text |

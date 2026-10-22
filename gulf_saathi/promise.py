@@ -60,9 +60,28 @@ def compare_places(promised: str | None, now: str | None) -> str:
     return "match" if a in b or b in a else "conflict"
 
 
+def is_woman_domestic(w: dict) -> bool:
+    """A woman going for housework: the job most often hidden inside a private house abroad."""
+    jobs = job_categories(w.get("job_title")) | job_categories(w.get("visa_job"))
+    return w.get("worker_gender") == "woman" and "domestic work" in jobs
+
+
 def predeparture_checks(w: dict) -> list[dict]:
     """Red flags found before the worker flies. Each has a code and plain English text."""
     flags = []
+    if is_woman_domestic(w) and w.get("visa_type") in ("visit", "tourist"):
+        # MEA has said agents send women on tourist visas so emigration checks don't stop them.
+        flags.append({"code": "domestic_visit_visa",
+                      "text": f"Woman going for housework on a {w['visa_type']} visa: the route used to get past "
+                              "emigration checks. High risk of being sold between houses abroad"})
+    elif is_woman_domestic(w):
+        flags.append({"code": "domestic_woman",
+                      "text": "Woman going for housework: with an ECR passport, only a state government recruiting "
+                              "agency may send her, and the employer must be approved on eMigrate"})
+    if w.get("worker_gender") == "woman" and w.get("worker_age") and int(w["worker_age"]) < 30:
+        flags.append({"code": "woman_under_30",
+                      "text": f"Woman aged {int(w['worker_age'])}: with an ECR passport, India does not give emigration "
+                              "clearance to women under 30 for jobs in ECR countries (all Gulf countries)"})
     if w.get("agent_check") in ("not_found", "need_more_info"):
         flags.append({"code": "agent_not_listed", "text": "Agent not found in the licensed list"})
     if w.get("fee_status") == "over_cap" and w.get("amount_paid_total"):
@@ -79,7 +98,7 @@ def predeparture_checks(w: dict) -> list[dict]:
 
 
 # Flags serious enough that the worker should not pay more or fly until they are resolved.
-STOP_FLAGS = {"visit_visa", "visa_job_mismatch"}
+STOP_FLAGS = {"visit_visa", "visa_job_mismatch", "domestic_visit_visa"}
 
 
 def promise_rows(w: dict, latest_answers: dict) -> list[dict]:

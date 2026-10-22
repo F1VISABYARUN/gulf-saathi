@@ -51,6 +51,7 @@ CALL_KINDS = (*CHECKIN_KINDS, "briefing")  # briefing: pre-departure, before the
 CHECKIN_RECORD_KINDS = (*CALL_KINDS, "help")
 
 LEVELS = ("ok", "medium", "high", "critical")
+GENDERS = ("woman", "man")
 
 # code: (level, English for the dashboard and packet, Telugu for the family SMS)
 REASONS = {
@@ -63,8 +64,13 @@ REASONS = {
     "needs_help": ("critical", "Asked for urgent help", "వెంటనే సహాయం కావాలని అడిగారు"),
     "code_phrase": ("critical", "Said the agreed danger phrase: may not be able to speak freely",
                     "ముందే చెప్పుకున్న ప్రమాద సంకేతం చెప్పారు"),
+    "death_reported": ("critical", "Death reported: {detail}", "మరణించినట్లు సమాచారం వచ్చింది"),
     "job_mismatch": ("high", "Doing different work from the job promised: {detail}",
                      "చెప్పిన ఉద్యోగం కాకుండా వేరే పని చేయిస్తున్నారు"),
+    "employer_changed": ("high", "Moved to a different employer or house than the one registered",
+                         "నమోదైన యజమాని కాకుండా వేరే ఇంటికి లేదా వేరే యజమాని దగ్గరకు పంపారు"),
+    "missed_1_domestic": ("high", "Missed the last check-in call. She works inside a private house, so one missed "
+                                  "call is a warning sign", "చివరి కాల్‌కు జవాబు రాలేదు; ఇంటి పనిలో ఉన్నందున ఇది ప్రమాద సంకేతం"),
     "passport_taken": ("high", "Passport is not with the worker", "పాస్‌పోర్ట్ వారి దగ్గర లేదు"),
     "unpaid_2plus": ("high", "Salary unpaid for {n} months", "{n} నెలలుగా జీతం రాలేదు"),
     "missed_2plus": ("high", "{n} check-in calls missed in a row", "వరుసగా {n} కాల్స్‌కు జవాబు రాలేదు"),
@@ -206,6 +212,7 @@ def normalize_answers(raw: dict) -> dict:
         "food_ok": yes_no(raw.get("food_ok")),
         "threatened": yes_no(raw.get("threatened")),
         "movement_restricted": yes_no(raw.get("movement_restricted")),
+        "employer_changed": yes_no(raw.get("employer_changed")),
         "needs_help": yes_no(raw.get("needs_help")),
         "code_phrase_used": yes_no(raw.get("code_phrase_used")),
         "briefing_understood": yes_no(raw.get("briefing_understood")),
@@ -228,6 +235,8 @@ def assess(answers: dict, missed_in_row: int = 0, worker: dict | None = None) ->
     if worker and promise.compare_jobs(worker.get("job_title"), answers.get("current_job")) == "conflict":
         reasons.append({"code": "job_mismatch",
                         "detail": f'promised "{worker["job_title"]}", says "{answers["current_job"]}"'})
+    if answers.get("employer_changed") is True:
+        reasons.append({"code": "employer_changed"})
     if answers.get("passport_with_worker") is False:
         reasons.append({"code": "passport_taken"})
     months = answers.get("months_unpaid")
@@ -244,6 +253,8 @@ def assess(answers: dict, missed_in_row: int = 0, worker: dict | None = None) ->
         reasons.append({"code": "food_not_ok"})
     if missed_in_row >= 2:
         reasons.append({"code": "missed_2plus", "n": missed_in_row})
+    elif missed_in_row == 1 and worker and promise.is_woman_domestic(worker):
+        reasons.append({"code": "missed_1_domestic"})
     elif missed_in_row == 1:
         reasons.append({"code": "missed_1"})
     level = max((REASONS[r["code"]][0] for r in reasons), key=rank, default="ok")
@@ -271,7 +282,8 @@ def family_sms(worker: dict, level: str, reasons: list[dict]) -> str:
     return " ".join(parts)
 
 
-def escalate(store, worker: dict, level: str, reasons: list[dict], now: datetime) -> dict | None:
+def escalate(store, worker: dict, level: str, reasons: list[dict], now: datetime,
+             notify_family: bool = True) -> dict | None:
     """Open an alert and text the family, unless an unresolved alert already covers
     the same problems. Repeating the same SMS every day would teach families to
     ignore it; a new kind of problem still gets through."""
@@ -279,8 +291,11 @@ def escalate(store, worker: dict, level: str, reasons: list[dict], now: datetime
     for e in store.select("escalations", {"worker_id": worker["id"], "status": "open"}):
         if rank(e["level"]) >= rank(level) and codes <= {r["code"] for r in e.get("reasons") or []}:
             return None
-    text = family_sms(worker, level, reasons)
-    status = "demo: not sent" if worker.get("is_demo") else sms.send_sms(worker.get("family_phone") or "", text)
+    if not notify_family:
+        text, status = "", "not sent: a death is told to the family by a person, never by SMS"
+    else:
+        text = family_sms(worker, level, reasons)
+        status = "demo: not sent" if worker.get("is_demo") else sms.send_sms(worker.get("family_phone") or "", text)
     return store.insert("escalations", {
         "worker_id": worker["id"], "level": level, "reasons": reasons,
         "family_sms": text, "sms_status": status, "status": "open", "created_at": iso(now),
@@ -340,6 +355,12 @@ def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
     visa_type = (_text(data, "visa_type", 20) or "").lower() or None
     if visa_type and visa_type not in promise.VISA_TYPES:
         raise CaseError(f"visa type must be one of {', '.join(promise.VISA_TYPES)}: {visa_type}")
+    gender = (_text(data, "worker_gender", 10) or "").lower() or None
+    if gender and gender not in GENDERS:
+        raise CaseError(f"gender must be one of {', '.join(GENDERS)}: {gender}")
+    age = as_int(data.get("worker_age")) if str(data.get("worker_age") or "").strip() else None
+    if age is not None and not 14 <= age <= 90:
+        raise CaseError(f"age must be a number of years: {data.get('worker_age')}")
     sub_agent_phone = normalize_phone(data.get("sub_agent_phone")) if data.get("sub_agent_phone") else None
     code_phrase = _text(data, "code_phrase") or DEFAULT_CODE_PHRASE
     if not code_phrase_ok(code_phrase):
@@ -347,6 +368,7 @@ def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
 
     return {
         "worker_name": name, "worker_name_te": _text(data, "worker_name_te"), "worker_phone": worker_phone,
+        "worker_gender": gender, "worker_age": age,
         "family_name": _text(data, "family_name"), "family_phone": family_phone,
         "family_relation": _text(data, "family_relation"),
         "employer_name": _text(data, "employer_name"),
@@ -439,6 +461,10 @@ def schedule_call(store, worker: dict, kind: str, when: datetime | None, now: da
     """Ask Bolna to call the worker at `when` (or now). Records the call so the
     webhook can match it and the dashboard can show it."""
     later = when is not None and when > now + timedelta(minutes=1)
+    if worker.get("death_reported_at"):
+        return {"ok": False, "execution_id": None, "kind": kind, "when": iso(now),
+                "error": "A death was reported for this case: Saathi does not call this number. "
+                         "If the report was a mistake, clear it on the case page."}
     if worker.get("is_demo"):
         # Demo numbers are made up but could belong to real people, and calls cost credits.
         return {"ok": False, "execution_id": None, "error": "Demo case: Saathi never calls demo numbers",
@@ -523,13 +549,17 @@ def process_call_record(store, payload: dict, now: datetime) -> dict:
         # "completed" carries the after-call extraction. Score it now: the safety net
         # for when the live voice AI never called record_checkin.
         return _apply_late_extraction(store, worker, kind, c, now)
+    if worker and worker.get("death_reported_at"):
+        # A call booked before the death was reported: keep the record, but never
+        # count a miss, text the family or book another call.
+        return {"stored": True, "processed": False, "worker": worker["case_id"], "death_reported": True}
     if not c["terminal"] or not worker or kind not in CHECKIN_KINDS or (existing or {}).get("processed_at"):
         return {"stored": True, "processed": False, "worker": worker["case_id"] if worker else None}
     store.update("calls", {"id": c["call_id"]}, {"processed_at": iso(now)})
 
     if c["missed"]:
         missed = int(worker.get("missed_checkins") or 0) + 1
-        level, reasons = assess({}, missed_in_row=missed)
+        level, reasons = assess({}, missed_in_row=missed, worker=worker)
         changes = {"missed_checkins": missed}
         next_when = now + timedelta(hours=RETRY_HOURS[kind])
         next_kind = kind
@@ -655,6 +685,9 @@ def report_problem(store, data: dict, now: datetime) -> dict:
     help case, then records the answers like a check-in, so the same rules and alerts
     apply. A family caller is the case's family contact, never the worker."""
     relation = (_text(data, "caller_relation", 30) or "").lower()
+    died = yes_no(data.get("worker_died")) is True
+    if died and relation in ("", "self", "worker", "me", "not_said"):
+        relation = "family"  # whoever reports a death is not the worker
     family = relation not in ("", "self", "worker", "me", "not_said")
     case_id = str(data.get("case_id") or "").strip().upper()
     worker = store.get("workers", case_id=case_id) if case_id else None
@@ -711,6 +744,14 @@ def report_problem(store, data: dict, now: datetime) -> dict:
         if data.get("caller_name") and not worker.get("family_name"):
             store.update("workers", {"id": worker["id"]}, {"family_name": _text(data, "caller_name")})
     _save_trace(store, worker, trace, now)
+    if died:
+        worker = report_death(store, store.get("workers", id=worker["id"]), {
+            "reported_by": relation, "informed_by": data.get("informed_by"), "place": data.get("current_city"),
+            "notes": data.get("notes")}, now)
+        say = death_instruction(worker) + (f" The case number is {spoken_case_id(worker['case_id'])}: read it slowly, "
+                                           "one letter at a time, and ask them to keep it.")
+        return {"ok": True, "risk_level": "critical", "escalated": True, "instruction": say,
+                "case_id": worker["case_id"], "new_case": opened}
     out = record_checkin(store, {**data, "case_id": worker["case_id"], "call_kind": "help"}, now)
     if out["ok"] and family:
         out["instruction"] = family_instruction(store.get("workers", id=worker["id"]), relation, out["risk_level"])
@@ -758,6 +799,89 @@ def update_petition(store, worker: dict, status: str, ref: str, now: datetime) -
         changes["petition_submitted_at"] = iso(now)
     store.update("workers", {"id": worker["id"]}, changes)
     return store.get("workers", id=worker["id"])
+
+
+# --- when a worker dies abroad ------------------------------------------------------
+# The hard part for families is not the grief alone: bodies wait in mortuaries while
+# volunteers search for the village, and illiterate parents face English papers.
+# A Saathi case already links the worker, employer, sponsor and family from day zero.
+
+REMAINS_STATUSES = ("reported", "embassy_informed", "family_decided", "papers_signed", "remains_home",
+                    "buried_abroad", "closed")
+EX_GRATIA_STATUSES = ("not_applied", "applied", "paid", "rejected")
+# Telangana G.O. 216 (from news reports, not the G.O. text): Rs 5 lakh for families of
+# workers who die in these countries, for deaths from 7 Dec 2023. Check before relying on it.
+EX_GRATIA_PLACES = ("bahrain", "manama", "iraq", "kuwait", "oman", "muscat", "salalah", "qatar", "doha", "saudi",
+                    "ksa", "riyadh", "jeddah", "dammam", "mecca", "makkah", "medina", "uae", "emirates", "dubai",
+                    "abu dhabi", "sharjah", "ajman", "al ain", "fujairah", "ras al")
+
+
+def ex_gratia_country(w: dict) -> bool | None:
+    """Did the worker go to a country Telangana's ex-gratia covers? None if not known."""
+    where = f"{w.get('dest_country') or ''} {w.get('dest_city') or ''}".lower().strip()
+    if not where:
+        return None
+    return any(p in where for p in EX_GRATIA_PLACES)
+
+
+def report_death(store, worker: dict, info: dict, now: datetime) -> dict:
+    """Record that someone reported the worker's death. Stops Saathi calling the
+    number, opens a CRITICAL alert for the embassy, and never texts the family:
+    news like this must come from a person. A caseworker can clear it if it was wrong."""
+    clean = lambda k, n=200: (str(info.get(k) or "").strip()[:n] if str(info.get(k) or "").strip().lower()
+                              not in ("", "not_said") else "")
+    parts = [f"reported by {clean('reported_by', 40)}" if clean("reported_by") else "",
+             f"they heard it from {clean('informed_by')}" if clean("informed_by") else "",
+             f"place: {clean('place')}" if clean("place") else "",
+             f"when: {clean('when', 60)}" if clean("when") else "", clean("notes", 500)]
+    new = "; ".join(p for p in parts if p)
+    old = worker.get("death_note") or ""
+    note = old if new in old else (f"{old} | {new}" if old else new)
+    detail = clean("place") or (worker.get("dest_city") or worker.get("dest_country") or "place not known")
+    reasons = [{"code": "death_reported", "detail": f"{detail}, as told by {clean('reported_by', 40) or 'a caller'}"}]
+    escalate(store, worker, "critical", reasons, now, notify_family=False)
+    store.update("workers", {"id": worker["id"]}, {
+        "death_reported_at": worker.get("death_reported_at") or iso(now), "death_note": note[:2000] or None,
+        "remains_status": worker.get("remains_status") or "reported",
+        "ex_gratia_status": worker.get("ex_gratia_status") or "not_applied",
+        "status": "death_reported", "next_call_at": None, "risk_level": "critical", "risk_reasons": reasons,
+        "updated_at": iso(now)})
+    return store.get("workers", id=worker["id"])
+
+
+def clear_death(store, worker: dict, now: datetime) -> dict:
+    """The report was a mistake (wrong person, a rumour). Calls can be made again."""
+    note = ((worker.get("notes") or "") + f" Death report cleared as a mistake on {fmt_ist(now)}: "
+            f"{worker.get('death_note') or ''}").strip()[:2000]
+    store.update("workers", {"id": worker["id"]}, {
+        "death_reported_at": None, "death_note": None, "remains_status": None, "ex_gratia_status": None,
+        "status": "abroad", "notes": note, "updated_at": iso(now)})
+    return store.get("workers", id=worker["id"])
+
+
+def update_death_status(store, worker: dict, remains: str, ex_gratia: str, now: datetime) -> dict:
+    if remains not in REMAINS_STATUSES:
+        raise CaseError(f"remains status must be one of {', '.join(REMAINS_STATUSES)}")
+    if ex_gratia not in EX_GRATIA_STATUSES:
+        raise CaseError(f"ex-gratia status must be one of {', '.join(EX_GRATIA_STATUSES)}")
+    store.update("workers", {"id": worker["id"]}, {"remains_status": remains, "ex_gratia_status": ex_gratia,
+                                                   "updated_at": iso(now)})
+    return store.get("workers", id=worker["id"])
+
+
+def death_instruction(worker: dict) -> str:
+    """What the voice agent says to a family member who reports a death."""
+    country = worker.get("dest_country") or worker.get("dest_city") or "that country"
+    support = ("Say: the Telangana government gives support money to families of workers who die in Gulf countries, "
+               "and a Saathi caseworker will help them apply. Do not say an amount. "
+               if ex_gratia_country(worker) else
+               "Say: a Saathi caseworker will check what government support the family can get. ")
+    return ("Speak slowly and gently. Say: I am very sorry. You are not alone; Saathi will stay with your family "
+            f"through this. The Saathi team is informing the Indian Embassy in {country} with these details, so they "
+            "can help with bringing them home and with the papers. " + support +
+            "Then, only what they have not said yet, ONE question at a time: who told you, and that person's phone "
+            "number; in which city it happened. Do not press for how it happened. Never promise when the body will "
+            "come home or that money will come. Never ask for the passport number or bank details.")
 
 
 def spoken_case_id(case_id: str) -> str:
@@ -825,7 +949,9 @@ def help_from_extraction(store, c: dict, now: datetime) -> dict | None:
     danger = (any(a.get(k) is True for k in ("threatened", "movement_restricted"))
               or a.get("passport_with_worker") is False or (a.get("months_unpaid") or 0) > 0
               or a.get("pickup_status") in ("other_person", "nobody"))
-    if yes_no(ex.get("abroad")) is False or not (yes_no(ex.get("abroad")) or danger) or not c.get("user_number"):
+    died = yes_no(ex.get("worker_died")) is True  # reported by family in India: "abroad" may be no
+    if not c.get("user_number") or (not died and (yes_no(ex.get("abroad")) is False
+                                                  or not (yes_no(ex.get("abroad")) or danger))):
         return None
     data = {k: v for k, v in ex.items() if k != "case_id"}
     data["caller_phone"] = c["user_number"]
@@ -908,6 +1034,8 @@ def embassy_alert(store, worker: dict, now: datetime) -> dict:
     """Short urgent message a caseworker sends to the Indian Embassy / Consulate (or
     MADAD) for a worker in danger: who, where, what they said, how to reach them."""
     w = worker
+    if w.get("death_reported_at"):
+        return _death_alert(w, now)
     latest = next((ch for ch in store.select("checkins", {"worker_id": w["id"]}, limit=5)), None)
     a = (latest or {}).get("answers") or {}
     where = ", ".join(x for x in [a.get("current_city"), a.get("landmark"), a.get("current_location")] if x) \
@@ -933,6 +1061,96 @@ def embassy_alert(store, worker: dict, now: datetime) -> dict:
     body = "\n".join(lines)
     subject = f"URGENT: Indian worker in distress, {w.get('dest_country') or 'Gulf'}, case {w['case_id']}"
     return {"subject": subject, "body": body}
+
+
+def _death_alert(w: dict, now: datetime) -> dict:
+    v = lambda x: x if x not in (None, "") else "not recorded"
+    lines = [
+        f"Reported death of an Indian worker. Gulf Saathi case {w['case_id']}, {fmt_ist(now)}.",
+        "",
+        f"Name: {w['worker_name']}   Phone: {w['worker_phone']}",
+        f"What was reported: {v(w.get('death_note'))}",
+        f"Went to: {', '.join(x for x in [w.get('dest_city'), w.get('dest_country')] if x) or 'not recorded'}"
+        f"   Job: {v(w.get('job_title'))}",
+        f"Employer: {v(w.get('employer_name'))}   Employer phone: {v(w.get('employer_phone'))}",
+        f"Sponsor: {v(w.get('sponsor_name'))} (ID {v(w.get('sponsor_id'))})",
+        f"Recruiting agent: {v(w.get('agent_name'))}",
+        f"Next of kin in India: {v(w.get('family_name'))} ({v(w.get('family_relation'))}), {v(w.get('family_phone'))}",
+        f"Last contact with Gulf Saathi: {fmt_ist(w.get('last_contact_at'))}",
+        "",
+        "The family asks for help to: confirm the death and its cause, get the death certificate, bring the body home "
+        "or arrange burial there (as the next of kin decides), and recover unpaid wages and dues.",
+        "Reported by phone to Gulf Saathi (Telangana) and not independently verified. Full case packet available on request.",
+    ]
+    return {"subject": f"Death of Indian worker reported, {w.get('dest_country') or 'Gulf'}, case {w['case_id']}",
+            "body": "\n".join(lines)}
+
+
+def death_packet(store, worker: dict, now: datetime) -> dict:
+    """Papers for the family and the caseworker after a death: the facts the embassy
+    needs, and the steps, in English and Telugu. Saathi does not make the NOC or
+    consent form: the embassy has its own, which the next of kin signs."""
+    w = worker
+    v = lambda x, d="not recorded": x if x not in (None, "") else d
+    name_te = w.get("worker_name_te") or w["worker_name"]
+    country = v(w.get("dest_country"), "the country where it happened")
+    eg = ex_gratia_country(w)
+    facts = [
+        f"Worker: {w['worker_name']}   Phone: {w['worker_phone']}   Gulf Saathi case: {w['case_id']}",
+        "Passport number: ____________________ (copy it from the family's passport copy; Saathi never stores it)",
+        f"What was reported: {v(w.get('death_note'))} (reported {fmt_ist(w.get('death_reported_at'))})",
+        f"Went to: {', '.join(x for x in [w.get('dest_city'), w.get('dest_country')] if x) or 'not recorded'}   "
+        f"Job: {v(w.get('job_title'))}   Departure: {v(w.get('departure_date'))} {w.get('flight_no') or ''}".rstrip(),
+        f"Employer: {v(w.get('employer_name'))}   Phone: {v(w.get('employer_phone'))}",
+        f"Sponsor (kafeel): {v(w.get('sponsor_name'))}   Sponsor ID: {v(w.get('sponsor_id'))}",
+        f"Recruiting agent: {v(w.get('agent_name'))}   Village agent phone: {v(w.get('sub_agent_phone'))}",
+        f"Next of kin: {v(w.get('family_name'), '____________')} ({v(w.get('family_relation'), '______')}), "
+        f"phone {v(w.get('family_phone'), '____________')}",
+        f"Last contact with Gulf Saathi: {fmt_ist(w.get('last_contact_at'))}",
+    ]
+    steps = [
+        f"Tell the Indian Embassy / Consulate in {country} with the facts above, and register it on MADAD "
+        "(madad.gov.in). The embassy works with the employer and the local authorities.",
+        "The next of kin decides: bring the body home, or burial / cremation there. The embassy gives its own "
+        "consent (NOC) form; the next of kin signs it. Read it to them in Telugu before they sign.",
+        "Costs: ask the employer to pay, as the contract usually requires. If they do not, ask the embassy whether the "
+        "Indian Community Welfare Fund (ICWF) can help.",
+        "Keep copies of: the local death certificate and its translation, the embassy's papers, the cancelled "
+        "passport, the airline cargo papers, and the job contract or visa.",
+        "Unpaid salary and end-of-service money: ask the embassy to claim them from the employer for the family.",
+        "If the death was an accident and the worker had Pravasi Bharatiya Bima Yojana insurance (compulsory for ECR "
+        "emigrants), claim it through the insurer. Check the current amount and rules.",
+    ]
+    if eg is not False:
+        steps.append("Telangana ex-gratia (G.O. 216, as reported in the news): Rs 5 lakh for families of workers who "
+                     "die in Bahrain, Iraq, Kuwait, Oman, Qatar, Saudi Arabia or the UAE, for deaths from 7 Dec 2023. "
+                     "Apply at the District Collector's office with the death certificate, cancelled passport, proof "
+                     "of work abroad and the family's bank details. Check the current rules at the Collectorate.")
+    te_steps = [
+        f"సాథి బృందం {country} లోని భారత రాయబార కార్యాలయానికి వివరాలు పంపుతుంది.",
+        "మృతదేహాన్ని ఇంటికి తీసుకురావాలా, అక్కడే అంత్యక్రియలు చేయాలా అనేది కుటుంబమే నిర్ణయిస్తుంది. "
+        "రాయబార కార్యాలయం ఇచ్చే అనుమతి పత్రం (NOC) పై కుటుంబ సభ్యులు సంతకం చేయాలి. "
+        "సంతకం చేసే ముందు సాథి కేస్‌వర్కర్ దాన్ని తెలుగులో చదివి వినిపిస్తారు.",
+        "ఖర్చులు యజమాని భరించాలి. భరించకపోతే, రాయబార కార్యాలయాన్ని ICWF నిధి నుంచి సహాయం అడుగుతాం.",
+        "ఈ పత్రాలు దాచుకోండి: మరణ ధ్రువీకరణ పత్రం, రద్దు చేసిన పాస్‌పోర్ట్, ఉద్యోగ పత్రాలు, బ్యాంక్ ఖాతా వివరాలు.",
+        "రావాల్సిన జీతం, ఇతర డబ్బుల కోసం రాయబార కార్యాలయం ద్వారా యజమానిని అడుగుతాం.",
+    ]
+    if eg is not False:
+        te_steps.append("గల్ఫ్ దేశాల్లో మరణించిన కార్మికుల కుటుంబాలకు తెలంగాణ ప్రభుత్వం ఎక్స్‌గ్రేషియా ఇస్తుంది. "
+                        "జిల్లా కలెక్టర్ కార్యాలయంలో దరఖాస్తు చేయాలి. సాథి కేస్‌వర్కర్ సహాయం చేస్తారు.")
+    english = {
+        "title": f"Death of a worker abroad: facts and next steps (Gulf Saathi case {w['case_id']})",
+        "facts": facts, "steps": steps,
+        "status": f"Body: {v(w.get('remains_status'))}   Ex-gratia: {v(w.get('ex_gratia_status'))}",
+        "note": f"Prepared by Gulf Saathi on {fmt_ist(now)}. Facts are as reported by phone and not independently "
+                "verified. The rules above can change: check each one with the embassy or the Collectorate.",
+    }
+    telugu = {
+        "title": f"{name_te} గారి మరణం: తర్వాత ఏం చేయాలి (గల్ఫ్ సాథి కేసు {w['case_id']})",
+        "opening": "మీకు కలిగిన నష్టానికి చాలా బాధగా ఉంది. మీరు ఒంటరి కాదు. ఈ పనులన్నీ సాథి కేస్‌వర్కర్ మీతో కలిసి చేస్తారు.",
+        "steps": te_steps,
+    }
+    return {"english": english, "telugu": telugu}
 
 
 # --- case packet ------------------------------------------------------------------
@@ -1031,6 +1249,9 @@ def case_packet(store, worker: dict, now: datetime) -> str:
     ]
     for r in w.get("risk_reasons") or []:
         lines.append(f"  - {reason_text(r)}")
+    if w.get("death_reported_at"):
+        lines.append(f"DEATH REPORTED {fmt_ist(w['death_reported_at'])}: {w.get('death_note') or ''}. "
+                     f"Body: {w.get('remains_status') or '-'}. Ex-gratia: {w.get('ex_gratia_status') or '-'}.")
     lines += [
         "",
         "1. WORKER",

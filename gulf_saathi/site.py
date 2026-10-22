@@ -190,7 +190,7 @@ def render_demo() -> str:
 <div class="wrap hero">
   <h1>The demo story</h1>
   <p class="te">యాదయ్య కథ</p>
-  <p>This creates two made-up demo cases and walks through what Saathi catches. They are marked DEMO everywhere.
+  <p>This creates three made-up demo cases and walks through what Saathi catches. They are marked DEMO everywhere.
   No real call and no real SMS is made for them.</p>
   <button class="btn" id="run">Run the story</button> <a class="btn ghost" href="/dashboard">Open the dashboard</a>
   <div id="msg" aria-live="polite"></div>
@@ -205,6 +205,8 @@ def render_demo() -> str:
   <div class="step"><b>5. Family alert and packet</b>A Telugu alert SMS (shown, not sent) and an English complaint-ready packet.</div>
   <div class="step"><b>6. Seen in 2 cases</b>Ramesh paid the same village agent's phone and UPI ID, and has a visit visa.
     Shown as "seen in 2 cases, needs human review", not as fraud.</div>
+  <div class="step"><b>7. A woman sent for housework</b>Saraswathi, 27, is going to Muscat as a <b>housemaid</b> on a
+    <b>tourist visa</b>: the route used to get past emigration checks. Stopped before she flies.</div>
 </div></div></section>
 <script>
 document.getElementById('run').addEventListener('click', async (e) => {
@@ -218,6 +220,7 @@ document.getElementById('run').addEventListener('click', async (e) => {
       a.className = 'btn ghost'; a.style.margin = '12px 8px 0 0'; msg.appendChild(a); };
     add('Yadaiah\\'s case ' + j.yadaiah, '/dashboard/case/' + j.yadaiah);
     add('Ramesh\\'s case ' + j.ramesh, '/dashboard/case/' + j.ramesh);
+    add('Saraswathi\\'s case ' + j.saraswathi, '/dashboard/case/' + j.saraswathi);
     add('Agents and repeated signals', '/dashboard/agents');
   } catch (err) { msg.textContent = 'Failed: ' + err.message; e.target.disabled = false; }
 });

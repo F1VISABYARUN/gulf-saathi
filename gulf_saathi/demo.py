@@ -4,7 +4,8 @@ what Saathi catches. No real call or SMS is made for them.
 Yadaiah was promised a cleaner's job; the visa says agricultural worker; on
 arrival day he says he is herding goats far from the city. (Inspired by
 Aadujeevitham.) A second made-up worker paid the same village sub-agent, so a
-repeated-risk signal appears.
+repeated-risk signal appears. A third, Saraswathi, is a woman sent for housework on
+a tourist visa.
 """
 from __future__ import annotations
 
@@ -45,6 +46,15 @@ def run_demo(store, licensed: LicensedList, now: datetime) -> dict:
         "payment_to": upi, "notes": DEMO_NOTE,
     }, now, is_demo=True)["worker"]
 
+    # A woman sent for housework on a tourist visa: the route MEA has warned about.
+    saraswathi = register_worker(store, licensed, {
+        "worker_name": "Saraswathi (demo)", "worker_name_te": "సరస్వతి", "worker_phone": "+919000000005",
+        "worker_gender": "woman", "worker_age": "27", "family_name": "Raju", "family_relation": "son",
+        "family_phone": "+919000000006", "dest_country": "Oman", "dest_city": "Muscat", "job_title": "Housemaid",
+        "visa_type": "tourist", "agent_name": "Demo Agency (made up)", "agent_district": "Nizamabad",
+        "payments": "80000", "notes": DEMO_NOTE,
+    }, now, is_demo=True)["worker"]
+
     # What the arrival-day call would record. Simulated: no call is placed.
     arrival = record_checkin(store, {
         "case_id": yadaiah["case_id"], "call_kind": "arrival",
@@ -53,4 +63,5 @@ def run_demo(store, licensed: LicensedList, now: datetime) -> dict:
         "current_city": "Al Kharj", "passport_with_worker": "no",
         "notes": "Simulated arrival call for the demo.",
     }, now)
-    return {"yadaiah": yadaiah["case_id"], "ramesh": ramesh["case_id"], "arrival": arrival}
+    return {"yadaiah": yadaiah["case_id"], "ramesh": ramesh["case_id"], "saraswathi": saraswathi["case_id"],
+            "arrival": arrival}
