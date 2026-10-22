@@ -168,7 +168,8 @@ def health():
 
 
 NEW_WORKER_COLUMNS = ("visa_job", "visa_type", "sub_agent_name", "sub_agent_phone", "payment_to",
-                      "welcome_sms", "welcome_sms_status", "source")
+                      "welcome_sms", "welcome_sms_status", "source", "reported_by", "petition_status",
+                      "petition_ref")
 
 
 @app.get("/health/db")
@@ -244,6 +245,13 @@ def check_fee(q: FeeQuery):
 class ContactQuery(BaseModel):
     phone: str = ""     # the agent's phone number, as the caller said it
     payment: str = ""   # UPI ID / account / number the money was paid to
+    amount: str = ""    # what the agent asked for, if said
+    visa_type: str = ""
+    agent_name: str = ""
+    district: str = ""  # caller's district
+    reporter: str = ""  # worker / family
+    caller_phone: str = ""  # Bolna's user_number: counts distinct callers, never shown to callers
+    notes: str = ""
 
     @field_validator("*", mode="before")
     @classmethod
@@ -253,21 +261,32 @@ class ContactQuery(BaseModel):
 
 @app.get("/check-contact")
 def check_contact_get(phone: str = "", payment: str = ""):
-    """Same check from a browser link, e.g. /check-contact?phone=9848012345"""
-    return check_contact(ContactQuery(phone=phone, payment=payment))
+    """Same check from a browser link, e.g. /check-contact?phone=9848012345 (saves nothing)."""
+    return _contact_result(ContactQuery(phone=phone, payment=payment))
 
 
 @app.post("/check-contact")
 def check_contact(q: ContactQuery):
     """Saathi Intelligence, live on the call: has this agent phone or payment account
-    come up in other cases? Counts only; never names, case numbers or accusations."""
+    come up in other cases or been reported by other callers? Saves this report too.
+    Counts only; never names, case numbers or accusations."""
+    out = _contact_result(q)
+    try:
+        signals.record_contact(STORE, q.model_dump(), now().isoformat())
+    except StoreError as e:  # the answer matters more than saving it
+        log.error("contact report not saved: %s", e)
+    return out
+
+
+def _contact_result(q: ContactQuery) -> dict:
     try:
         workers = STORE.select("workers", order="updated_at")
+        reports = STORE.select("contact_reports")
     except StoreError as e:
         log.error("check_contact failed: %s", e)
         return {"found": False, "instruction": "Say you could not check the number right now; do not pay more until "
                                                "the licence and a written contract are checked."}
-    return signals.check_contact(workers, q.phone, q.payment)
+    return signals.check_contact(workers, q.phone, q.payment, reports, q.caller_phone)
 
 
 @app.post("/tools/record-checkin", dependencies=[Depends(require_bolna_token)])
@@ -331,7 +350,8 @@ def dashboard_list():
 @app.get("/dashboard/agents", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
 def dashboard_agents():
     workers = STORE.select("workers", order="updated_at")
-    return dashboard.render_agents(cases.agent_stats(workers), signals.repeated_signals(workers))
+    reported = signals.reported_contacts(STORE.select("contact_reports"), workers)
+    return dashboard.render_agents(cases.agent_stats(workers), signals.repeated_signals(workers), reported)
 
 
 @app.get("/dashboard/new", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
@@ -357,6 +377,23 @@ def dashboard_packet(case_id: str):
     w = _worker_or_404(case_id)
     return PlainTextResponse(cases.case_packet(STORE, w, now()),
                              headers={"Content-Disposition": f'attachment; filename="{w["case_id"]}-case-packet.txt"'})
+
+
+@app.get("/dashboard/case/{case_id}/petition", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
+def dashboard_petition(case_id: str):
+    w = _worker_or_404(case_id)
+    return dashboard.render_petition(w, cases.prajavani_petition(STORE, w, now()))
+
+
+@app.post("/api/cases/{case_id}/petition", dependencies=[Depends(require_dashboard)])
+async def api_petition(case_id: str, request: Request):
+    data = await json_object(request)
+    try:
+        w = cases.update_petition(STORE, _worker_or_404(case_id), str(data.get("status") or ""),
+                                  str(data.get("ref") or ""), now())
+    except cases.CaseError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "petition_status": w["petition_status"]}
 
 
 @app.post("/api/workers", dependencies=[Depends(require_dashboard)])

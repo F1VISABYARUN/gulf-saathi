@@ -650,9 +650,12 @@ def record_checkin(store, data: dict, now: datetime) -> dict:
 
 
 def report_problem(store, data: dict, now: datetime) -> dict:
-    """Bolna tool for the Gulf Saathi line: a worker who calls in with a problem.
-    Finds their case by case number or phone, or opens a minimal help case, then
-    records the answers like a check-in, so the same rules and family alert apply."""
+    """Bolna tool for the Gulf Saathi line: a worker abroad, or their family in India,
+    calls with a problem. Finds the case by case number or phone, or opens a minimal
+    help case, then records the answers like a check-in, so the same rules and alerts
+    apply. A family caller is the case's family contact, never the worker."""
+    relation = (_text(data, "caller_relation", 30) or "").lower()
+    family = relation not in ("", "self", "worker", "me", "not_said")
     case_id = str(data.get("case_id") or "").strip().upper()
     worker = store.get("workers", case_id=case_id) if case_id else None
     phone = ""
@@ -660,32 +663,101 @@ def report_problem(store, data: dict, now: datetime) -> dict:
         phone = normalize_phone(data.get("caller_phone"))
     except CaseError:
         pass
-    if not worker and phone:
+    abroad_phone = ""
+    try:
+        abroad_phone = normalize_phone(data.get("worker_phone")) if data.get("worker_phone") else ""
+    except CaseError:
+        pass
+    if not worker and family:
+        worker = ((abroad_phone and store.get("workers", worker_phone=abroad_phone))
+                  or (phone and store.get("workers", family_phone=phone)) or None)
+    elif not worker and phone:
         worker = store.get("workers", worker_phone=phone)
     opened = False
     if not worker:
         if not phone:
             return {"ok": False, "instruction": "Ask for their phone number with the country code, or their Saathi "
                                                  "case number, then call report_problem again."}
-        family = ""
-        try:
-            family = normalize_phone(data.get("family_phone"))
-        except CaseError:
-            pass
-        worker = store.insert("workers", {
-            "case_id": new_case_id(store), "created_at": iso(now), "updated_at": iso(now),
-            "worker_name": _text(data, "caller_name") or "Caller (name not given)", "worker_phone": phone,
-            "family_phone": family or None, "dest_city": _text(data, "current_city"),
-            "code_phrase": DEFAULT_CODE_PHRASE, "status": "abroad", "risk_level": "ok", "risk_reasons": [],
-            "missed_checkins": 0, "source": "help_call", "notes": "Opened from a call to the Gulf Saathi line.",
-        })
+        if family:
+            worker = store.insert("workers", {
+                "case_id": new_case_id(store), "created_at": iso(now), "updated_at": iso(now),
+                "worker_name": _text(data, "worker_name") or "Name not given (reported by family)",
+                # The worker's own number if the family knows it; otherwise the family's, marked in notes.
+                "worker_phone": abroad_phone or phone, "family_phone": phone, "family_relation": relation,
+                "family_name": _text(data, "caller_name"), "dest_city": _text(data, "current_city"),
+                "code_phrase": DEFAULT_CODE_PHRASE, "status": "abroad", "risk_level": "ok", "risk_reasons": [],
+                "missed_checkins": 0, "source": "family_call", "reported_by": relation,
+                "notes": "Opened from a family call to the Gulf Saathi line." +
+                         ("" if abroad_phone else " Worker's own phone not known: the phone here is the family's."),
+            })
+        else:
+            fam = ""
+            try:
+                fam = normalize_phone(data.get("family_phone"))
+            except CaseError:
+                pass
+            worker = store.insert("workers", {
+                "case_id": new_case_id(store), "created_at": iso(now), "updated_at": iso(now),
+                "worker_name": _text(data, "caller_name") or "Caller (name not given)", "worker_phone": phone,
+                "family_phone": fam or None, "dest_city": _text(data, "current_city"),
+                "code_phrase": DEFAULT_CODE_PHRASE, "status": "abroad", "risk_level": "ok", "risk_reasons": [],
+                "missed_checkins": 0, "source": "help_call", "reported_by": "self",
+                "notes": "Opened from a call to the Gulf Saathi line.",
+            })
         opened = True
-    _save_trace(store, worker, data, now)
+    trace = dict(data)
+    if family:  # the caller's name is the family member's, not the worker's
+        trace["caller_name"] = data.get("worker_name") or ""
+        if data.get("caller_name") and not worker.get("family_name"):
+            store.update("workers", {"id": worker["id"]}, {"family_name": _text(data, "caller_name")})
+    _save_trace(store, worker, trace, now)
     out = record_checkin(store, {**data, "case_id": worker["case_id"], "call_kind": "help"}, now)
+    if out["ok"] and family:
+        out["instruction"] = family_instruction(store.get("workers", id=worker["id"]), relation, out["risk_level"])
     if out["ok"]:
-        out["instruction"] += (f" Their case number is {spoken_case_id(worker['case_id'])}: read it slowly, one "
+        out["instruction"] += (f" The case number is {spoken_case_id(worker['case_id'])}: read it slowly, one "
                                "letter at a time, and ask them to keep it.")
+        status = petition_line(store.get("workers", id=worker["id"]))
+        if status and not opened:
+            out["instruction"] += " " + status
     return {**out, "case_id": worker["case_id"], "new_case": opened}
+
+
+def family_instruction(worker: dict, relation: str, level: str) -> str:
+    """For a parent, wife or brother calling from India about someone abroad."""
+    country = worker.get("dest_country") or worker.get("dest_city") or "that country"
+    who = relation if relation not in ("family", "yes") else "family member"
+    urgent = rank(level) >= rank("high")
+    return ((f"Speak calmly and warmly to the {who}: you are not alone. " if urgent else f"Speak warmly to the {who}: ")
+            + ("The case is registered as URGENT and the Saathi team is alerting the Indian Embassy in "
+               f"{country} with these details. " if urgent else "The problem is registered and a Saathi caseworker "
+               "will look at it. ")
+            + "Saathi will prepare the Pravasi Prajavani petition for them, so they do not need to travel to "
+              "Hyderabad; a Saathi caseworker will hand it in and contact them on this phone. Never promise rescue "
+              "or that money will come back.")
+
+
+PETITION_STATUSES = ("prepared", "submitted", "acknowledged", "closed")
+
+
+def petition_line(worker: dict) -> str:
+    """What the voice agent can tell a caller about their Pravasi Prajavani petition."""
+    st = worker.get("petition_status")
+    if st not in PETITION_STATUSES or st == "prepared":
+        return ""
+    when = fmt_ist(worker.get("petition_submitted_at")).split(",")[0] if worker.get("petition_submitted_at") else ""
+    ref = f", reference {worker['petition_ref']}" if worker.get("petition_ref") else ""
+    return f"Also tell them: their Pravasi Prajavani petition is {st}" + (f" (handed in {when}{ref})" if when else ref) + "."
+
+
+def update_petition(store, worker: dict, status: str, ref: str, now: datetime) -> dict:
+    if status not in PETITION_STATUSES:
+        raise CaseError(f"status must be one of {', '.join(PETITION_STATUSES)}")
+    changes = {"petition_status": status, "petition_ref": (ref or "").strip()[:100] or None, "updated_at": iso(now)}
+    if status == "submitted" and not worker.get("petition_submitted_at"):
+        changes["petition_submitted_at"] = iso(now)
+    store.update("workers", {"id": worker["id"]}, changes)
+    return store.get("workers", id=worker["id"])
 
 
 def spoken_case_id(case_id: str) -> str:
@@ -874,6 +946,76 @@ def timeline(store, worker: dict) -> list[dict]:
     for e in store.select("escalations", {"worker_id": worker["id"]}):
         events.append({"at": e["created_at"], "type": "escalation", "escalation": e})
     return sorted(events, key=lambda e: parse_ts(e["at"]) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+
+
+def prajavani_petition(store, worker: dict, now: datetime) -> dict:
+    """A petition the family does not have to carry to Hyderabad: Saathi fills it from
+    the case; a caseworker hands it in at Pravasi Prajavani (Praja Bhavan) for them.
+    Telugu is machine-drafted from fixed sentences and needs a native speaker's check."""
+    w = worker
+    v = lambda x, d="not known": x if x not in (None, "") else d
+    latest = next((ch for ch in store.select("checkins", {"worker_id": w["id"]}, limit=5)), None)
+    a = (latest or {}).get("answers") or {}
+    where = ", ".join(x for x in [a.get("current_city"), a.get("landmark"), a.get("current_location")] if x) \
+        or ", ".join(x for x in [w.get("dest_city"), w.get("dest_country")] if x) or "not known"
+    reasons = w.get("risk_reasons") or []
+    petitioner = w.get("family_name") or ""
+    relation = w.get("family_relation") or w.get("reported_by") or ""
+    name_te = w.get("worker_name_te") or w["worker_name"]
+    country = v(w.get("dest_country"), "Gulf")
+    job_line = None
+    if w.get("job_title") or a.get("current_job") or w.get("visa_job"):
+        job_line = (f"Promised job: {v(w.get('job_title'))}. Job on the visa: {v(w.get('visa_job'))}. "
+                    f"Work he/she says they are made to do: {v(a.get('current_job'))}.")
+    events = []
+    for e in timeline(store, w)[:10][::-1]:
+        when = fmt_ist(e["at"]).split(",")[0]
+        if e["type"] == "registered":
+            events.append(f"{when}: case registered with Gulf Saathi")
+        elif e["type"] == "checkin":
+            ch = e["checkin"]
+            what = "; ".join(reason_text(r) for r in ch.get("risk_reasons") or []) or "no problem reported"
+            events.append(f"{when}: {ch.get('kind')} call, worker said: {what}")
+        elif e["type"] == "escalation":
+            events.append(f"{when}: Gulf Saathi raised a {e['escalation']['level'].upper()} alert")
+    english = {
+        "to": "To: The Officer in charge, Pravasi Prajavani, Praja Bhavan, Hyderabad, Telangana",
+        "subject": f"Subject: Request for help for {w['worker_name']}, a worker from Telangana in distress in "
+                   f"{country} (Gulf Saathi case {w['case_id']})",
+        "facts": [
+            f"Worker: {w['worker_name']}   Phone: {w['worker_phone']}",
+            f"Where he/she is now (as told on the phone): {where}",
+            f"Employer: {v(w.get('employer_name'))}   Sponsor (kafeel): {v(w.get('sponsor_name'))} "
+            f"(ID {v(w.get('sponsor_id'))})",
+            f"Recruiting agent: {v(w.get('agent_name'))}   Village agent phone: {v(w.get('sub_agent_phone'))}   "
+            f"Check against the MEA licensed list: {v(w.get('agent_check'), 'not checked')}",
+        ] + ([f"Paid to the agent: Rs {fmt_rupees(int(w['amount_paid_total']))} (legal limit Rs 35,400)"]
+             if w.get("amount_paid_total") else []) + ([job_line] if job_line else []),
+        "problems": [reason_text(r) for r in reasons] or ["See timeline below."],
+        "timeline": events,
+        "requests": [
+            f"Forward this case to the Indian Embassy / Consulate in {country} so that they contact the worker.",
+            "Help the worker get his/her passport and unpaid wages, and return home safely if he/she wishes.",
+            "Look into the recruiting agent named above (eMigrate complaint / police), if the facts are confirmed.",
+        ],
+        "note": f"Prepared by Gulf Saathi on {fmt_ist(now)} from phone calls with the worker and family. Facts are as "
+                "reported and not independently verified. Call recordings and the full case packet are available on "
+                "request.",
+        "petitioner": f"Petitioner: {v(petitioner, '____________')} ({v(relation, 'relation ______')}), "
+                      f"phone {v(w.get('family_phone'), '____________')}",
+    }
+    telugu = {
+        "to": "గౌరవనీయులైన అధికారి గారికి, ప్రవాసీ ప్రజావాణి, ప్రజా భవన్, హైదరాబాద్.",
+        "subject": f"విషయం: గల్ఫ్‌లో ఇబ్బందుల్లో ఉన్న {name_te} గారికి సహాయం కోసం విన్నపం "
+                   f"(గల్ఫ్ సాథి కేసు {w['case_id']})",
+        "body": [f"{name_te} గారు {country} కి పనికి వెళ్లారు. ఫోన్‌లో వారు చెప్పినదాని ప్రకారం:"]
+                + [f"• {reason_text(r, 'te')}" for r in reasons]
+                + ["దయచేసి ఈ విషయాన్ని భారత రాయబార కార్యాలయానికి పంపి, వారిని సురక్షితంగా ఇంటికి తీసుకురావడానికి, "
+                   "జీతం, పాస్‌పోర్ట్ ఇప్పించడానికి, ఏజెంట్‌పై చర్య తీసుకోవడానికి సహాయం చేయగలరు.",
+                   "పూర్తి వివరాలు ఇంగ్లీష్‌లో క్రింద ఉన్నాయి."],
+        "petitioner": f"విన్నపం చేసేవారు: {v(petitioner, '____________')}, ఫోన్ {v(w.get('family_phone'), '____________')}",
+    }
+    return {"english": english, "telugu": telugu}
 
 
 def case_packet(store, worker: dict, now: datetime) -> str:

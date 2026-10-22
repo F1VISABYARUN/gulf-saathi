@@ -665,3 +665,40 @@ def test_checking_caller_who_asks_for_help_opens_no_case(store, texts):
                                "notes": _x(subjective="Agent asking 15 lakh; caller checked the agent's number.")}}
     out = process_call_record(store, gulf_line_call("x9", checking, "+919000022222"), NOW)
     assert store.select("workers") == [] and store.select("escalations") == [] and not out.get("help")
+
+
+# --- family callers and Pravasi Prajavani petitions ---------------------------------
+
+def test_family_caller_opens_a_case_as_the_family_contact(store, texts):
+    r = cases.report_problem(store, {"caller_phone": "9440012345", "caller_relation": "mother", "caller_name": "Lakshmi",
+                                     "worker_name": "Ravi", "current_city": "Muscat", "passport_with_worker": "no",
+                                     "threatened": "yes", "notes": "Son locked in a room, no food"}, NOW)
+    w = store.get("workers", case_id=r["case_id"])
+    assert r["new_case"] and w["source"] == "family_call" and w["reported_by"] == "mother"
+    assert w["worker_name"] == "Ravi" and w["family_name"] == "Lakshmi" and w["family_phone"] == "+919440012345"
+    assert "Worker's own phone not known" in w["notes"]
+    assert "Pravasi Prajavani petition" in r["instruction"] and "do not need to travel" in r["instruction"]
+    assert "airport" not in r["instruction"]  # worker safety steps are not for the mother
+    # She calls again: same case, found by her number.
+    r2 = cases.report_problem(store, {"caller_phone": "+919440012345", "caller_relation": "mother"}, NOW)
+    assert r2["case_id"] == r["case_id"] and not r2["new_case"]
+
+
+def test_petition_is_filled_from_the_case_and_its_status_is_told_to_callers(store, licensed, placed, texts):
+    w = register(store, licensed, visa_job="Agricultural worker", sub_agent_phone="98480 12345")["worker"]
+    record_checkin(store, {"case_id": w["case_id"], "call_kind": "arrival", "pickup_status": "other_person",
+                           "current_job": "herding goats", "landmark": "near a big mosque"}, NOW)
+    w = store.get("workers", id=w["id"])
+    pet = cases.prajavani_petition(store, w, NOW)
+    en, te = pet["english"], pet["telugu"]
+    assert "Pravasi Prajavani" in en["to"] and w["case_id"] in en["subject"]
+    assert any("+919848012345" in f for f in en["facts"]) and any("herding goats" in f for f in en["facts"])
+    assert any("near a big mosque" in f for f in en["facts"])
+    assert "ప్రవాసీ ప్రజావాణి" in te["to"] and any("యాదయ్య" in b for b in te["body"])
+    assert "not independently verified" in en["note"]
+    with pytest.raises(CaseError):
+        cases.update_petition(store, w, "lost", "", NOW)
+    w = cases.update_petition(store, w, "submitted", "PPV-123", NOW)
+    assert w["petition_submitted_at"] and "submitted" in cases.petition_line(w) and "PPV-123" in cases.petition_line(w)
+    r = cases.report_problem(store, {"caller_phone": w["worker_phone"], "months_unpaid": "2"}, NOW)
+    assert "petition is submitted" in r["instruction"]

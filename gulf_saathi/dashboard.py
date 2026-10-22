@@ -187,7 +187,24 @@ def render_list(workers: list[dict], status: dict, totals: dict | None = None) -
 <div class="card">{table}</div>""", refresh=15)
 
 
-def render_agents(stats: list[dict], signals: list[dict] | None = None) -> str:
+def reported_table(rows: list[dict]) -> str:
+    if not rows:
+        return "<p class='muted'>No agent numbers reported on calls yet.</p>"
+    out = []
+    for g in rows:
+        amt = f"Rs {fmt_rupees(int(g['max_amount']))}" if g.get("max_amount") else "—"
+        out.append(f"""<tr><td>{esc(g['kind'])}</td><td><b>{esc(g['value'])}</b></td>
+<td>{esc(g['callers'])} caller(s){f'<div class="muted" style="font-size:12px">{esc(g["family_reports"])} from families</div>' if g['family_reports'] else ''}</td>
+<td>{esc(', '.join(g['districts'])) or '<span class="muted">—</span>'}</td>
+<td>{esc(g['over_limit']) or '<span class="muted">0</span>'}<div class="muted" style="font-size:12px">highest asked: {esc(amt)}</div></td>
+<td>{esc(g['visit_visa']) or '<span class="muted">0</span>'}</td>
+<td>{esc(g['cases'])} case(s){f' · <span class="flag">{esc(g["at_risk"])} at risk</span>' if g['at_risk'] else ''}</td>
+<td class="nowrap">{esc(g['first_seen'])} → {esc(g['last_seen'])}</td></tr>""")
+    return f"""<div class="wrap"><table><thead><tr><th>What</th><th>Value</th><th>Reported by</th><th>Caller districts</th>
+<th>Asked over limit</th><th>Visit visa offered</th><th>Linked cases</th><th>Seen</th></tr></thead><tbody>{''.join(out)}</tbody></table></div>"""
+
+
+def render_agents(stats: list[dict], signals: list[dict] | None = None, reported: list[dict] | None = None) -> str:
     rows = []
     for g in stats:
         listed = ('<span class="muted">in licensed list</span>' if g["licensed"] else
@@ -214,7 +231,12 @@ finding about any agent.</p>
 <p class="muted">Exact matches on agent phones, payment accounts, sponsor IDs and employer phones (strong), and employer
 name plus country (weak). A link is a lead for a trained investigator, not proof. Workers checking a number on a call hear
 only a count, never names or case numbers, and never from demo data.</p>
-<div class="card">{signals_table(signals or [])}</div>""")
+<div class="card">{signals_table(signals or [])}</div>
+<h2>Agent numbers reported on calls</h2>
+<p class="muted">Every agent phone or payment account a worker or family told Saathi, even if they never registered a case.
+Counted once per caller. Who owns a number can only be found by the telecom company or the police: share these with the police
+cyber cell or in an eMigrate complaint, never publicly.</p>
+<div class="card">{reported_table(reported or [])}</div>""")
 
 
 def status_line(status: dict) -> str:
@@ -428,6 +450,17 @@ def render_case(w: dict, events: list[dict], status: dict, signals: list[dict] |
   Missed in a row: {esc(w.get('missed_checkins') or 0)} · Next call: {esc(fmt_ist(w.get('next_call_at')))} · {briefing} · refreshes every 20 seconds</div>
 </div>
 {embassy}
+<div class="card"><h2>Pravasi Prajavani petition</h2>
+<p class="muted">For families who cannot travel to Hyderabad: Saathi fills the petition from this case; a caseworker hands it in for them.
+The caller hears the status when they call Saathi again.</p>
+<p><a class="btn secondary" href="/dashboard/case/{case_id}/petition" target="_blank">Open petition (Telugu + English)</a></p>
+<form onsubmit="return false" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+<label style="margin:0">Status<select id="pst">{''.join(f'<option value="{x}"{" selected" if w.get("petition_status") == x else ""}>{x}</option>' for x in ("prepared", "submitted", "acknowledged", "closed"))}</select></label>
+<label style="margin:0">Reference no.<input id="pref" value="{esc(w.get('petition_ref'))}" placeholder="from the counter"></label>
+<button class="btn" onclick="post('/api/cases/{case_id}/petition', {{status: document.getElementById('pst').value, ref: document.getElementById('pref').value}}, this, 'Saved').then(j => j && location.reload())">Save status</button>
+</form>
+<div class="muted" style="margin-top:6px">{esc(('Status: ' + w['petition_status'] + (' · handed in ' + fmt_ist(w.get('petition_submitted_at')) if w.get('petition_submitted_at') else '') + (' · ref ' + w['petition_ref'] if w.get('petition_ref') else '')) if w.get('petition_status') else 'Not prepared yet.')}</div>
+</div>
 <div class="card"><h2>Promise vs reality</h2>{promise_table(w, latest)}</div>
 {sig}
 <div class="card"><h2>Pre-departure trail</h2><div class="grid">
@@ -446,3 +479,30 @@ def render_case(w: dict, events: list[dict], status: dict, signals: list[dict] |
 </div>{welcome}</div>
 <div class="card"><h2>Timeline</h2>{''.join(evs)}</div>""", refresh=20)
 
+
+
+def render_petition(w: dict, pet: dict) -> str:
+    """Printable Pravasi Prajavani petition, Telugu first, then English."""
+    te, en = pet["telugu"], pet["english"]
+    li = lambda xs: "".join(f"<li>{esc(x)}</li>" for x in xs)
+    body = f"""<p class="noprint"><button class="btn" onclick="window.print()">Print / save as PDF</button>
+<a class="btn secondary" href="/dashboard/case/{esc(w['case_id'])}">Back to case</a></p>
+<p class="noprint muted">Saathi fills this in from the case. A caseworker hands it in at Pravasi Prajavani (Praja Bhavan,
+Hyderabad) for the family, so they do not have to travel. The Telugu is machine-drafted: have a Telugu speaker read it first.
+Check every fact with the family before signing.</p>
+<div class="card petition">
+<p>{esc(te['to'])}</p><p><b>{esc(te['subject'])}</b></p>
+{''.join(f'<p>{esc(x)}</p>' for x in te['body'])}
+<p>{esc(te['petitioner'])}</p><p>సంతకం: ______________ &nbsp; తేదీ: ______________</p>
+<hr>
+<p>{esc(en['to'])}</p><p><b>{esc(en['subject'])}</b></p>
+<p><b>Facts</b></p><ul>{li(en['facts'])}</ul>
+<p><b>What the worker reported</b></p><ul>{li(en['problems'])}</ul>
+{f"<p><b>Timeline</b></p><ul>{li(en['timeline'])}</ul>" if en['timeline'] else ''}
+<p><b>Request</b></p><ol>{li(en['requests'])}</ol>
+<p class="muted">{esc(en['note'])}</p>
+<p>{esc(en['petitioner'])}</p><p>Signature: ______________ &nbsp; Date: ______________</p>
+</div>
+<style>@media print {{ header, .noprint {{ display:none }} .card {{ border:0 }} body {{ background:#fff }} }}
+.petition p, .petition li {{ margin:6px 0 }}</style>"""
+    return page(f"Petition {w['case_id']}", body)

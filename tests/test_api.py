@@ -107,7 +107,7 @@ def test_health_shows_config_and_db(mem):
     h = client.get("/health").json()
     assert h["storage"] == "memory" and h["dashboard"] is True and h["bolna_checkin_calls"] is False
     assert client.get("/health/db").json() == {"storage": "memory", "ok": True,
-                                                "tables": {t: "ok" for t in ("workers", "calls", "checkins", "escalations",
+                                                "tables": {t: "ok" for t in ("workers", "calls", "checkins", "escalations", "contact_reports",
                                                                               "workers (new columns)")}}
 
 
@@ -271,3 +271,24 @@ def test_check_contact_endpoint(mem):
     r = client.post("/check-contact", json={"phone": "+91 98480 12345", "payment": "%(payment)s"}).json()
     assert r["found"] and r["cases"] == 1 and "A" not in r["instruction"].split()
     assert client.get("/check-contact", params={"phone": "9000011111"}).json()["found"] is False
+
+
+def test_contact_reports_saved_by_post_not_by_browser_get(mem):
+    client.get("/check-contact", params={"phone": "9848012345"})
+    assert mem.select("contact_reports") == []
+    client.post("/check-contact", json={"phone": "98480 12345", "amount": "100000", "caller_phone": "+919000000001",
+                                        "district": "Jagtial", "visa_type": "%(visa_type)s"})
+    rep = mem.select("contact_reports")
+    assert len(rep) == 1 and rep[0]["phone"] == "+919848012345" and rep[0]["amount_asked"] == 100000
+    assert "Agent numbers reported on calls" in client.get("/dashboard/agents", auth=AUTH).text
+
+
+def test_petition_page_and_status(mem):
+    cid = client.post("/api/workers", auth=AUTH, json={"worker_name": "Ravi", "worker_phone": "9876543210",
+                                                       "family_phone": "9123456780", "dest_country": "Oman"}).json()["case_id"]
+    assert client.get(f"/dashboard/case/{cid}/petition").status_code == 401
+    page = client.get(f"/dashboard/case/{cid}/petition", auth=AUTH).text
+    assert "Pravasi Prajavani" in page and "ప్రవాసీ ప్రజావాణి" in page and "Print" in page
+    assert client.post(f"/api/cases/{cid}/petition", auth=AUTH, json={"status": "nope"}).status_code == 400
+    assert client.post(f"/api/cases/{cid}/petition", auth=AUTH, json={"status": "submitted", "ref": "A1"}).json()["ok"]
+    assert "handed in" in client.get(f"/dashboard/case/{cid}", auth=AUTH).text

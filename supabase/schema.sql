@@ -116,3 +116,28 @@ alter table workers add column if not exists welcome_sms text;
 alter table workers add column if not exists welcome_sms_status text;
 alter table workers add column if not exists source text;              -- dashboard / help_call / demo
 alter table workers add column if not exists is_demo boolean not null default false;
+
+-- Added 22 Oct 2026: agent numbers heard on calls (Saathi Intelligence), family
+-- callers and Pravasi Prajavani petition tracking. Safe to run again.
+create table if not exists contact_reports (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  phone text,                     -- agent / sub-agent phone, normalised (+91...)
+  payment text,                   -- UPI ID / account the money goes to, lower case
+  amount_asked numeric,           -- what the agent asked for, in rupees
+  visa_type text,
+  agent_name text,
+  caller_district text,
+  reporter text,                  -- worker / family
+  caller_phone text,              -- who reported it: private, used only to count distinct callers
+  notes text,
+  is_demo boolean not null default false
+);
+create index if not exists contact_reports_phone_idx on contact_reports (phone);
+create index if not exists contact_reports_payment_idx on contact_reports (payment);
+alter table contact_reports enable row level security;
+
+alter table workers add column if not exists reported_by text;           -- self / family relation
+alter table workers add column if not exists petition_status text;       -- prepared / submitted / acknowledged / closed
+alter table workers add column if not exists petition_ref text;
+alter table workers add column if not exists petition_submitted_at timestamptz;

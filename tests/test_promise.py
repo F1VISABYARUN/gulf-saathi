@@ -62,7 +62,7 @@ def test_live_contact_check_warns_without_names_or_case_numbers():
     assert r["found"] and r["cases"] == 1 and r["at_risk"] == 1  # the demo case never counts
     assert "do not pay any more money" in r["instruction"] and "GS-A" not in str(r)
     r = check_contact(ws, payment=" Raju@UPI ")
-    assert r["cases"] == 1 and r["at_risk"] == 0 and "none has reported a problem" in r["instruction"]
+    assert r["cases"] == 1 and r["at_risk"] == 0 and "none reported a problem" in r["instruction"]
     r = check_contact(ws, phone="9000011111")
     assert not r["found"] and "does not mean the agent is safe" in r["instruction"]
     assert "Ask for the agent's phone number" in check_contact(ws)["instruction"]
@@ -75,3 +75,20 @@ def test_employer_names_link_only_with_country_and_are_weak():
           _w("GS-D", employer_name="Noor", dest_country="UAE"), _w("GS-E", employer_name="Noor", dest_country="UAE")]
     s = repeated_signals(ws)
     assert len(s) == 1 and set(s[0]["cases"]) == {"GS-A", "GS-B"} and s[0]["strong"] is False
+
+
+def test_numbers_heard_on_calls_count_even_without_a_case():
+    from gulf_saathi.db import MemoryStore
+    from gulf_saathi.signals import record_contact, reported_contacts
+    store = MemoryStore()
+    for caller, amt, district in (("9000000001", "150000", "Jagtial"), ("9000000002", "90000", "Nizamabad"),
+                                  ("9000000002", "90000", "Nizamabad"), ("9000000003", "30000", "Jagtial")):
+        record_contact(store, {"phone": "98480 12345", "amount": amt, "district": district, "caller_phone": caller,
+                               "visa_type": "visit" if caller.endswith("1") else ""}, "2026-10-22T10:00:00+00:00")
+    assert record_contact(store, {"phone": ""}, "x") is None
+    reports = store.select("contact_reports")
+    r = check_contact([], phone="9848012345", reports=reports, caller_phone="9000000003")
+    assert r["callers"] == 2 and r["callers_over_limit"] == 2 and r["callers_visit_visa"] == 1  # caller 3 not counted
+    assert "asked for more than the legal limit" in r["instruction"] and "not proof" in r["instruction"]
+    g = reported_contacts(reports, [])[0]
+    assert g["callers"] == 3 and g["reports"] == 4 and g["over_limit"] == 3 and g["districts"] == ["Jagtial", "Nizamabad"]
