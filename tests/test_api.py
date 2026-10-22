@@ -191,6 +191,8 @@ def test_home_page_is_public_and_shows_totals_only(mem):
     assert "Get a call from Saathi" in page and "Aadujeevitham" in page
     assert "Hindi" not in page and "8 Apr 2026" in page and "not sent yet" in page
     assert page.count("BUILT, BEING TESTED") == 3  # contract, airport, workplace need the check-in agent
+    assert 'src="/gulf-saathi-demo.mp4"' in page and "autoplay" not in page
+    assert "Prototype demo · demo data · real Bolna test calls" in page
     assert "Secret Name" not in page and "9876543210" not in page
     for banned in ("fraud", "genuine", "government-ready"):
         assert banned not in page.lower().replace("safe or genuine", "")

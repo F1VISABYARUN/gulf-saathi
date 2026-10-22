@@ -64,6 +64,9 @@ h2{font-size:26px;margin:0 0 8px;letter-spacing:-.01em} .lede{color:var(--muted)
 .gate .st{display:inline-block;margin-top:10px;font-size:12px;font-weight:700;letter-spacing:.04em;border-radius:999px;padding:2px 10px}
 .gate .st.live{background:#d1fadf;color:#05603a} .gate .st.testing{background:#fef0c7;color:#93370d}
 .honest li{margin-bottom:4px}
+.video{max-width:960px;margin:0 auto}
+.video video{display:block;width:100%;aspect-ratio:16/9;background:#000;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.video p{text-align:center;margin:10px 0 0}
 footer{padding:24px 0 40px;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
 """
 
@@ -122,6 +125,15 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   when something goes wrong.</p>
   <a class="btn" href="#call">Get a call from Saathi</a> <a class="btn ghost" href="/demo">See the demo story</a>
 </div>
+
+<section id="watch"><div class="wrap video">
+  <h2>Watch the demo</h2>
+  <video controls playsinline preload="metadata" poster="/gulf-saathi-poster.jpg">
+    <source src="/gulf-saathi-demo.mp4" type="video/mp4"
+      onerror="document.getElementById('watch').hidden=true">
+  </video>
+  <p class="honest">Prototype demo · demo data · real Bolna test calls</p>
+</div></section>
 
 <section id="problem"><div class="wrap">
   <h2>Seven gates, one cheat</h2>
