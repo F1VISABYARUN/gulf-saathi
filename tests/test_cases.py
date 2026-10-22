@@ -43,6 +43,12 @@ def store():
     return MemoryStore()
 
 
+@pytest.fixture(autouse=True)
+def auto_calls(monkeypatch):
+    # Most tests describe the full schedule; the off-by-default switch has its own tests.
+    monkeypatch.setenv("GS_AUTO_CALLS", "1")
+
+
 YADAIAH = {
     "worker_name": "Yadaiah", "worker_name_te": "యాదయ్య", "worker_phone": "98765 43210",
     "family_name": "Lakshmi", "family_relation": "wife", "family_phone": "9123456780",
@@ -631,3 +637,23 @@ def test_critical_answer_brings_saathi_back_within_hours(store, licensed, placed
     w2 = register(store, licensed, arrival_call_at="", worker_phone="9876500000")["worker"]
     process_call_record(store, payload("c2", w2["case_id"], "weekly"), NOW)
     assert placed[-1]["scheduled_at"] == NOW + timedelta(days=7)
+
+
+def test_automatic_calls_are_off_unless_switched_on(store, licensed, placed, texts, monkeypatch):
+    monkeypatch.delenv("GS_AUTO_CALLS")
+    w = register(store, licensed, arrival_call_at="")["worker"]
+    process_call_record(store, payload("o1", w["case_id"], "weekly"), NOW)
+    process_call_record(store, payload("o2", w["case_id"], "weekly", talked=False), NOW)
+    assert placed == []  # neither a next-week call nor a retry
+    r = record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly", "threatened": "yes"}, NOW)
+    assert "call back within a few hours" not in r["instruction"]  # no promise the server won't keep
+
+
+def test_a_call_placed_at_once_cannot_loop(store, licensed, placed, texts):
+    # 22 Oct 2026: follow-ups booked for later were placed at once and looped.
+    w = register(store, licensed, arrival_call_at="")["worker"]
+    process_call_record(store, payload("L1", w["case_id"], "weekly"), NOW)
+    assert len(placed) == 1
+    # Bolna placed the "next week" call right away; it ends a minute later.
+    process_call_record(store, payload("exec-1", w["case_id"], "weekly"), NOW + timedelta(minutes=2))
+    assert len(placed) == 1  # no new booking within the 6-hour gap

@@ -22,6 +22,27 @@ RETRY_HOURS = {"arrival": 3, "weekly": 24}  # after a missed call
 # After an answered call, how soon Saathi calls back, by the worker's risk now:
 # a person in danger is not left for a week.
 FOLLOW_UP = {"critical": timedelta(hours=3), "high": timedelta(days=1)}
+# Never more than one automatic call to the same worker in this window, whatever
+# else happens (a booking Bolna places at once instead of later must not loop).
+AUTO_CALL_GAP = timedelta(hours=int(os.getenv("GS_AUTO_CALL_GAP_HOURS", "6")))
+
+
+def auto_calls_on() -> bool:
+    """Calls the server books by itself after a call ends (retries, follow-ups, next
+    week). Off unless GS_AUTO_CALLS=1: on 22 Oct 2026 booked calls came at once and
+    looped. "Call now" on the dashboard always works."""
+    return os.getenv("GS_AUTO_CALLS", "0") == "1"
+
+
+def _recent_call_other_than(store, worker_id: str, this_call: str, now: datetime) -> bool:
+    """A call other than the one just ended was created in the last AUTO_CALL_GAP."""
+    for c in store.select("calls", {"worker_id": worker_id}):
+        if c["id"] == this_call or c.get("status") == "scheduled":
+            continue  # booked for later and not yet happened
+        made = parse_ts(c.get("created_at"))
+        if made and now - made < AUTO_CALL_GAP:
+            return True
+    return False
 DEFAULT_CODE_PHRASE = "అమ్మ బాగుందా"  # "Is Amma well?": says "I can't talk freely" without saying it
 CHECKIN_KINDS = ("arrival", "weekly")  # calls that count towards misses and alerts
 CALL_KINDS = (*CHECKIN_KINDS, "briefing")  # briefing: pre-departure, before the worker flies
@@ -533,9 +554,11 @@ def process_call_record(store, payload: dict, now: datetime) -> dict:
 
     if not c["missed"]:
         next_when = now + FOLLOW_UP.get(worker.get("risk_level"), timedelta(days=CHECKIN_DAYS))
-    # Book the next call unless another one is already booked for later.
+    # Book the next call unless another one is already booked for later, automatic
+    # calls are off, or this worker already had a call recently.
     next_call = None
-    if not _other_booked_call(store, worker["id"], c["call_id"], now):
+    if (auto_calls_on() and not _other_booked_call(store, worker["id"], c["call_id"], now)
+            and not _recent_call_other_than(store, worker["id"], c["call_id"], now)):
         next_call = schedule_call(store, worker, next_kind, next_when, now)
     return {"stored": True, "processed": True, "worker": worker["case_id"], "missed": c["missed"],
             "risk_level": worker["risk_level"], "escalated": bool(escalation), "next_call": next_call}
@@ -576,14 +599,15 @@ def checkin_instruction(worker: dict, kind: str, level: str, codes: set, escalat
                     f"building or road name. ")
         else:
             say += ("Then: if you can, stay where there are other people. Keep your phone hidden and charged. ")
-        back = ("say the team will try to reach them on this phone; keep it with you" if kind == "help"
-                else "say Saathi will call back within a few hours")
+        back = ("say Saathi will call back within a few hours" if kind != "help" and auto_calls_on()
+                else "say the team will try to reach them on this phone; keep it with you")
         say += (f"Ask ONE question: where are you now, any building, shop, mosque or road name? Then {back}. "
                 "Never tell them to call the embassy themselves. Never promise rescue.")
         return say
     if level == "high":
         return (f"Say: you are not alone. Your problem is registered and a Saathi caseworker will take it up with the "
-                f"Indian Embassy in {country}. {family}" + ("" if kind == "help" else "Saathi will call you again tomorrow. ")
+                f"Indian Embassy in {country}. {family}" + ("Saathi will call you again tomorrow. "
+                                                    if kind != "help" and auto_calls_on() else "")
                 + "Do not promise that the "
                 "salary or passport will be recovered. Never tell them to call the embassy themselves.")
     if kind == "help":
