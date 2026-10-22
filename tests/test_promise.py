@@ -43,3 +43,35 @@ def test_repeated_signals_never_match_names():
     assert len(s) == 1 and s[0]["cases"] == ["GS-A", "GS-B"] and s[0]["at_risk"] == 1 and s[0]["flagged"] == 1
     assert s[0]["demo"] is False  # one real case: not labelled demo
     assert signals_for_case(ws[2], ws) == []
+
+
+# --- Saathi Intelligence ----------------------------------------------------------------
+
+from gulf_saathi.signals import check_contact  # noqa: E402
+
+
+def _w(cid, **kw):
+    return {"case_id": cid, "risk_level": "ok", **kw}
+
+
+def test_live_contact_check_warns_without_names_or_case_numbers():
+    ws = [_w("GS-A", sub_agent_phone="+919848012345", risk_level="critical", agent_district="Jagtial"),
+          _w("GS-B", payment_to="raju@upi", agent_district="Nizamabad"),
+          _w("GS-C", sub_agent_phone="+919848012345", is_demo=True, risk_level="critical")]
+    r = check_contact(ws, phone="98480 12345")
+    assert r["found"] and r["cases"] == 1 and r["at_risk"] == 1  # the demo case never counts
+    assert "do not pay any more money" in r["instruction"] and "GS-A" not in str(r)
+    r = check_contact(ws, payment=" Raju@UPI ")
+    assert r["cases"] == 1 and r["at_risk"] == 0 and "none has reported a problem" in r["instruction"]
+    r = check_contact(ws, phone="9000011111")
+    assert not r["found"] and "does not mean the agent is safe" in r["instruction"]
+    assert "Ask for the agent's phone number" in check_contact(ws)["instruction"]
+
+
+def test_employer_names_link_only_with_country_and_are_weak():
+    ws = [_w("GS-A", employer_name="Al Noor Cleaning LLC", dest_country="UAE"),
+          _w("GS-B", employer_name="AL NOOR CLEANING", dest_country="UAE"),
+          _w("GS-C", employer_name="Al Noor Cleaning", dest_country="Oman"),
+          _w("GS-D", employer_name="Noor", dest_country="UAE"), _w("GS-E", employer_name="Noor", dest_country="UAE")]
+    s = repeated_signals(ws)
+    assert len(s) == 1 and set(s[0]["cases"]) == {"GS-A", "GS-B"} and s[0]["strong"] is False

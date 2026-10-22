@@ -221,7 +221,7 @@ def test_demo_story_pages(mem):
     assert "DEMO" in case and "Promise vs reality" in case and "herding goats" in case
     assert "Seen in 2 cases" in case and "not a finding of fraud" in case
     agents = client.get("/dashboard/agents", auth=AUTH).text
-    assert "Repeated across cases" in agents and "DEMO DATA" in agents
+    assert "Saathi Intelligence" in agents and "DEMO DATA" in agents
     ramesh = client.get(f"/dashboard/case/{out['ramesh']}", auth=AUTH).text
     assert "do not travel until" in ramesh
 
@@ -263,3 +263,11 @@ def test_case_page_offers_an_embassy_alert_when_at_risk(mem):
                                "current_city": "Al Ain", "landmark": "near a big mosque"}, api.now())
     page = client.get(f"/dashboard/case/{cid}", auth=AUTH).text
     assert "Alert the Indian Embassy now" in page and "Al Ain, near a big mosque" in page and "+919876543210" in page
+
+
+def test_check_contact_endpoint(mem):
+    client.post("/api/workers", auth=AUTH, json={"worker_name": "A", "worker_phone": "9876543210",
+                                                 "family_phone": "9123456780", "sub_agent_phone": "9848012345"})
+    r = client.post("/check-contact", json={"phone": "+91 98480 12345", "payment": "%(payment)s"}).json()
+    assert r["found"] and r["cases"] == 1 and "A" not in r["instruction"].split()
+    assert client.get("/check-contact", params={"phone": "9000011111"}).json()["found"] is False

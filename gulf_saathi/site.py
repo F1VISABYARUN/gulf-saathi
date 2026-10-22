@@ -93,7 +93,7 @@ def render_home(counts: dict, demo_calls_on: bool) -> str:
                  '<p class="honest">No real worker data is shown here, only totals.</p>')
     tiles = "".join(f'<div class="tile"><b>{esc(counts.get(k, 0))}</b><span>{esc(label)}</span></div>' for k, label in (
         ("registered", "Cases"), ("red_flags", "Pre-departure red flags"), ("abroad", "Abroad, getting calls"),
-        ("at_risk", "At risk now (HIGH or CRITICAL)")))
+        ("at_risk", "At risk now (HIGH or CRITICAL)"), ("signals", "Repeated agent phones / accounts across cases")))
     call_form = ("""<form id="cf" onsubmit="return false">
   <label for="phone">Your phone number</label><input id="phone" name="phone" inputmode="tel" placeholder="98765 43210" required>
   <label for="code">Demo code (from the Gulf Saathi team)</label><input id="code" name="code" autocomplete="off" required>

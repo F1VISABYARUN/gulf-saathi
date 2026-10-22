@@ -94,7 +94,8 @@ def home():
     """Public home page. Shows totals only, never a name or number."""
     try:
         workers = STORE.select("workers", order="updated_at")
-        counts = {**cases.summary_counts(workers, {}), "demo": sum(1 for w in workers if w.get("is_demo"))}
+        counts = {**cases.summary_counts(workers, {}), "demo": sum(1 for w in workers if w.get("is_demo")),
+                  "signals": sum(1 for x in signals.repeated_signals(workers) if x["strong"])}
     except StoreError:
         counts = {}
     return site.render_home(counts, demo_calls_on=bool(os.getenv("GS_DEMO_CODE", "").strip() and demo_agent_id()))
@@ -238,6 +239,35 @@ def check_fee_get(payments: str = ""):
 def check_fee(q: FeeQuery):
     """Add up every payment to the agent and compare with the legal cap."""
     return compute_fee(q.payments)
+
+
+class ContactQuery(BaseModel):
+    phone: str = ""     # the agent's phone number, as the caller said it
+    payment: str = ""   # UPI ID / account / number the money was paid to
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def blank_if_missing(cls, v: Any) -> str:
+        return "" if _blank(v) else str(v).strip()
+
+
+@app.get("/check-contact")
+def check_contact_get(phone: str = "", payment: str = ""):
+    """Same check from a browser link, e.g. /check-contact?phone=9848012345"""
+    return check_contact(ContactQuery(phone=phone, payment=payment))
+
+
+@app.post("/check-contact")
+def check_contact(q: ContactQuery):
+    """Saathi Intelligence, live on the call: has this agent phone or payment account
+    come up in other cases? Counts only; never names, case numbers or accusations."""
+    try:
+        workers = STORE.select("workers", order="updated_at")
+    except StoreError as e:
+        log.error("check_contact failed: %s", e)
+        return {"found": False, "instruction": "Say you could not check the number right now; do not pay more until "
+                                               "the licence and a written contract are checked."}
+    return signals.check_contact(workers, q.phone, q.payment)
 
 
 @app.post("/tools/record-checkin", dependencies=[Depends(require_bolna_token)])

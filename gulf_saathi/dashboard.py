@@ -126,8 +126,10 @@ def signals_table(signals: list[dict], intro: bool = True) -> str:
     rows = []
     for g in signals:
         cases = " ".join(f'<a class="nowrap" href="/dashboard/case/{esc(c)}">{esc(c)}</a>' for c in g["cases"])
-        rows.append(f"""<tr><td>{esc(g['label'])}{' <span class="demo">DEMO DATA</span>' if g['demo'] else ''}</td>
-<td><b>{esc(g['value'])}</b></td><td>Seen in {len(g['cases'])} cases<div class="muted" style="font-size:12px">{cases}</div></td>
+        weak = '' if g.get('strong', True) else ' <span class="muted" style="font-size:12px">(weak: company names can repeat)</span>'
+        where = f'<div class="muted" style="font-size:12px">Agent districts: {esc(", ".join(g["districts"]))}</div>' if g.get('districts') else ''
+        rows.append(f"""<tr><td>{esc(g['label'])}{weak}{' <span class="demo">DEMO DATA</span>' if g['demo'] else ''}</td>
+<td><b>{esc(g['value'])}</b></td><td>Seen in {len(g['cases'])} cases<div class="muted" style="font-size:12px">{cases}</div>{where}</td>
 <td>{esc(g['at_risk']) if g['at_risk'] else '<span class="muted">0</span>'}</td>
 <td>{esc(g['flagged']) if g['flagged'] else '<span class="muted">0</span>'}</td></tr>""")
     note = ("<p class='muted'>Seen in more than one case: needs a person to review. This is not a finding of fraud "
@@ -208,7 +210,10 @@ def render_agents(stats: list[dict], signals: list[dict] | None = None) -> str:
 how many paid over the Rs 35,400 limit, and which employers abroad they sent people to. This describes our cases, not a
 finding about any agent.</p>
 <div class="card">{table}</div>
-<h2>Repeated across cases</h2>
+<h2>Saathi Intelligence: repeated across cases</h2>
+<p class="muted">Exact matches on agent phones, payment accounts, sponsor IDs and employer phones (strong), and employer
+name plus country (weak). A link is a lead for a trained investigator, not proof. Workers checking a number on a call hear
+only a count, never names or case numbers, and never from demo data.</p>
 <div class="card">{signals_table(signals or [])}</div>""")
 
 

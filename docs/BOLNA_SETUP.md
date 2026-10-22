@@ -90,6 +90,7 @@ Check only what they ask about. For each check: get the minimum, call the tool, 
   not_found: "ఈ పేరు ప్రభుత్వ లైసెన్స్ జాబితాలో దొరకలేదు. డబ్బు ఇచ్చే ముందు లైసెన్స్ నంబర్ అడగండి."
 - FEE: ask "మొత్తం ఎంత అడిగారు లేదా ఇచ్చారు?" then call check_fee. over_cap: say the total and how much extra (over_by_spoken), illegal. within_cap: within the limit, pay only digitally with a receipt. Never add numbers yourself. If they mention 20,000: "కొన్ని పాత ప్రభుత్వ పేజీల్లో ఇంకా 20,000 అని ఉంది. ఇప్పటి పరిమితి 30,000 ప్లస్ GST."
 - VISA: visit or tourist visa for a job: warn clearly, no legal protection.
+- AGENT'S PHONE OR PAYMENT ACCOUNT: if they mention the agent's phone number, or the UPI ID / account they are asked to pay, call check_contact with it and say its instruction. If they don't know it, don't push.
 After answering what they asked, offer the rest in ONE question: "ఫీజు లేదా వీసా కూడా చెక్ చేయాలా?" If no: one-line reminder (employment visa, written contract, receipts, keep your passport), then goodbye.
 If they already paid and are still in India: keep all proof, pay nothing more, complain on emigrate.gov.in (Register Grievance). Never promise the money back.
 ```
@@ -107,6 +108,49 @@ Section: `Never`
 
 Tools: `check_agent` (URL `/check-agent`) and `check_fee` (URL `/check-fee`), as already set up,
 plus `report_problem` below. Knowledge base: `Gulf_Saathi_Rules.pdf`.
+
+**Tool: `check_contact`** (Saathi Intelligence; Tools tab → Add a Custom Tool → Write manually)
+
+```json
+{
+  "name": "check_contact",
+  "description": "Before the caller pays: check whether the agent's phone number or the UPI ID / account they pay to has come up in other Saathi cases. Then say what its instruction tells you.",
+  "pre_call_message": "ఒక్క నిమిషం, చూస్తున్నాను.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "phone": {
+        "type": "string",
+        "description": "The agent's or sub-agent's phone number, digits only. Empty string if not given."
+      },
+      "payment": {
+        "type": "string",
+        "description": "The UPI ID, account number or phone number the money is paid to. Empty string if not given."
+      }
+    },
+    "required": [
+      "phone",
+      "payment"
+    ]
+  },
+  "key": "custom_task",
+  "value": {
+    "method": "POST",
+    "param": {
+      "phone": "%(phone)s",
+      "payment": "%(payment)s"
+    },
+    "url": "https://gulf-saathi-psi.vercel.app/check-contact",
+    "api_token": null,
+    "headers": {},
+    "pre_call_webhook_url": null,
+    "pre_call_webhook_param": null
+  }
+}
+```
+
+It answers with counts only (never names or case numbers) and ignores demo cases unless
+`GS_SIGNALS_INCLUDE_DEMO=1` is set in Vercel for a demo.
 
 **Tool: `report_problem`** (Tools tab → delete the old one → Add a Custom Tool → Write manually)
 
