@@ -747,10 +747,13 @@ def help_from_extraction(store, c: dict, now: datetime) -> dict | None:
     never called report_problem. None when there is nothing to act on."""
     ex = flatten_extraction(c.get("extracted") or {})
     a = normalize_answers(ex)
-    danger = (any(a.get(k) is True for k in ("threatened", "movement_restricted", "needs_help"))
+    # "Needs help" alone is not danger: someone checking an agent before paying also
+    # asks for help (live call 22 Oct 2026). Act only when they are abroad or report
+    # harm that only happens abroad.
+    danger = (any(a.get(k) is True for k in ("threatened", "movement_restricted"))
               or a.get("passport_with_worker") is False or (a.get("months_unpaid") or 0) > 0
               or a.get("pickup_status") in ("other_person", "nobody"))
-    if not (yes_no(ex.get("abroad")) or danger) or not c.get("user_number"):
+    if yes_no(ex.get("abroad")) is False or not (yes_no(ex.get("abroad")) or danger) or not c.get("user_number"):
         return None
     data = {k: v for k, v in ex.items() if k != "case_id"}
     data["caller_phone"] = c["user_number"]

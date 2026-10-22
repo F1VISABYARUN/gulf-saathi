@@ -657,3 +657,11 @@ def test_a_call_placed_at_once_cannot_loop(store, licensed, placed, texts):
     # Bolna placed the "next week" call right away; it ends a minute later.
     process_call_record(store, payload("exec-1", w["case_id"], "weekly"), NOW + timedelta(minutes=2))
     assert len(placed) == 1  # no new booking within the 6-hour gap
+
+
+def test_checking_caller_who_asks_for_help_opens_no_case(store, texts):
+    # Live call 22 Oct 2026: checking an agent before paying, extraction said needs_help = yes.
+    checking = {"help_check": {"abroad": _x("not_said"), "needs_help": _x("yes"), "threatened": _x("not_said"),
+                               "notes": _x(subjective="Agent asking 15 lakh; caller checked the agent's number.")}}
+    out = process_call_record(store, gulf_line_call("x9", checking, "+919000022222"), NOW)
+    assert store.select("workers") == [] and store.select("escalations") == [] and not out.get("help")
