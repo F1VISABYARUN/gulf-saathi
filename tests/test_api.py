@@ -190,17 +190,17 @@ def test_home_page_is_public_and_shows_totals_only(mem):
     page = client.get("/").text
     assert "Get a call from Saathi" in page and "Aadujeevitham" in page
     assert "Hindi" not in page and "8 Apr 2026" in page and "not sent yet" in page
-    assert page.count("BUILT, BEING TESTED") == 3  # contract, airport, workplace need the check-in agent
+    assert page.count("BUILT, BEING TESTED") == 4  # only "before paying" is marked as working on real calls
     assert 'src="/gulf-saathi-demo.mp4"' in page and "autoplay" not in page
     assert "Prototype demo · demo data · real Bolna test calls" in page
     assert page.count("AI-generated illustration<") == 4 and "Najeeb Muhammad" in page  # one caption per photo
     for img in ("gs_hero_airport.webp", "gs_desert_goats.webp", "gs_family_sms.webp", "gs_caseworker.webp", "gs_dashboard.webp"):
         assert f"/{img}" in page
     assert "Source: Lok Sabha unstarred question 2190" in page and "Demo dashboard" in page
-    assert "rescue" not in page.lower()
     assert "Secret Name" not in page and "9876543210" not in page
-    for banned in ("fraud", "genuine", "government-ready"):
-        assert banned not in page.lower().replace("safe or genuine", "")
+    for banned in ("fraud", "genuine", "government-ready", "rescue", "safe", "trusted"):
+        assert banned not in page.lower()
+    assert page.count("<img") == page.count('alt="')
 
 
 def test_demo_call_needs_the_code(mem, monkeypatch):

@@ -15,7 +15,7 @@ STEPS = [
      "Rs 30,000 + 18% GST = Rs 35,400.", "live"),
     ("Before flying", "ప్రయాణానికి ముందు",
      "The promised job, visa type, every payment and the family's number are recorded. Red flags show at once: "
-     "a visit visa, a visa naming a different job, a fee over the limit.", "live"),
+     "a visit visa, a visa naming a different job, a fee over the limit.", "testing"),
     ("Arrival day", "చేరిన రోజు", "Saathi calls: did the registered employer pick you up, or someone else?", "testing"),
     ("Every week", "ప్రతి వారం",
      "Salary, passport, food, threats, freedom to go out, and is this the job and city you were promised? "
@@ -50,18 +50,23 @@ nav b{font-size:18px;letter-spacing:.01em} nav .sp{flex:1} nav a{text-decoration
 .hero h1{font-size:clamp(30px,6vw,52px);line-height:1.1;margin:0 0 12px;letter-spacing:-.02em}
 .hero .te{font-size:clamp(20px,3.5vw,28px);color:var(--accent);font-weight:700;margin:0 0 16px}
 .hero p{font-size:18px;max-width:640px;color:var(--muted);margin:0 0 20px}
-.big{position:relative;min-height:min(86vh,720px);display:flex;align-items:flex-end;color:#fff;background:#111 center/cover no-repeat}
-.big:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(14,12,10,.93) 0%,rgba(14,12,10,.78) 45%,rgba(14,12,10,.15) 82%)}
-.big .wrap{position:relative;width:100%;padding-top:72px;padding-bottom:56px}
-.big h1{font-size:clamp(30px,5.2vw,54px);line-height:1.08;margin:0 0 14px;letter-spacing:-.02em;max-width:760px}
-.big .te{font-size:clamp(19px,3vw,26px);color:#f0b27f;font-weight:700;margin:0 0 14px}
-.big p{font-size:18px;max-width:600px;color:#e8e1d7;margin:0 0 22px}
+.big{position:relative;min-height:min(86vh,720px);display:flex;align-items:flex-end;color:#fff;background:#14110e;overflow:hidden}
+.big>img{position:absolute;top:0;right:0;width:50%;height:100%;object-fit:cover;object-position:20% center}
+.big:before{content:"";position:absolute;inset:0;z-index:1;
+background:linear-gradient(90deg,rgba(20,17,14,1) 0%,rgba(20,17,14,1) 50%,rgba(20,17,14,.55) 52%,rgba(20,17,14,0) 55%)}
+.big .wrap{position:relative;z-index:2;width:100%;padding-top:72px;padding-bottom:56px}
+.big .txt{max-width:min(480px,40vw)}
+.big h1{font-size:clamp(28px,3.6vw,48px);line-height:1.1;margin:0 0 14px;letter-spacing:-.02em}
+.big .te{font-size:clamp(18px,2.2vw,24px);color:#f0b27f;font-weight:700;margin:0 0 14px}
+.big p{font-size:18px;color:#e8e1d7;margin:0 0 22px}
 .big .btn.ghost{color:#fff;border-color:#fff}
 .badge{display:inline-block;margin-top:14px;font-size:13px;font-weight:700;letter-spacing:.03em;border:1px solid rgba(255,255,255,.45);border-radius:999px;padding:4px 12px;color:#f3ede4}
 .cap{font-size:12px;color:var(--muted);margin:6px 0 0}
-.big .cap{position:absolute;right:16px;bottom:10px;color:#d9d2c8}
-@media (max-width:720px){.big:before{background:linear-gradient(180deg,rgba(14,12,10,.5) 0%,rgba(14,12,10,.92) 50%)}.big{min-height:auto}
-.big .wrap{padding-top:180px}}
+.big .cap{position:absolute;z-index:2;right:16px;bottom:10px;color:#e8e1d7;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+@media (max-width:640px){.big{display:block;min-height:0;background:var(--deep)}
+.big>img{position:static;width:100%;height:auto;aspect-ratio:4/3}.big:before{display:none}
+.big .cap{position:static;color:#b8ad9e;text-shadow:none;padding:6px 16px 0;text-align:right}
+.big .wrap{padding-top:18px;padding-bottom:32px}.big .txt{max-width:none}.big h1{font-size:30px}}
 .btn{display:inline-block;background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:13px 20px;font:inherit;font-weight:700;text-decoration:none;cursor:pointer;margin:0 8px 8px 0}
 .btn.ghost{background:transparent;color:var(--accent);border:2px solid var(--accent)}
 .btn:disabled{opacity:.5;cursor:wait}
@@ -73,28 +78,35 @@ h2{font-size:clamp(24px,3.6vw,32px);line-height:1.2;margin:0 0 10px;letter-spaci
 .src{font-size:13px;color:var(--muted)}
 .story{display:grid;grid-template-columns:5fr 6fr;gap:28px;align-items:start}
 .story img{border-radius:14px;width:100%;aspect-ratio:16/10;object-fit:cover}
-.vs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;align-items:stretch}
 .vs div{border-radius:12px;padding:16px;background:var(--card);border:1px solid var(--line)}
 .vs h3{margin:0 0 8px;font-size:17px} .vs ul{margin:0;padding-left:18px} .vs li{margin-bottom:6px}
 .vs .without{border-top:4px solid var(--alert)} .vs .with{border-top:4px solid var(--ok)}
 @media (max-width:820px){.story,.vs{grid-template-columns:1fr}}
 .timeline{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;counter-reset:s;list-style:none;padding:0;margin:0}
-.timeline li{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:46px 14px 14px}
+.timeline li{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:46px 14px 14px;display:flex;flex-direction:column}
+.timeline li .st{margin-top:auto;align-self:flex-start}
 .timeline li:before{counter-increment:s;content:counter(s);position:absolute;top:12px;left:14px;width:26px;height:26px;border-radius:50%;
 background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
-.timeline h3{margin:0;font-size:17px} .timeline .t{color:var(--accent);font-weight:700;font-size:15px} .timeline p{margin:8px 0 10px;color:var(--muted);font-size:15px}
+.timeline h3{margin:0;font-size:17px} .timeline .t{color:var(--accent);font-weight:700;font-size:15px} .timeline p{margin:8px 0 14px;color:var(--muted);font-size:15px}
 @media (max-width:900px){.timeline{grid-template-columns:1fr;border-left:3px solid var(--line);margin-left:12px;padding-left:20px}
 .timeline li{padding-top:14px}.timeline li:before{left:-35px;top:14px}}
-.st{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.05em;border-radius:6px;padding:3px 8px}
+.st{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.02em;border-radius:6px;padding:3px 7px;white-space:nowrap}
 .st.live{background:#d1fadf;color:#05603a} .st.testing{background:#fef0c7;color:#93370d}
 .who{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
 .who article{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .who img{width:100%;aspect-ratio:4/3;object-fit:cover} .who .in{padding:12px 16px 16px} .who h3{margin:0 0 6px;font-size:18px} .who p{margin:0}
-.who .plain{display:flex;align-items:center;justify-content:center;aspect-ratio:4/3;background:var(--deep);color:#f0b27f;font-size:22px;font-weight:800;text-align:center;padding:16px}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.who .plain{display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;aspect-ratio:4/3;background:var(--sand);color:var(--accent);font-weight:700;font-size:15px;letter-spacing:.03em}
+.who .plain svg{width:84px;height:84px} .who .mini{display:none;width:28px;height:28px;color:var(--accent)}
+@media (max-width:640px){.who .plain{display:none}.who .mini{display:inline-block;vertical-align:-6px;margin-right:6px}}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+@media (max-width:760px){.tiles{grid-template-columns:1fr 1fr}.tiles .tile:nth-child(5){grid-column:1/-1}}
 .tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
 .tile b{display:block;font-size:30px;line-height:1.1} .tile span{color:var(--muted);font-size:14px}
-.shot{border-radius:12px;border:1px solid var(--line);margin:20px 0 8px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.shotbox{position:relative;max-height:320px;overflow:hidden;border-radius:12px;border:1px solid var(--line);margin:20px 0 8px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.shotbox:after{content:"";position:absolute;left:0;right:0;bottom:0;height:36px;background:linear-gradient(rgba(255,255,255,0),#fff)}
+.shotbox img{width:100%}
+@media (max-width:640px){.shotwrap{display:none}}
 .tag{display:inline-block;background:#fef0c7;color:#93370d;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;letter-spacing:.04em}
 .callbox{background:var(--deep);color:#fff;border-radius:16px;padding:22px}
 .callbox h2{color:#fff} .callbox p{color:#d6dde4}
@@ -123,8 +135,8 @@ def _page(title: str, body: str, description: str = "") -> str:
 <a href="/#how">How it works</a><a href="/#call">Get a call</a><a href="/demo">Demo story</a><a href="/dashboard">Caseworker login</a></nav></div>
 {body}
 <footer><div class="wrap">Gulf Saathi is a hackathon prototype for the Bolna Buildathon, not a government service.
-It never files a complaint by itself: it prepares a complaint-ready packet that a person takes to MADAD, the Indian Embassy or eMigrate.
-It never says an agent is safe or genuine. Inspired by Aadujeevitham (The Goat Life). Photos are AI-generated illustrations.<br>
+It never files a complaint by itself: it prepares a complaint-ready packet that a person takes to MADAD, the Indian Embassy or the police.
+It never vouches for an agent: it only says whether the agent is in the government licensed list. Inspired by Aadujeevitham (The Goat Life). Photos are AI-generated illustrations.<br>
 <b>Voice by Bolna · Built for the Bolna Buildathon 2026</b></div></footer>
 </body></html>"""
 
@@ -161,14 +173,15 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 </script>""" if demo_calls_on else
                  '<p><b>Demo calls are switched off right now.</b> Ask the Gulf Saathi team to turn them on.</p>')
     return _page("Gulf Saathi", f"""
-<header class="big" style="background-image:url('/gs_hero_airport.webp')"><div class="wrap">
+<header class="big"><img src="/gs_hero_airport.webp" alt="A worker at the airport on the phone, his mother and wife beside him">
+<p class="cap">{AI_PHOTO}</p><div class="wrap"><div class="txt">
   <h1>A trapped worker's only evidence is a selfie video. Saathi records the evidence before the trap.</h1>
   <p class="te">మీ గల్ఫ్ ప్రయాణంలో ప్రతి అడుగులో తోడుగా సాథి.</p>
   <p>A Telugu phone call that checks the agent, the fee and the visa before he pays, then calls him on arrival day and
   every week, and alerts his family when something goes wrong.</p>
   <a class="btn" href="#call">Get a call from Saathi</a> <a class="btn ghost" href="#watch">Watch the demo</a><br>
   <span class="badge">Voice by Bolna · Telugu speech by Sarvam · Prototype</span>
-</div><p class="cap">{AI_PHOTO}</p></header>
+</div></div></header>
 
 <section id="watch"><div class="wrap video">
   <h2>Watch the demo</h2>
@@ -222,8 +235,8 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
     <article><img src="/gs_caseworker.webp" alt="A caseworker with a headset at a laptop" loading="lazy">
       <div class="in"><p class="cap" style="margin:0 0 8px">{AI_PHOTO}</p><h3>Volunteers and caseworkers</h3>
       <p>Get a ready case: who, where, which agent, what was promised, when contact stopped.</p></div></article>
-    <article><div class="plain">Police · TOMCOM · State</div>
-      <div class="in"><h3>Government</h3>
+    <article><div class="plain"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5h17l9 9v13"/><path d="M29 5v9h9"/><path d="M12 5v38h16"/><path d="M18 20h12M18 27h8"/><path d="M38 31l-7 3v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8v-5z"/><path d="M35 39.5l2.2 2.2 4-4.2"/></svg><span>Police · TOMCOM · State</span></div>
+      <div class="in"><h3><span class="mini"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5h17l9 9v13"/><path d="M29 5v9h9"/><path d="M12 5v38h16"/><path d="M18 20h12M18 27h8"/><path d="M38 31l-7 3v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8v-5z"/><path d="M35 39.5l2.2 2.2 4-4.2"/></svg></span>Government</h3>
       <p>An evidence trail for police and TOMCOM, built one call at a time. A prototype, not a government service.</p></div></article>
   </div>
 </div></section>
@@ -232,8 +245,8 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <h2>Demo dashboard</h2>
   <div class="tiles">{tiles}</div>
   {demo_note}
-  <img class="shot" src="/gs_dashboard.webp" alt="The caseworker dashboard listing demo cases with CRITICAL and RED FLAGS badges" loading="lazy">
-  <p class="cap">Screenshot of the caseworker view with made-up demo cases.</p>
+  <div class="shotwrap"><div class="shotbox"><img src="/gs_dashboard.webp" alt="The caseworker dashboard showing a made-up demo case marked CRITICAL, with its red flags" loading="lazy"></div>
+  <p class="cap">Screenshot of the caseworker view with made-up demo cases.</p></div>
   <p style="margin-top:14px"><a class="btn ghost" href="/dashboard">Open caseworker view</a></p>
 </div></section>
 
