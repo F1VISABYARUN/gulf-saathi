@@ -865,3 +865,16 @@ def test_proof_of_work_shows_dates_work_and_when_pay_stopped(store, licensed, pl
     assert rec["rows"][0]["work"] == "cleaning offices" and rec["rows"][1]["pay"] == "not paid (2 months)"
     text = " ".join(rec["summary"])
     assert "Cleaner, 1500 AED" in text and "Salary first reported unpaid" in text
+
+
+def test_proof_of_work_merges_saves_from_one_call(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    for i, extra in enumerate(({"needs_help": "yes"}, {"current_city": "Deira, Dubai"}, {"passport_with_worker": "no"})):
+        cases.report_problem(store, {"case_id": w["case_id"], "caller_phone": "9876543210", **extra},
+                             NOW + timedelta(minutes=i))
+    cases.report_problem(store, {"case_id": w["case_id"], "caller_phone": "9876543210", "needs_help": "yes"},
+                         NOW + timedelta(hours=2))
+    rows = cases.proof_of_work(store, store.get("workers", id=w["id"]), NOW + timedelta(hours=3))["rows"]
+    assert len(rows) == 2
+    assert rows[0]["where"] == "Deira, Dubai" and rows[0]["passport"] == "NO"
+    assert "Asked for urgent help" in rows[0]["said"] and "Passport is not with the worker" in rows[0]["said"]

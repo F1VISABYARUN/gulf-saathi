@@ -1096,23 +1096,36 @@ def proof_of_work(store, worker: dict, now: datetime) -> dict:
     w = worker
     calls = sorted(store.select("calls", {"worker_id": w["id"]}), key=lambda c: c.get("created_at") or "")
     checkins = sorted(store.select("checkins", {"worker_id": w["id"]}), key=lambda c: c.get("created_at") or "")
-    rows = []
-    yn = lambda v: {True: "yes", False: "NO"}.get(v, "")
+    # The voice AI saves several times during one call: merge saves of the same kind
+    # less than 15 minutes apart into one row per call.
+    calls_said: list[dict] = []
     for ch in checkins:
         if ch.get("kind") == "briefing":
             continue
-        a = ch.get("answers") or {}
+        at = parse_ts(ch["created_at"])
+        last = calls_said[-1] if calls_said else None
+        if last and last["kind"] == ch.get("kind") and at and last["last"] and at - last["last"] < timedelta(minutes=15):
+            last["answers"].update({k: v for k, v in (ch.get("answers") or {}).items() if v not in (None, "")})
+            last["reasons"].update({r["code"]: r for r in ch.get("risk_reasons") or []})
+            last["last"] = at
+        else:
+            calls_said.append({"at": ch["created_at"], "last": at, "kind": ch.get("kind"),
+                               "answers": {k: v for k, v in (ch.get("answers") or {}).items() if v not in (None, "")},
+                               "reasons": {r["code"]: r for r in ch.get("risk_reasons") or []}})
+    rows = []
+    yn = lambda v: {True: "yes", False: "NO"}.get(v, "")
+    for g in calls_said:
+        a = g["answers"]
         pay = ("not paid" + (f" ({a['months_unpaid']} months)" if a.get("months_unpaid") else "")
                if a.get("salary_received") is False or a.get("months_unpaid") else
                "paid" if a.get("salary_received") else "")
         if a.get("salary_amount"):
             pay = (pay + f", {a['salary_amount']} {w.get('salary_currency') or ''}").strip(", ").strip()
-        rows.append({"when": fmt_ist(ch["created_at"]), "kind": ch.get("kind"),
-                     "where": ", ".join(x for x in [a.get("current_city"), a.get("current_location")] if x),
+        rows.append({"when": fmt_ist(g["at"]), "kind": g["kind"],
+                     "where": ", ".join(x for x in [a.get("current_city"), a.get("landmark"), a.get("current_location")] if x),
                      "work": a.get("current_job") or "", "pay": pay, "passport": yn(a.get("passport_with_worker")),
-                     "said": "; ".join(reason_text(r) for r in ch.get("risk_reasons") or []) or "no problem reported"})
-    first = lambda test: next((r["when"] for r, ch in zip(rows, [c for c in checkins if c.get("kind") != "briefing"])
-                               if test(ch.get("answers") or {})), None)
+                     "said": "; ".join(reason_text(r) for r in g["reasons"].values()) or "no problem reported"})
+    first = lambda test: next((r["when"] for r, g in zip(rows, calls_said) if test(g["answers"])), None)
     unpaid_from = first(lambda a: a.get("salary_received") is False or bool(a.get("months_unpaid")))
     passport_from = first(lambda a: a.get("passport_with_worker") is False)
     answered = [c for c in calls if c.get("answered")]
