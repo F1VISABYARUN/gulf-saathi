@@ -337,3 +337,13 @@ def test_register_form_has_gender_and_age(mem):
                                                      "worker_age": "26", "job_title": "Housemaid", "visa_type": "tourist"})
     page = client.get(f"/dashboard/case/{r.json()['case_id']}", auth=AUTH).text
     assert "Woman going for housework on a tourist visa" in page and "do not travel" in page
+
+
+def test_proof_of_work_page(mem):
+    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "Mallesh", "worker_phone": "9876543210",
+                                                     "family_phone": "9123456780", "employer_name": "Noor Cleaning"})
+    cid = r.json()["case_id"]
+    assert "Proof of work" in client.get(f"/dashboard/case/{cid}", auth=AUTH).text
+    assert client.get(f"/dashboard/case/{cid}/proof-of-work").status_code == 401
+    page = client.get(f"/dashboard/case/{cid}/proof-of-work", auth=AUTH).text
+    assert "Record of contact and work: Mallesh" in page and "Noor Cleaning" in page and "No calls answered yet" in page

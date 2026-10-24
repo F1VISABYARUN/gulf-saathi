@@ -117,4 +117,18 @@ def promise_rows(w: dict, latest_answers: dict) -> list[dict]:
          "match" if w.get("visa_type") == "employment" else "unknown"},
         {"what": "City", "promised": w.get("dest_city"), "papers": None, "now": now_city,
          "verdict": compare_places(w.get("dest_city"), now_city)},
+        {"what": "Salary", "promised": _money(w.get("contract_salary"), w), "papers": None,
+         "now": _money(latest_answers.get("salary_amount"), w), "verdict": compare_salary(w, latest_answers)},
     ]
+
+
+def _money(v, w: dict) -> str | None:
+    return f"{int(float(v))} {w.get('salary_currency') or ''}".strip() if v not in (None, "") else None
+
+
+def compare_salary(w: dict, answers: dict) -> str:
+    """Less than 90% of the contract is a conflict: the same rule the risk engine uses."""
+    paid, promised = answers.get("salary_amount"), w.get("contract_salary")
+    if not paid or not promised:
+        return "unknown"
+    return "conflict" if paid < float(promised) * 0.9 else "match"

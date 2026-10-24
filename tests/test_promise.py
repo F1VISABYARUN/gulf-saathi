@@ -29,7 +29,7 @@ def test_predeparture_checks():
 def test_promise_rows():
     rows = promise_rows({"job_title": "Cleaner", "visa_job": "Cleaner", "visa_type": "employment", "dest_city": "Riyadh"},
                         {"current_job": "herding goats", "current_city": "Al Kharj"})
-    assert [r["verdict"] for r in rows] == ["conflict", "match", "conflict"]
+    assert [r["verdict"] for r in rows] == ["conflict", "match", "conflict", "unknown"]
 
 
 def test_repeated_signals_never_match_names():

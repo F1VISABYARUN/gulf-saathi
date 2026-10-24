@@ -396,6 +396,12 @@ async def api_petition(case_id: str, request: Request):
     return {"ok": True, "petition_status": w["petition_status"]}
 
 
+@app.get("/dashboard/case/{case_id}/proof-of-work", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
+def dashboard_proof_of_work(case_id: str):
+    w = _worker_or_404(case_id)
+    return dashboard.render_proof_of_work(w, cases.proof_of_work(STORE, w, now()))
+
+
 @app.get("/dashboard/case/{case_id}/death", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
 def dashboard_death(case_id: str):
     w = _worker_or_404(case_id)

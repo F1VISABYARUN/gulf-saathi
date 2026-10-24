@@ -75,6 +75,9 @@ REASONS = {
     "unpaid_2plus": ("high", "Salary unpaid for {n} months", "{n} నెలలుగా జీతం రాలేదు"),
     "missed_2plus": ("high", "{n} check-in calls missed in a row", "వరుసగా {n} కాల్స్‌కు జవాబు రాలేదు"),
     "unpaid_1": ("medium", "Salary unpaid this month", "ఈ నెల జీతం రాలేదు"),
+    "salary_short": ("high", "Paid less than the contract: {detail}", "ఒప్పందంలో చెప్పిన జీతం కంటే తక్కువ ఇస్తున్నారు"),
+    "papers_problem": ("high", "Papers problem (risk of arrest; the agent's doing, not the worker's): {detail}",
+                       "వీసా లేదా పత్రాల సమస్య ఉంది; అరెస్టు భయం ఉంది"),
     "city_mismatch": ("medium", "In a different city from the one promised: {detail}",
                       "చెప్పిన ఊరు కాకుండా వేరే చోట ఉన్నారు"),
     "food_not_ok": ("medium", "Problems with food or accommodation", "భోజనం లేదా వసతి సరిగా లేదు"),
@@ -207,6 +210,8 @@ def normalize_answers(raw: dict) -> dict:
         "agent_name": text("agent_name"),
         "agent_phone": text("agent_phone"),
         "salary_received": yes_no(raw.get("salary_received")),
+        "salary_amount": as_int(raw.get("salary_amount")) if text("salary_amount") else None,
+        "papers_problem": "" if text("papers_problem").lower() in _NO | {"none", "fine", "ok"} else text("papers_problem"),
         "months_unpaid": as_int(raw.get("months_unpaid")),
         "passport_with_worker": yes_no(raw.get("passport_with_worker")),
         "food_ok": yes_no(raw.get("food_ok")),
@@ -249,6 +254,13 @@ def assess(answers: dict, missed_in_row: int = 0, worker: dict | None = None) ->
     if worker and promise.compare_places(worker.get("dest_city"), answers.get("current_city")) == "conflict":
         reasons.append({"code": "city_mismatch",
                         "detail": f'promised "{worker["dest_city"]}", says "{answers["current_city"]}"'})
+    paid, promised = answers.get("salary_amount"), (worker or {}).get("contract_salary")
+    if worker and promise.compare_salary(worker, answers) == "conflict":
+        cur = worker.get("salary_currency") or ""
+        reasons.append({"code": "salary_short",
+                        "detail": f"gets {paid} {cur}, contract says {int(float(promised))} {cur}".replace("  ", " ")})
+    if answers.get("papers_problem"):
+        reasons.append({"code": "papers_problem", "detail": answers["papers_problem"]})
     if answers.get("food_ok") is False:
         reasons.append({"code": "food_not_ok"})
     if missed_in_row >= 2:
@@ -650,6 +662,13 @@ def checkin_instruction(worker: dict, kind: str, level: str, codes: set, escalat
     return "Say: good, everything is noted as fine. Saathi will call again next week."
 
 
+# Workers on a visit visa, an expired visa or a false "absconding" report fear the
+# local police will arrest them, so they stay silent. Saathi is not the police.
+PAPERS_FIRST = ("FIRST say gently: Saathi is not the police; we never give your details to the police in that country. "
+                "This is the agent's wrongdoing, not yours. The Indian Embassy helps Indians go home even when their "
+                "papers are not in order. Do not promise they will not be fined or sent back. Then: ")
+
+
 def record_checkin(store, data: dict, now: datetime) -> dict:
     """Bolna tool, called by the check-in agent with the worker's answers during the
     call. Returns what the voice agent should say next."""
@@ -676,6 +695,8 @@ def record_checkin(store, data: dict, now: datetime) -> dict:
 
     codes = {r["code"] for r in reasons}
     say = checkin_instruction(worker, kind, level, codes, escalation)
+    if "papers_problem" in codes and "code_phrase" not in codes:
+        say = PAPERS_FIRST + say
     return {"ok": True, "risk_level": level, "escalated": bool(escalation), "instruction": say}
 
 
@@ -948,7 +969,7 @@ def help_from_extraction(store, c: dict, now: datetime) -> dict | None:
     # harm that only happens abroad.
     danger = (any(a.get(k) is True for k in ("threatened", "movement_restricted"))
               or a.get("passport_with_worker") is False or (a.get("months_unpaid") or 0) > 0
-              or a.get("pickup_status") in ("other_person", "nobody"))
+              or a.get("pickup_status") in ("other_person", "nobody") or bool(a.get("papers_problem")))
     died = yes_no(ex.get("worker_died")) is True  # reported by family in India: "abroad" may be no
     if not c.get("user_number") or (not died and (yes_no(ex.get("abroad")) is False
                                                   or not (yes_no(ex.get("abroad")) or danger))):
@@ -1056,11 +1077,69 @@ def embassy_alert(store, worker: dict, now: datetime) -> dict:
     ]
     if a.get("notes"):
         lines.append(f"Worker said: {a['notes']}")
+    papers = next((r for r in w.get("risk_reasons") or [] if r["code"] == "papers_problem"), None)
+    if papers:
+        agent = ", ".join(x for x in [w.get("agent_name"), w.get("sub_agent_phone")] if x) or "not known yet"
+        lines += ["", f"Papers: {papers.get('detail')}. The worker is a victim of illegal recruitment (agent: {agent}). "
+                      "May need an Emergency Certificate to return home. Please do not treat the worker as an offender."]
     lines += ["", "Reported by phone to Gulf Saathi (Telangana) and not independently verified. "
                   "Please contact the worker. Full case packet available on request."]
     body = "\n".join(lines)
     subject = f"URGENT: Indian worker in distress, {w.get('dest_country') or 'Gulf'}, case {w['case_id']}"
     return {"subject": subject, "body": body}
+
+
+def proof_of_work(store, worker: dict, now: datetime) -> dict:
+    """Dated record of every call: where the worker said they were, what work, whether
+    pay came and the passport was with them. If the employer files a false absconding
+    report, this shows the worker was in contact and working, and when pay stopped."""
+    w = worker
+    calls = sorted(store.select("calls", {"worker_id": w["id"]}), key=lambda c: c.get("created_at") or "")
+    checkins = sorted(store.select("checkins", {"worker_id": w["id"]}), key=lambda c: c.get("created_at") or "")
+    rows = []
+    yn = lambda v: {True: "yes", False: "NO"}.get(v, "")
+    for ch in checkins:
+        if ch.get("kind") == "briefing":
+            continue
+        a = ch.get("answers") or {}
+        pay = ("not paid" + (f" ({a['months_unpaid']} months)" if a.get("months_unpaid") else "")
+               if a.get("salary_received") is False or a.get("months_unpaid") else
+               "paid" if a.get("salary_received") else "")
+        if a.get("salary_amount"):
+            pay = (pay + f", {a['salary_amount']} {w.get('salary_currency') or ''}").strip(", ").strip()
+        rows.append({"when": fmt_ist(ch["created_at"]), "kind": ch.get("kind"),
+                     "where": ", ".join(x for x in [a.get("current_city"), a.get("current_location")] if x),
+                     "work": a.get("current_job") or "", "pay": pay, "passport": yn(a.get("passport_with_worker")),
+                     "said": "; ".join(reason_text(r) for r in ch.get("risk_reasons") or []) or "no problem reported"})
+    first = lambda test: next((r["when"] for r, ch in zip(rows, [c for c in checkins if c.get("kind") != "briefing"])
+                               if test(ch.get("answers") or {})), None)
+    unpaid_from = first(lambda a: a.get("salary_received") is False or bool(a.get("months_unpaid")))
+    passport_from = first(lambda a: a.get("passport_with_worker") is False)
+    answered = [c for c in calls if c.get("answered")]
+    summary = [
+        f"Worker: {w['worker_name']}   Phone: {w['worker_phone']}   Gulf Saathi case {w['case_id']}",
+        f"Employer: {w.get('employer_name') or 'not recorded'}   Sponsor: {w.get('sponsor_name') or 'not recorded'} "
+        f"(ID {w.get('sponsor_id') or 'not recorded'})",
+        f"Promised before departure: {w.get('job_title') or 'job not recorded'}, "
+        + (f"{int(float(w['contract_salary']))} {w.get('salary_currency') or ''}".strip()
+           if w.get("contract_salary") else "salary not recorded")
+        + f", in {', '.join(x for x in [w.get('dest_city'), w.get('dest_country')] if x) or 'place not recorded'}"
+        + f" (recorded {fmt_ist(w.get('created_at'))})",
+        f"Calls answered: {len(answered)}. First: {fmt_ist(answered[0]['created_at']) if answered else 'none'}. "
+        f"Last contact: {fmt_ist(w.get('last_contact_at'))}.",
+    ]
+    if unpaid_from:
+        summary.append(f"Salary first reported unpaid: {unpaid_from}.")
+    if passport_from:
+        summary.append(f"Passport first reported not with the worker: {passport_from}.")
+    recordings = [f"{fmt_ist(c.get('created_at'))}: {c['recording_url']}" for c in calls if c.get("recording_url")]
+    return {
+        "title": f"Record of contact and work: {w['worker_name']} (Gulf Saathi case {w['case_id']})",
+        "summary": summary, "rows": rows, "recordings": recordings,
+        "note": f"Prepared by Gulf Saathi (Telangana) on {fmt_ist(now)} from dated phone calls with the worker. "
+                "What the worker said is recorded as said and not independently verified; the call recordings are "
+                "the evidence. Gulf Saathi is a helpline, not a government body.",
+    }
 
 
 def _death_alert(w: dict, now: datetime) -> dict:

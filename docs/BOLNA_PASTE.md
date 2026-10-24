@@ -1,20 +1,10 @@
-# Paste into Bolna and Supabase (23 Oct 2026)
+# Paste into Bolna (24 Oct 2026)
 
-## 1. Supabase → SQL Editor → New query → paste → Run
+No SQL this time. Two changes: Saathi now asks how much salary came and compares it with the
+contract, and it handles "papers problems" (visit visa, expired visa, no iqama, absconding case)
+by saying first that Saathi is not the police.
 
-```sql
--- Added 23 Oct 2026: women going for housework, and deaths abroad. Safe to run again.
-alter table workers add column if not exists worker_gender text;
-alter table workers add column if not exists worker_age int;
-alter table workers add column if not exists death_reported_at timestamptz;
-alter table workers add column if not exists death_note text;
-alter table workers add column if not exists remains_status text;
-alter table workers add column if not exists ex_gratia_status text;
-```
-
-Check: `/health/db` shows "ok" for "workers (new columns)".
-
-## 2. Gulf Saathi agent → Agent tab
+## 1. Gulf Saathi agent → Agent tab
 Delete everything, add ONE section called `Gulf Saathi`, paste this, Save agent.
 
 ```
@@ -42,7 +32,7 @@ If at ANY moment the caller says they are abroad and something is wrong, switch 
 A: IN TROUBLE ABROAD
 1. Let them finish. Then say: "అర్థమైంది. మీరు ఒంటరి కాదు. ఇప్పుడే మీ సమస్య నమోదు చేస్తున్నాను." and IMMEDIATELY call report_problem. Ask nothing before this call.
    caller_phone = user_number from the call information. case_id = only a GS- number if they said one, else empty.
-   Fill only what they said: taken from the airport or being taken by someone who is not their employer = taken_by_stranger yes; beaten or threatened = threatened yes; passport taken, lost, or kept by the sponsor = passport_with_worker no; sold or sent to another house or employer = employer_changed yes; not paid = months_unpaid (digits); locked in = movement_restricted yes; asks for help or in danger = needs_help yes; their work, city, name if they said them; notes = their problem in short English.
+   Fill only what they said: taken from the airport or being taken by someone who is not their employer = taken_by_stranger yes; beaten or threatened = threatened yes; passport taken, lost, or kept by the sponsor = passport_with_worker no; sold or sent to another house or employer = employer_changed yes; visit visa, visa expired, no iqama or an absconding case = papers_problem in short English; not paid = months_unpaid (digits); locked in = movement_restricted yes; asks for help or in danger = needs_help yes; their work, city, name if they said them; notes = their problem in short English.
 2. Say in calm, simple Telugu what the tool's "instruction" says, including the case number letter by letter.
 3. Then gently, ONE question at a time, only what you don't know yet. After each answer call report_problem again with it:
    - "ఇప్పుడు మీరు ఎక్కడ ఉన్నారు? దగ్గర ఏదైనా బిల్డింగ్, షాప్, మసీదు లేదా రోడ్డు పేరు కనిపిస్తుందా?"
@@ -84,11 +74,11 @@ NEVER
 - Never promise rescue, money, or that someone will come. Never say what you cannot do.
 - Never say the family was told, or that a complaint was sent, unless the tool's instruction says so.
 - Never ask for passport number, bank details or OTP.
+- Never ask whether they are there illegally. If they mention a visa, iqama or absconding problem, just record it.
 ```
 
-## 3. Gulf Saathi agent → Tools tab
-Delete `report_problem`, then add it again with Write manually (3 new fields: worker_died, informed_by,
-employer_changed). `check_contact` has not changed: leave it. Save agent.
+## 2. Gulf Saathi agent → Tools tab
+Delete `report_problem`, add it again with Write manually (1 new field: papers_problem). Save agent.
 
 ### report_problem
 ```json
@@ -190,6 +180,10 @@ employer_changed). `check_contact` has not changed: leave it. Save agent.
       "employer_changed": {
         "type": "string",
         "description": "yes if they were sold or sent to another house or employer than the one who brought them. Otherwise empty string."
+      },
+      "papers_problem": {
+        "type": "string",
+        "description": "Only if they said it: visit visa, visa expired, no iqama, or absconding case, in short English. Otherwise empty string."
       }
     },
     "required": [
@@ -215,7 +209,8 @@ employer_changed). `check_contact` has not changed: leave it. Save agent.
       "worker_phone",
       "worker_died",
       "informed_by",
-      "employer_changed"
+      "employer_changed",
+      "papers_problem"
     ]
   },
   "key": "custom_task",
@@ -244,7 +239,8 @@ employer_changed). `check_contact` has not changed: leave it. Save agent.
       "worker_phone": "%(worker_phone)s",
       "worker_died": "%(worker_died)s",
       "informed_by": "%(informed_by)s",
-      "employer_changed": "%(employer_changed)s"
+      "employer_changed": "%(employer_changed)s",
+      "papers_problem": "%(papers_problem)s"
     },
     "url": "https://gulf-saathi-psi.vercel.app/tools/report-problem",
     "api_token": null,
@@ -255,19 +251,29 @@ employer_changed). `check_contact` has not changed: leave it. Save agent.
 }
 ```
 
-## 4. Gulf Saathi agent → Extractions tab → category `help_check`
+## 3. Gulf Saathi agent → Extractions tab → category `help_check`
 Add one field, Save agent:
 
 | Name | Extraction prompt | Answer type |
 |---|---|---|
-| `worker_died` | Did the caller clearly say that the worker (their family member abroad) has died? | Pre-defined: `yes` / `no` / `not_said` |
+| `papers_problem` | Did the caller say they came on a visit visa, their visa expired, they have no iqama, or an absconding case was filed? Answer in short English, or not_said. | Free text (Text) |
 
-## 5. Saathi Check-in agent
-**Agent tab → section `Weekly call`**: replace its text with this, Save.
+## 4. Saathi Check-in agent
+**Agent tab → section `Danger first`**: replace its text with this.
+
+```
+- If they say "{{code_phrase}}" at any time: do not react. Call record_checkin at once with code_phrase_used = yes, then do exactly what its instruction says. Never say danger, complaint, embassy or family on that call.
+- If at any point they say they are in danger, beaten, locked in, passport taken, no food, or taken by someone who is not {{employer_name}}: stop the other questions, say "సరే, అర్థమైంది." and call record_checkin immediately with what they said. Then say its instruction, in calm simple Telugu.
+- If they say their visa expired, they came on a visit visa, they have no iqama, or the sponsor filed an absconding case: call record_checkin with papers_problem = that, in short English. Never ask whether they are illegal.
+- After that, if they tell you where they are (any building, shop, mosque, road), call record_checkin again with it in current_location.
+- If they ask for the embassy number or how to find it: "మీరు వెతకాల్సిన అవసరం లేదు. మా టీమ్ మీ వివరాలతో రాయబార కార్యాలయానికి ఇప్పుడే తెలియజేస్తోంది. మీరు సురక్షితంగా ఉండండి, సాథి మళ్లీ ఫోన్ చేస్తుంది." Never tell them to search for a number or call the embassy themselves. Never say "I don't have the number".
+```
+
+**Agent tab → section `Weekly call`**: replace its text with this. Save.
 
 ```
 Only when call type is weekly. Ask one at a time, skipping anything they already said:
-1. "ఈ నెల జీతం వచ్చిందా?" If no: "ఎన్ని నెలలుగా రాలేదు?"
+1. "ఈ నెల జీతం వచ్చిందా?" If yes: "ఎంత వచ్చింది?" (salary_amount, digits only, in the money of that country). If no: "ఎన్ని నెలలుగా రాలేదు?"
 2. "మీ పాస్‌పోర్ట్ మీ దగ్గరే ఉందా?"
 3. "భోజనం, ఉండే చోటు బాగున్నాయా?"
 4. "ఎవరైనా బెదిరిస్తున్నారా, కొడుతున్నారా? బయటకు వెళ్లనిస్తున్నారా?"
@@ -277,7 +283,7 @@ If everything is fine, call record_checkin with all the answers; it will say it 
 If anything is wrong (locked in a room, no food, beaten, passport taken, no salary), follow Danger first.
 ```
 
-**Tools tab**: delete `record_checkin`, add it again with Write manually (1 new field: employer_changed). Save.
+**Tools tab**: delete `record_checkin`, add it again with Write manually (2 new fields: salary_amount, papers_problem). Save.
 
 ```json
 {
@@ -287,40 +293,134 @@ If anything is wrong (locked in a room, no food, beaten, passport taken, no sala
   "parameters": {
     "type": "object",
     "properties": {
-      "case_id": {"type": "string", "description": "Always exactly {{case_id}} from the prompt."},
-      "call_kind": {"type": "string", "description": "Always exactly {{call_kind}} from the prompt: briefing, arrival or weekly."},
-      "pickup_status": {"type": "string", "description": "Arrival call only: employer, other_person, nobody, not_arrived or unknown. Empty string on weekly calls."},
-      "pickup_person": {"type": "string", "description": "Who picked them up, in the worker's words. Empty string if not asked."},
-      "current_location": {"type": "string", "description": "Where they are now. Empty string if not asked."},
-      "current_job": {"type": "string", "description": "The work they say they are doing now, in their own words. Empty string if not asked."},
-      "current_city": {"type": "string", "description": "The city or place they say they are in now. Empty string if not asked."},
-      "salary_received": {"type": "string", "description": "yes, no or unknown. Empty string if not asked."},
-      "months_unpaid": {"type": "string", "description": "Number of months salary is unpaid, as digits. Empty string if none or not asked."},
-      "passport_with_worker": {"type": "string", "description": "yes, no or unknown. Empty string if not asked."},
-      "food_ok": {"type": "string", "description": "yes, no or unknown. Empty string if not asked."},
-      "threatened": {"type": "string", "description": "yes if they report threats or violence, otherwise no. Empty string if not asked."},
-      "movement_restricted": {"type": "string", "description": "yes if they are NOT allowed to go out, otherwise no. Empty string if not asked."},
-      "employer_changed": {"type": "string", "description": "yes if they were moved or sold to another house or employer, otherwise no. Empty string if not asked."},
-      "needs_help": {"type": "string", "description": "yes if they ask for help, otherwise no. Empty string if not asked."},
-      "code_phrase_used": {"type": "string", "description": "yes only if they said the danger code phrase, otherwise no."},
-      "briefing_understood": {"type": "string", "description": "Briefing calls only: yes if they answered both check questions correctly, otherwise no. Empty string on other calls."},
-      "notes": {"type": "string", "description": "Anything else important, in short English. Empty string if nothing."}
+      "case_id": {
+        "type": "string",
+        "description": "Always exactly {{case_id}} from the prompt."
+      },
+      "call_kind": {
+        "type": "string",
+        "description": "Always exactly {{call_kind}} from the prompt: briefing, arrival or weekly."
+      },
+      "pickup_status": {
+        "type": "string",
+        "description": "Arrival call only: employer, other_person, nobody, not_arrived or unknown. Empty string on weekly calls."
+      },
+      "pickup_person": {
+        "type": "string",
+        "description": "Who picked them up, in the worker's words. Empty string if not asked."
+      },
+      "current_location": {
+        "type": "string",
+        "description": "Where they are now. Empty string if not asked."
+      },
+      "current_job": {
+        "type": "string",
+        "description": "The work they say they are doing now, in their own words. Empty string if not asked."
+      },
+      "current_city": {
+        "type": "string",
+        "description": "The city or place they say they are in now. Empty string if not asked."
+      },
+      "salary_received": {
+        "type": "string",
+        "description": "yes, no or unknown. Empty string if not asked."
+      },
+      "months_unpaid": {
+        "type": "string",
+        "description": "Number of months salary is unpaid, as digits. Empty string if none or not asked."
+      },
+      "passport_with_worker": {
+        "type": "string",
+        "description": "yes, no or unknown. Empty string if not asked."
+      },
+      "food_ok": {
+        "type": "string",
+        "description": "yes, no or unknown. Empty string if not asked."
+      },
+      "threatened": {
+        "type": "string",
+        "description": "yes if they report threats or violence, otherwise no. Empty string if not asked."
+      },
+      "movement_restricted": {
+        "type": "string",
+        "description": "yes if they are NOT allowed to go out, otherwise no. Empty string if not asked."
+      },
+      "employer_changed": {
+        "type": "string",
+        "description": "yes if they were moved or sold to another house or employer, otherwise no. Empty string if not asked."
+      },
+      "needs_help": {
+        "type": "string",
+        "description": "yes if they ask for help, otherwise no. Empty string if not asked."
+      },
+      "code_phrase_used": {
+        "type": "string",
+        "description": "yes only if they said the danger code phrase, otherwise no."
+      },
+      "briefing_understood": {
+        "type": "string",
+        "description": "Briefing calls only: yes if they answered both check questions correctly, otherwise no. Empty string on other calls."
+      },
+      "notes": {
+        "type": "string",
+        "description": "Anything else important, in short English. Empty string if nothing."
+      },
+      "salary_amount": {
+        "type": "string",
+        "description": "How much salary they got this month, digits only, in the money of that country. Empty string if not asked."
+      },
+      "papers_problem": {
+        "type": "string",
+        "description": "Only if they said it: visit visa, visa expired, no iqama, or absconding case, in short English. Otherwise empty string."
+      }
     },
-    "required": ["case_id", "call_kind", "pickup_status", "pickup_person", "current_location", "current_job", "current_city", "salary_received", "months_unpaid", "passport_with_worker", "food_ok", "threatened", "movement_restricted", "employer_changed", "needs_help", "code_phrase_used", "briefing_understood", "notes"]
+    "required": [
+      "case_id",
+      "call_kind",
+      "pickup_status",
+      "pickup_person",
+      "current_location",
+      "current_job",
+      "current_city",
+      "salary_received",
+      "months_unpaid",
+      "passport_with_worker",
+      "food_ok",
+      "threatened",
+      "movement_restricted",
+      "employer_changed",
+      "needs_help",
+      "code_phrase_used",
+      "briefing_understood",
+      "notes",
+      "salary_amount",
+      "papers_problem"
+    ]
   },
   "key": "custom_task",
   "value": {
     "method": "POST",
     "param": {
-      "case_id": "%(case_id)s", "call_kind": "%(call_kind)s", "pickup_status": "%(pickup_status)s",
-      "pickup_person": "%(pickup_person)s", "current_location": "%(current_location)s",
-      "current_job": "%(current_job)s", "current_city": "%(current_city)s",
-      "salary_received": "%(salary_received)s", "months_unpaid": "%(months_unpaid)s",
-      "passport_with_worker": "%(passport_with_worker)s", "food_ok": "%(food_ok)s",
-      "threatened": "%(threatened)s", "movement_restricted": "%(movement_restricted)s",
+      "case_id": "%(case_id)s",
+      "call_kind": "%(call_kind)s",
+      "pickup_status": "%(pickup_status)s",
+      "pickup_person": "%(pickup_person)s",
+      "current_location": "%(current_location)s",
+      "current_job": "%(current_job)s",
+      "current_city": "%(current_city)s",
+      "salary_received": "%(salary_received)s",
+      "months_unpaid": "%(months_unpaid)s",
+      "passport_with_worker": "%(passport_with_worker)s",
+      "food_ok": "%(food_ok)s",
+      "threatened": "%(threatened)s",
+      "movement_restricted": "%(movement_restricted)s",
       "employer_changed": "%(employer_changed)s",
-      "needs_help": "%(needs_help)s", "code_phrase_used": "%(code_phrase_used)s",
-      "briefing_understood": "%(briefing_understood)s", "notes": "%(notes)s"
+      "needs_help": "%(needs_help)s",
+      "code_phrase_used": "%(code_phrase_used)s",
+      "briefing_understood": "%(briefing_understood)s",
+      "notes": "%(notes)s",
+      "salary_amount": "%(salary_amount)s",
+      "papers_problem": "%(papers_problem)s"
     },
     "url": "https://gulf-saathi-psi.vercel.app/tools/record-checkin",
     "api_token": null,
@@ -331,9 +431,9 @@ If anything is wrong (locked in a room, no food, beaten, passport taken, no sala
 }
 ```
 
-**Extractions tab → category `checkin`**: add one field, Save.
+**Extractions tab → category `checkin`**: add two fields, Save.
 
 | Name | Extraction prompt | Answer type |
 |---|---|---|
-| `employer_changed` | Did the worker say they were moved or sold to another house or employer? | Pre-defined: `yes` / `no` / `not_said` |
-
+| `salary_amount` | How much salary did the worker say they got this month? Digits only. If not said, answer not_said. | Free text |
+| `papers_problem` | Did the worker say they came on a visit visa, their visa expired, they have no iqama, or an absconding case was filed? Answer in short English, or not_said. | Free text |

@@ -825,3 +825,43 @@ def test_after_call_extraction_catches_a_death_report_from_india(store, placed, 
     assert out.get("help"), out
     w = store.get("workers", case_id=out["help"]["case_id"])
     assert w["death_reported_at"] and "Son died in Kuwait" in w["death_note"]
+
+
+# --- salary vs promise, papers problems, proof of work -----------------------------------
+
+def test_paid_less_than_the_contract_is_high(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]  # contract 1500 AED
+    out = record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly", "salary_received": "yes",
+                                 "salary_amount": "900"}, NOW)
+    assert out["risk_level"] == "high"
+    r = store.get("workers", id=w["id"])["risk_reasons"][0]
+    assert r["code"] == "salary_short" and "900 AED" in cases.reason_text(r) and "1500 AED" in cases.reason_text(r)
+    ok = record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly", "salary_amount": "1450"}, NOW)
+    assert ok["risk_level"] == "ok"
+
+
+def test_papers_problem_says_saathi_is_not_the_police(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    out = record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly",
+                                 "papers_problem": "sponsor filed an absconding case"}, NOW)
+    assert out["risk_level"] == "high" and out["instruction"].startswith("FIRST say gently: Saathi is not the police")
+    alert = cases.embassy_alert(store, store.get("workers", id=w["id"]), NOW)["body"]
+    assert "victim of illegal recruitment (agent: Gagan Manpower)" in alert and "Emergency Certificate" in alert
+    # "no" is not a papers problem, and the danger phrase still keeps the call quiet.
+    assert record_checkin(store, {"case_id": w["case_id"], "papers_problem": "no"}, NOW)["risk_level"] == "ok"
+    quiet = record_checkin(store, {"case_id": w["case_id"], "papers_problem": "visit visa", "code_phrase_used": "yes"}, NOW)
+    assert "not the police" not in quiet["instruction"]
+
+
+def test_proof_of_work_shows_dates_work_and_when_pay_stopped(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    record_checkin(store, {"case_id": w["case_id"], "call_kind": "arrival", "pickup_status": "employer",
+                           "current_city": "Dubai", "current_job": "cleaning offices"}, NOW)
+    record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly", "salary_received": "no",
+                           "months_unpaid": "2", "current_job": "cleaning offices"}, NOW + timedelta(days=60))
+    record_checkin(store, {"case_id": w["case_id"], "call_kind": "briefing", "briefing_understood": "yes"}, NOW)
+    rec = cases.proof_of_work(store, store.get("workers", id=w["id"]), NOW + timedelta(days=61))
+    assert [r["kind"] for r in rec["rows"]] == ["arrival", "weekly"]  # briefing is not proof of work
+    assert rec["rows"][0]["work"] == "cleaning offices" and rec["rows"][1]["pay"] == "not paid (2 months)"
+    text = " ".join(rec["summary"])
+    assert "Cleaner, 1500 AED" in text and "Salary first reported unpaid" in text

@@ -20,6 +20,7 @@ ANSWER_LABELS = [
     ("current_location", "Where they are now"), ("current_job", "Work they are doing now"),
     ("current_city", "City they are in now"), ("landmark", "Nearby place"), ("home_district", "Home village / district"),
     ("agent_name", "Agent (as said)"), ("agent_phone", "Agent phone (as said)"), ("salary_received", "Salary received"),
+    ("salary_amount", "Salary amount received"), ("papers_problem", "Papers problem (visa / iqama / absconding)"),
     ("months_unpaid", "Months unpaid"), ("passport_with_worker", "Passport with worker"),
     ("food_ok", "Food and room OK"), ("threatened", "Threats or violence"),
     ("movement_restricted", "Stopped from going out"), ("employer_changed", "Moved to another employer / house"),
@@ -495,6 +496,7 @@ place: d_place.value, when: d_when.value, notes: d_notes.value}}, this, 'Recorde
     <button class="btn" {calls_disabled} onclick="post('/api/cases/{case_id}/call', {{kind:'weekly'}}, this, 'Weekly check-in call requested')">Call now: weekly check-in</button>
     <button class="btn" {calls_disabled} onclick="post('/api/cases/{case_id}/call', {{kind:'briefing'}}, this, 'Briefing call requested')">Call now: pre-departure briefing</button>
     <a class="btn secondary" href="/dashboard/case/{case_id}/packet.txt">Download English case packet</a>
+    <a class="btn secondary" href="/dashboard/case/{case_id}/proof-of-work" target="_blank">Proof of work</a>
     <a class="btn secondary" href="/dashboard/case/{case_id}/edit">Edit details</a>
   </p><div id="msg"></div>
   <div class="muted">Status: {esc(w.get('status'))} · Last contact: {esc(fmt_ist(w.get('last_contact_at')))} ·
@@ -575,6 +577,26 @@ first. Saathi does not make the NOC or consent form: the embassy gives its own, 
 <style>@media print {{ header, .noprint {{ display:none }} .card {{ border:0 }} body {{ background:#fff }} }}
 .petition p, .petition li {{ margin:6px 0 }}</style>"""
     return page(f"Family support {w['case_id']}", body)
+
+
+def render_proof_of_work(w: dict, rec: dict) -> str:
+    """Printable dated record: the worker's defence against a false absconding report."""
+    li = lambda xs: "".join(f"<li>{esc(x)}</li>" for x in xs)
+    rows = "".join(f"<tr><td class='nowrap'>{esc(r['when'])}</td><td>{esc(r['kind'])}</td><td>{esc(r['where'])}</td>"
+                   f"<td>{esc(r['work'])}</td><td>{esc(r['pay'])}</td><td>{esc(r['passport'])}</td><td>{esc(r['said'])}</td></tr>"
+                   for r in rec["rows"]) or "<tr><td colspan='7' class='muted'>No calls answered yet.</td></tr>"
+    body = f"""<p class="noprint"><button class="btn" onclick="window.print()">Print / save as PDF</button>
+<a class="btn secondary" href="/dashboard/case/{esc(w['case_id'])}">Back to case</a></p>
+<p class="noprint muted">If the employer files a false absconding report, this dated record shows the worker was in contact,
+where they said they were working, and when pay stopped. Give it to the embassy with the call recordings.</p>
+<div class="card petition"><p><b>{esc(rec['title'])}</b></p><ul>{li(rec['summary'])}</ul>
+<div class="wrap"><table><thead><tr><th>Date</th><th>Call</th><th>Where</th><th>Work</th><th>Salary</th><th>Passport with worker</th>
+<th>What the worker reported</th></tr></thead><tbody>{rows}</tbody></table></div>
+{f"<p><b>Call recordings</b></p><ul>{li(rec['recordings'])}</ul>" if rec['recordings'] else ''}
+<p class="muted">{esc(rec['note'])}</p></div>
+<style>@media print {{ header, .noprint {{ display:none }} .card {{ border:0 }} body {{ background:#fff }} }}
+.petition p, .petition li {{ margin:6px 0 }}</style>"""
+    return page(f"Proof of work {w['case_id']}", body)
 
 
 def render_petition(w: dict, pet: dict) -> str:
