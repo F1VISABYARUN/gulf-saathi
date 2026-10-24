@@ -170,11 +170,6 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <span class="badge">Voice by Bolna · Telugu speech by Sarvam · Prototype</span>
 </div><p class="cap">{AI_PHOTO}</p></header>
 
-<section id="why"><div class="wrap">
-  <h2>Why this matters</h2>
-  <div class="nums">{numbers}</div>
-</div></section>
-
 <section id="watch"><div class="wrap video">
   <h2>Watch the demo</h2>
   <video controls playsinline preload="metadata" poster="/gulf-saathi-poster.jpg">
@@ -182,6 +177,11 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
       onerror="document.getElementById('watch').hidden=true">
   </video>
   <p class="honest">Prototype demo · demo data · real Bolna test calls</p>
+</div></section>
+
+<section id="why"><div class="wrap">
+  <h2>Why this matters</h2>
+  <div class="nums">{numbers}</div>
 </div></section>
 
 <section id="story"><div class="wrap story">
