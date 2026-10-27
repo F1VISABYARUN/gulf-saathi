@@ -138,7 +138,12 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .video p{text-align:center;margin:10px 0 0}
 .label{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--muted);border:1px dashed var(--muted);border-radius:6px;padding:2px 8px;margin:0 0 10px}
 .hear{max-width:560px;margin:4px 0 14px} .hl{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
-.rules3{margin:0;padding-left:18px;color:var(--muted)} .rules3 li{margin-bottom:4px}
+details.more{margin-top:22px}
+details.more>summary{display:inline-block;cursor:pointer;list-style:none;font-weight:700;color:var(--accent);
+border:2px solid var(--accent);border-radius:10px;padding:8px 14px}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary:after{content:" ▾"} details.more[open]>summary:after{content:" ▴"}
+details.more .arch{margin-top:14px}
 .bubble{position:relative;background:#fff4dc;border:1px solid #f0cf8a;border-radius:12px;padding:12px 14px 12px 42px;color:#3d2a06}
 .bubble svg{position:absolute;left:14px;top:14px;width:20px;height:20px;color:#a86a00}
 .bubble .te{margin:0 0 6px;font-weight:700;font-size:15px;line-height:1.5;color:#3d2a06} .bubble .en{margin:0;font-size:14px;line-height:1.45;color:#5c4512}
@@ -327,14 +332,11 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
     <p>In the film, based on the real story of Najeeb Muhammad, a man is promised a Gulf job and ends up herding goats in the desert, alone.</p>
     <div class="vs">
       <div class="without"><h3>Without Saathi</h3><ul>
-        <li>Paid the agent in cash</li><li>The visa says a different job</li><li>A stranger picks him up</li>
-        <li>No one hears from him for months</li><li>The family sees a video when it is too late</li></ul></div>
+        <li>Pays the agent in cash, no record</li><li>A stranger picks him up</li>
+        <li>The family learns from a video, too late</li></ul></div>
       <div class="with"><h3>With Saathi</h3><ul>
-        <li>Job mismatch flagged before he flies: "do not pay more, do not travel"</li>
-        <li>Arrival call: wrong pickup = CRITICAL</li>
-        <li>Weekly call: "herding goats" is not the promised job = HIGH</li>
-        <li>Telugu SMS prepared for the family (demo: not sent yet)</li>
-        <li>Complaint-ready packet in English</li></ul></div>
+        <li>Wrong visa flagged before he flies</li><li>Arrival call: wrong pickup = CRITICAL</li>
+        <li>Weekly calls catch "herding goats" = HIGH</li></ul></div>
     </div>
     <p><a href="/demo">Run this story on the demo →</a></p>
   </div>
@@ -345,7 +347,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <p class="lede">One phone number, in Telugu, at every step of the journey. No app, no reading needed.</p>
   <ol class="timeline">{steps}</ol>
   <p class="honest" style="margin-top:18px">The AI only writes down what was said. Fixed rules decide the risk level.</p>
-  {architecture()}
+  <details class="more"><summary>Show how it is built</summary>{architecture()}</details>
 </div></section>
 
 <section id="repeat-agent"><div class="wrap">
@@ -357,11 +359,8 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <p class="src" style="margin:12px 0 0">Saathi links cases only by exact phone numbers or payment accounts. A link is a lead
   for a caseworker to review, not proof against anyone.</p></div>
   <div class="hear"><div class="hl">What caller 5 hears, live</div>{bubble}</div>
-  <ul class="rules3">
-    <li>Never matches by name: two people with the same name are not the same person.</li>
-    <li>Tells callers only a count: no names, no accusations.</li>
-    <li>Numbers go only to the police or an eMigrate complaint, never published.</li></ul>
-  <p class="honest" style="margin-top:10px">Proven on a real Bolna call. The multi-caller flow is tested in code.</p>
+  <p class="honest" style="margin-top:10px">Callers hear only a count, never names. Proven on a real Bolna call; the
+  multi-caller flow is tested in code.</p>
 </div></section>
 
 <section id="who"><div class="wrap">
@@ -387,9 +386,11 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   target="_blank" rel="noopener">Rajya Sabha Q. 2319, Mar 2026</a>
   (also reported by <a href="https://timesofindia.indiatimes.com/city/chandigarh/over-10k-women-rescued-from-7-gulf-countries-in-5-yrs-rs-told/articleshow/129519566.cms"
   target="_blank" rel="noopener">Times of India, 13 Mar 2026</a>)</p>
-  <span class="label big-label" style="margin-top:28px">Proposed model, not yet in place.</span>
+  <details class="more"><summary>Show who pays</summary>
+  <span class="label big-label" style="margin-top:16px">Proposed model, not yet in place.</span>
   <div class="pay" style="margin-top:4px">{payers}</div>
   <p class="lede" style="margin-top:18px">Telugu today. Built so new languages and routes (Nepal, Bangladesh) can be added.</p>
+  </details>
 </div></section>
 
 <section id="numbers"><div class="wrap">
@@ -405,12 +406,9 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <h2>Get a call from Saathi</h2>
   <p>Saathi will call your phone in Telugu. Ask it to check an agent's name or a fee. Indian numbers only for now.</p>
   {call_form}
-  <ul class="honest" style="color:#b9c4cf">
-    <li>This prototype runs on a Bolna trial account, which may only be able to call numbers verified in that account.</li>
-    <li>Calls to Gulf numbers have not been tested yet.</li>
-    <li>When Saathi answers, say "తెలుగు".</li>
-    <li>Calls are recorded so Saathi can help with your case. Agent phone numbers you mention are saved to warn other callers, as a count only, never with your name.</li>
-  </ul>
+  <p class="honest" style="color:#b9c4cf">Say "తెలుగు" when Saathi answers. Calls are recorded to help your case; agent numbers
+  you mention warn other callers as a count, never with your name. Trial account: may only call verified numbers; Gulf
+  numbers not tested yet.</p>
 </div></section>
 """, "Gulf Saathi: a Telugu voice line that checks agents, fees, visas, and calls workers on arrival day and every week.")
 
