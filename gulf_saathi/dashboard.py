@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from html import escape
 
-from .cases import (CODE_PHRASE_HELP, EX_GRATIA_STATUSES, GENDERS, IST, REMAINS_STATUSES, code_phrase_ok, fmt_ist,
+from .cases import (CODE_PHRASE_HELP, promise_said, EX_GRATIA_STATUSES, GENDERS, IST, REMAINS_STATUSES, code_phrase_ok, fmt_ist,
                     parse_ts, reason_text)
 from .fees import fmt_rupees
 from .promise import STOP_FLAGS, VISA_TYPES, predeparture_checks, promise_rows
@@ -295,8 +295,12 @@ FIELDS = [
                           ("sub_agent_phone", "Village sub-agent phone", "98480 12345"),
                           ("payments", "Every payment to the agent, separated by ;", "50000; 30000"),
                           ("payment_to", "Money paid to (UPI ID / account / phone)", "agent@upi"),
-                          ("promise_words", "What the agent / HR promised, in their own words", 'HR said: "B1 visa = sure job"'),
-                          ("contract_before_payment", "Got the full written contract before paying?", "")]),
+                          ("promise_by", "Who made the verbal promise", "sub-agent Ramu"),
+                          ("promise_words", "What they said, in their own words (not what the papers say)",
+                           "salary 1,500 riyal, cleaning job, free food"),
+                          ("promise_date", "When they said it", "10 Oct 2026"),
+                          ("contract_before_payment", "Got the full written contract before paying?", ""),
+                          ("call_consent", "Worker agreed to recorded Saathi calls?", "")]),
     ("Visa papers (type exactly what the visa says)", [("visa_type", "Visa type", ""),
                                                        ("visa_job", "Job written on the visa", "Agricultural worker")]),
     ("Travel", [("departure_date", "Departure date", ""), ("flight_no", "Flight", "EK 527"),
@@ -326,9 +330,9 @@ def render_form(values: dict | None = None, case_id: str | None = None) -> str:
     for legend, fields in FIELDS:
         inputs = []
         for name, label, ph in fields:
-            if name in ("visa_type", "worker_gender", "contract_before_payment"):
+            if name in ("visa_type", "worker_gender", "contract_before_payment", "call_consent"):
                 current = _form_value(name, values)
-                choices = {"visa_type": VISA_TYPES, "worker_gender": GENDERS, "contract_before_payment": ("yes", "no")}[name]
+                choices = {"visa_type": VISA_TYPES, "worker_gender": GENDERS}.get(name, ("yes", "no"))
                 opts = "".join(f'<option value="{t}"{" selected" if current == t else ""}>{t}</option>'
                                for t in ("", *choices))
                 inputs.append(f'<div><label for="{name}">{esc(label)}</label><select id="{name}" name="{name}">{opts}</select></div>')
@@ -531,7 +535,7 @@ The caller hears the status when they call Saathi again.</p>
   {kv('Paid to agent', fee)}{kv('Money paid to', w.get('payment_to'))}
   {kv('Village sub-agent', ' · '.join(x for x in [w.get('sub_agent_name'), w.get('sub_agent_phone')] if x))}
   {kv('Visa type (papers)', w.get('visa_type'))}{kv('Job on visa (papers)', w.get('visa_job'))}
-  {kv('Promised, in their own words', w.get('promise_words'))}{kv('Full contract before paying', w.get('contract_before_payment'))}
+  {kv('Verbal promise (not on paper)', promise_said(w))}{kv('Recorded calls', ' · '.join(x for x in [('agreed at registration: ' + w['call_consent']) if w.get('call_consent') else '', ('notice played on a call ' + fmt_ist(w['consent_notice_at'])) if w.get('consent_notice_at') else ''] if x))}{kv('Full contract before paying', w.get('contract_before_payment'))}
   {kv('Danger code phrase', w.get('code_phrase'))}
 </div>{welcome}</div>
 <div class="card"><h2>Timeline</h2>{''.join(evs)}</div>

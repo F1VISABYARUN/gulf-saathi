@@ -10,7 +10,7 @@ from .dashboard import esc
 # The journey, one step per call. "live" = working on real calls; "testing" = built, being tested.
 STEPS = [
     ("Before paying", "డబ్బు ఇచ్చే ముందు",
-     "Is this agent in the government licensed list? Saathi checks the MEA eMigrate active list (2,447 agents, 8 Apr 2026) "
+     "Is this agent in the government licensed list? Saathi checks 2,447 licensed agents (MEA eMigrate list, 8 Apr 2026) "
      "by name, owner, district or licence number. Every payment is added up and compared with the legal limit: "
      "Rs 30,000 + 18% GST = Rs 35,400.", "live"),
     ("Before flying", "ప్రయాణానికి ముందు",
@@ -27,8 +27,8 @@ STEPS = [
 
 # Each number with where it comes from (checked by the team against the original documents).
 NUMBERS = [
-    ("476", "complaints against illegal agents in Telangana, 2021–25, and 0 prosecution sanctions.",
-     "Lok Sabha unstarred question 2190, 31 Jul 2026"),
+    ("476", "complaints against illegal agents in Telangana, 2021–25: 118 action-taken reports, 0 prosecution sanctions.",
+     "Lok Sabha unstarred question 2190, 31 Jul 2026, Annex I"),
     ("72%", "of Telangana Gulf returnees borrowed money to migrate.", "IOM / CESS survey of 3,046 returnees"),
     ("3,647", "Indian women sent home from Oman, 2021–25.", "MEA reply in the Rajya Sabha, Mar 2026"),
 ]

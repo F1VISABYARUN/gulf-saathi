@@ -394,7 +394,9 @@ def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
         **agent, "agent_check": agent_check, "agent_check_detail": agent_detail,
         "sub_agent_name": _text(data, "sub_agent_name"), "sub_agent_phone": sub_agent_phone,
         "payment_to": _text(data, "payment_to"),
-        "promise_words": _text(data, "promise_words", 1000),
+        "promise_by": _text(data, "promise_by"), "promise_words": _text(data, "promise_words", 1000),
+        "promise_date": _text(data, "promise_date", 40),
+        "call_consent": {True: "yes", False: "no"}.get(yes_no(data.get("call_consent"))),
         "contract_before_payment": {True: "yes", False: "no"}.get(contract_first),
         "payments": fee["payments"], "amount_paid_total": fee["total"], "fee_status": fee["status"],
         "departure_date": departure, "flight_no": _text(data, "flight_no", 20),
@@ -402,6 +404,14 @@ def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
         "code_phrase": code_phrase,
         "notes": _text(data, "notes", 2000),
     }
+
+
+def promise_said(w: dict) -> str:
+    """Who promised what, and when, in their own words: kept apart from what the papers say."""
+    if not w.get("promise_words"):
+        return ""
+    who = " ".join(x for x in [w.get("promise_by"), f"on {w['promise_date']}" if w.get("promise_date") else ""] if x)
+    return (f"{who} said: " if who else "") + w["promise_words"]
 
 
 def welcome_sms(worker: dict) -> str:
@@ -549,6 +559,8 @@ def process_call_record(store, payload: dict, now: datetime) -> dict:
     if not existing:
         row["created_at"] = iso(now)
     store.upsert("calls", row)
+    if worker and c["answered"] and not worker.get("consent_notice_at"):
+        store.update("workers", {"id": worker["id"]}, {"consent_notice_at": iso(now)})
 
     if c["terminal"] and kind not in CALL_KINDS and c["extracted"] and not (existing or {}).get("processed_at"):
         # A call to the Gulf Saathi line (Saathi didn't place it). Bolna's after-call
@@ -633,9 +645,8 @@ def checkin_instruction(worker: dict, kind: str, level: str, codes: set, escalat
         return ("IMPORTANT: the worker said the danger phrase and may not be able to talk freely. Do NOT mention "
                 "danger, help, complaints, family or embassy. Chat normally for a few seconds and end the call politely.")
     if level == "critical":
-        say = (f"Speak calmly and slowly. Say: you are not alone. Your case is marked URGENT, and a Saathi caseworker "
-               f"will take it to the Indian Embassy in {country} with your name, phone number and what you told us. "
-               f"{family}")
+        say = ("Speak calmly and slowly. Say: you are not alone. Your case is marked urgent and a caseworker will "
+               f"act on it right away. {family}")
         if codes & {"wrong_pickup", "no_pickup"}:
             employer = worker.get("employer_name") or "your registered employer"
             say += (f"Then: if you are still inside the airport, stay inside. Go to the airport help desk or airport "
@@ -668,8 +679,8 @@ def checkin_instruction(worker: dict, kind: str, level: str, codes: set, escalat
 # Workers on a visit visa, an expired visa or a false "absconding" report fear the
 # local police will arrest them, so they stay silent. Saathi is not the police.
 PAPERS_FIRST = ("FIRST say gently: Saathi is not the police; we never give your details to the police in that country. "
-                "This is the agent's wrongdoing, not yours. The Indian Embassy can give emergency travel papers to Indians "
-                "whose passport or visa is not in order. Do not promise they will not be fined or sent back. Then: ")
+                "This is the agent's wrongdoing, not yours. The Indian Embassy can give emergency travel papers even when your "
+                "papers are not in order. Do not promise they will not be fined or sent back. Then: ")
 
 
 def record_checkin(store, data: dict, now: datetime) -> dict:
@@ -689,6 +700,8 @@ def record_checkin(store, data: dict, now: datetime) -> dict:
                               "risk_level": level, "risk_reasons": reasons, "created_at": iso(now)})
     escalation = escalate(store, worker, level, reasons, now) if rank(level) >= rank("high") else None
     changes = {"last_contact_at": iso(now), "missed_checkins": 0, "updated_at": iso(now)}
+    if not worker.get("consent_notice_at"):
+        changes["consent_notice_at"] = iso(now)  # every Saathi call opens by saying it is recorded and why
     if kind != "briefing" or level != "ok":
         # A quiet briefing says nothing about safety abroad: leave the risk as it is.
         changes.update({"risk_reasons": reasons, "risk_level": overall_level(store, worker["id"], level)})
@@ -833,8 +846,8 @@ def update_petition(store, worker: dict, status: str, ref: str, now: datetime) -
 REMAINS_STATUSES = ("reported", "embassy_informed", "family_decided", "papers_signed", "remains_home",
                     "buried_abroad", "closed")
 EX_GRATIA_STATUSES = ("not_applied", "applied", "paid", "rejected")
-# Telangana G.O. 216 (from news reports, not the G.O. text): Rs 5 lakh for families of
-# workers who die in these countries, for deaths from 7 Dec 2023. Check before relying on it.
+# Telangana ex-gratia: G.O. 205 (16 Sep 2024) sanctioned the Rs 5 lakh ex-gratia; G.O. 216 (7 Oct 2024) gave the guidelines. Deaths on or after 7 Dec 2023, any cause, in 7 Gulf countries
+# (The Hindu, 20 Nov 2024).
 EX_GRATIA_PLACES = ("bahrain", "manama", "iraq", "kuwait", "oman", "muscat", "salalah", "qatar", "doha", "saudi",
                     "ksa", "riyadh", "jeddah", "dammam", "mecca", "makkah", "medina", "uae", "emirates", "dubai",
                     "abu dhabi", "sharjah", "ajman", "al ain", "fujairah", "ras al")
@@ -902,8 +915,8 @@ def death_instruction(worker: dict) -> str:
                "Say: a Saathi caseworker will check what government support the family can get. ")
     return ("Speak slowly and gently. Say: I am very sorry. You are not alone; Saathi will stay with your family "
             f"through this. A Saathi caseworker will inform the Indian Embassy in {country} with these details, so "
-            "they can help with bringing them home and with the papers. Also say: do not pay anyone who asks for "
-            "money to bring the body home; tell Saathi first, so a caseworker can check with the embassy. " + support +
+            "they can help with bringing them home and with the papers. Also say: no one should ask you for money to "
+            "bring the body home; if someone asks, tell the caseworker. " + support +
             "Then, only what they have not said yet, ONE question at a time: who told you, and that person's phone "
             "number; in which city it happened. Do not press for how it happened. Never promise when the body will "
             "come home or that money will come. Never ask for the passport number or bank details.")
@@ -1142,7 +1155,7 @@ def proof_of_work(store, worker: dict, now: datetime) -> dict:
            if w.get("contract_salary") else "salary not recorded")
         + f", in {', '.join(x for x in [w.get('dest_city'), w.get('dest_country')] if x) or 'place not recorded'}"
         + f" (recorded {fmt_ist(w.get('created_at'))})",
-        *([f"What was promised, in their own words: {w['promise_words']}"] if w.get("promise_words") else []),
+        *([f"Verbal promise (not on paper): {promise_said(w)}"] if promise_said(w) else []),
         f"Calls answered: {len(answered)}. First: {fmt_ist(answered[0]['created_at']) if answered else 'none'}. "
         f"Last contact: {fmt_ist(w.get('last_contact_at'))}.",
     ]
@@ -1215,25 +1228,25 @@ def death_packet(store, worker: dict, now: datetime) -> dict:
         "Keep copies of: the local death certificate and its translation, the embassy's papers, the cancelled "
         "passport, the airline cargo papers, and the job contract or visa.",
         "Unpaid salary and end-of-service money: ask the embassy to claim them from the employer for the family.",
-        "Tell the family: do not pay anyone who asks for money to bring the body home. People have posed as helpers "
-        "and demanded large sums. Check every such request with the embassy first.",
+        "Tell the family: \"No one should ask you for money to bring the body home. If someone asks, tell the "
+        "caseworker.\" (People have posed as helpers and demanded large sums.)",
         "If the death was an accident and the worker had Pravasi Bharatiya Bima Yojana insurance (compulsory for ECR "
         "emigrants), claim it through the insurer. Check the current amount and rules.",
     ]
     if eg is not False:
-        steps.append("Telangana ex-gratia (G.O. 216, as reported in the news): Rs 5 lakh for families of workers who "
-                     "die in Bahrain, Iraq, Kuwait, Oman, Qatar, Saudi Arabia or the UAE, for deaths from 7 Dec 2023. "
+        steps.append("Telangana ex-gratia: G.O. 205 (16 Sep 2024) sanctioned the Rs 5 lakh ex-gratia; G.O. 216 (7 Oct 2024) gave the guidelines. Deaths on or after 7 Dec 2023, any cause, in 7 Gulf countries "
+                     "(Bahrain, Iraq, Kuwait, Oman, Qatar, Saudi Arabia, UAE). "
                      "Apply at the District Collector's office with the death certificate, cancelled passport, proof "
                      "of work abroad and the family's bank details. Check the current rules at the Collectorate.")
     te_steps = [
-        f"సాథి బృందం {country} లోని భారత రాయబార కార్యాలయానికి వివరాలు పంపుతుంది.",
+        f"సాథి కేస్‌వర్కర్ {country} లోని భారత రాయబార కార్యాలయానికి వివరాలు పంపుతారు.",
         "మృతదేహాన్ని ఇంటికి తీసుకురావాలా, అక్కడే అంత్యక్రియలు చేయాలా అనేది కుటుంబమే నిర్ణయిస్తుంది. "
         "రాయబార కార్యాలయం ఇచ్చే అనుమతి పత్రం (NOC) పై కుటుంబ సభ్యులు సంతకం చేయాలి. "
         "సంతకం చేసే ముందు సాథి కేస్‌వర్కర్ దాన్ని తెలుగులో చదివి వినిపిస్తారు.",
         "ఖర్చులు యజమాని భరించాలి. భరించకపోతే, రాయబార కార్యాలయాన్ని ICWF నిధి నుంచి సహాయం అడుగుతాం.",
         "ఈ పత్రాలు దాచుకోండి: మరణ ధ్రువీకరణ పత్రం, రద్దు చేసిన పాస్‌పోర్ట్, ఉద్యోగ పత్రాలు, బ్యాంక్ ఖాతా వివరాలు.",
         "రావాల్సిన జీతం, ఇతర డబ్బుల కోసం రాయబార కార్యాలయం ద్వారా యజమానిని అడుగుతాం.",
-        "మృతదేహాన్ని ఇంటికి తీసుకురావడానికి ఎవరైనా డబ్బులు అడిగితే ఇవ్వకండి. ముందుగా సాథికి చెప్పండి.",
+        "మృతదేహాన్ని ఇంటికి తీసుకురావడానికి ఎవరూ మిమ్మల్ని డబ్బులు అడగకూడదు. ఎవరైనా అడిగితే కేస్‌వర్కర్‌కి చెప్పండి.",
     ]
     if eg is not False:
         te_steps.append("గల్ఫ్ దేశాల్లో మరణించిన కార్మికుల కుటుంబాలకు తెలంగాణ ప్రభుత్వం ఎక్స్‌గ్రేషియా ఇస్తుంది. "
@@ -1307,7 +1320,7 @@ def prajavani_petition(store, worker: dict, now: datetime) -> dict:
             f"(ID {v(w.get('sponsor_id'))})",
             f"Recruiting agent: {v(w.get('agent_name'))}   Village agent phone: {v(w.get('sub_agent_phone'))}   "
             f"Check against the MEA licensed list: {v(w.get('agent_check'), 'not checked')}",
-        ] + ([f"What was promised, in their own words: {w['promise_words']}"] if w.get("promise_words") else [])
+        ] + ([f"Verbal promise (not on paper): {promise_said(w)}"] if promise_said(w) else [])
           + ([f"Paid to the agent: Rs {fmt_rupees(int(w['amount_paid_total']))} (legal limit Rs 35,400)"]
              if w.get("amount_paid_total") else []) + ([job_line] if job_line else []),
         "problems": [reason_text(r) for r in reasons] or ["See timeline below."],
@@ -1374,7 +1387,7 @@ def case_packet(store, worker: dict, now: datetime) -> str:
         f"  Agency: {v(w.get('agent_name'))}   Owner: {v(w.get('agent_owner'))}",
         f"  Licence no. given: {v(w.get('agent_licence'))}   District: {v(w.get('agent_district'))}",
         f"  Check against MEA licensed list: {v(w.get('agent_check'))}",
-        f"  What was promised, in their own words: {v(w.get('promise_words'))}",
+        f"  Verbal promise (not on paper): {promise_said(w) or 'not recorded'}",
         f"  Full written contract received before paying: {v(w.get('contract_before_payment'))}",
     ]
     if w.get("amount_paid_total"):

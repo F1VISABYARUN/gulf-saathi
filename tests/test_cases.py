@@ -126,7 +126,7 @@ def test_wrong_person_at_airport_is_critical(store, licensed, placed, texts):
     r = record_checkin(store, {"case_id": w["case_id"].lower(), "call_kind": "arrival",
                                "pickup_status": "other_person", "pickup_person": "a man named Faisal"}, NOW)
     assert r["risk_level"] == "critical" and r["escalated"]
-    assert "Never promise rescue" in r["instruction"] and "take it to the Indian Embassy in UAE" in r["instruction"]
+    assert "Never promise rescue" in r["instruction"] and "a caseworker will act on it right away" in r["instruction"]
     assert "call the embassy themselves" in r["instruction"]  # forbidden, not suggested
     assert "Al Noor Cleaning LLC" in r["instruction"]  # don't go with anyone else
 
@@ -900,8 +900,37 @@ def test_voice_never_claims_the_embassy_was_already_told(store, licensed, placed
     papers = record_checkin(store, {"case_id": w["case_id"], "papers_problem": "visa expired"}, NOW)
     for say in (crit["instruction"], papers["instruction"]):
         assert "is alerting" not in say and "go home even" not in say
-    assert "caseworker will take it to the Indian Embassy" in crit["instruction"]
-    assert "emergency travel papers" in papers["instruction"]
+    assert "marked urgent and a caseworker will act on it right away" in crit["instruction"]
+    assert "stay inside" in crit["instruction"] and "airport police" in crit["instruction"]
+    assert "emergency travel papers even when your papers are not in order" in papers["instruction"]
     dead = cases.report_problem(store, {"caller_phone": "9123456780", "caller_relation": "wife", "worker_died": "yes"}, NOW)
-    assert "do not pay anyone who asks for money to bring the body home" in dead["instruction"]
-    assert "do not pay anyone who asks for money" in json.dumps(cases.death_packet(store, store.get("workers", id=w["id"]), NOW))
+    assert "no one should ask you for money to bring the body home; if someone asks, tell the caseworker" in dead["instruction"]
+    pkt = json.dumps(cases.death_packet(store, store.get("workers", id=w["id"]), NOW), ensure_ascii=False)
+    assert "No one should ask you for money to bring the body home. If someone asks, tell the caseworker." in pkt
+    assert "G.O. 205 (16 Sep 2024)" in pkt and "G.O. 216 (7 Oct 2024)" in pkt and "as reported in the news" not in pkt
+
+
+
+def test_verbal_promise_kept_apart_from_the_papers(store, licensed, placed):
+    w = register(store, licensed, promise_by="sub-agent Ramu", promise_date="10 Oct 2026",
+                 promise_words="salary 1,500 riyal, cleaning job, free food", contract_before_payment="no")["worker"]
+    said = 'Verbal promise (not on paper): sub-agent Ramu on 10 Oct 2026 said: salary 1,500 riyal, cleaning job, free food'
+    assert said in case_packet(store, w, NOW)
+    from gulf_saathi.promise import predeparture_checks
+    assert {"code": "no_contract_before_paying", "text": "Payment taken before contract shown"} in predeparture_checks(w)
+
+
+def test_consent_notice_is_stored_on_the_first_call(store, licensed, placed, texts):
+    w = register(store, licensed, call_consent="yes")["worker"]
+    assert w["call_consent"] == "yes" and not w.get("consent_notice_at")
+    record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly"}, NOW)
+    first = store.get("workers", id=w["id"])["consent_notice_at"]
+    record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly"}, NOW + timedelta(days=7))
+    assert first and store.get("workers", id=w["id"])["consent_notice_at"] == first
+
+
+@pytest.mark.parametrize("said", [{"threatened": "yes"}, {"movement_restricted": "yes"}, {"needs_help": "yes"}])
+def test_danger_words_are_critical_without_the_code_phrase(store, licensed, placed, texts, said):
+    w = register(store, licensed)["worker"]
+    out = record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly", "code_phrase_used": "no", **said}, NOW)
+    assert out["risk_level"] == "critical"

@@ -1,28 +1,21 @@
-# Paste into Bolna and Supabase (27 Oct 2026)
+# Paste into Bolna and Supabase (28 Oct 2026)
 
-Changes from the review: Saathi no longer says the embassy is already being told (it says a
-caseworker will take the case to the embassy), every call says it is recorded, the reminder asks
-for the full contract before paying, and two new fields on the registration form.
-Tools and extractions have NOT changed: leave them.
+Only two things this time. The welcome messages, the check-in agent, tools and extractions have
+NOT changed since the last paste: leave them.
 
 ## 1. Supabase → SQL Editor → New query → paste → Run
 
 ```sql
-alter table workers add column if not exists promise_words text;
-alter table workers add column if not exists contract_before_payment text;
+alter table workers add column if not exists promise_by text;
+alter table workers add column if not exists promise_date text;
+alter table workers add column if not exists call_consent text;
+alter table workers add column if not exists consent_notice_at timestamptz;
 notify pgrst, 'reload schema';
 ```
 
 Check: `/health/db` shows `"ok": true`.
 
-## 2. Gulf Saathi agent → Agent tab → Welcome message
-Replace it with this, Save.
-
-```
-నమస్కారం, నేను గల్ఫ్ సాథి. మీకు సహాయం చేయడానికి ఈ కాల్ రికార్డ్ అవుతుంది.
-```
-
-## 3. Gulf Saathi agent → Agent tab (prompt)
+## 2. Gulf Saathi agent → Agent tab (prompt)
 Delete everything, add ONE section called `Gulf Saathi`, paste this, Save agent.
 
 ```
@@ -80,13 +73,14 @@ Check only what they ask about. For each check: get the minimum, call the tool, 
   not_found: "ఈ పేరు ప్రభుత్వ లైసెన్స్ జాబితాలో దొరకలేదు. డబ్బు ఇచ్చే ముందు లైసెన్స్ నంబర్ అడగండి."
 - FEE: ask "మొత్తం ఎంత అడిగారు లేదా ఇచ్చారు?" then call check_fee. over_cap: say the total and how much extra (over_by_spoken), illegal. within_cap: within the limit, pay only digitally with a receipt. Never add numbers yourself. If they mention 20,000: "కొన్ని పాత ప్రభుత్వ పేజీల్లో ఇంకా 20,000 అని ఉంది. ఇప్పటి పరిమితి 30,000 ప్లస్ GST."
 - VISA: visit or tourist visa for a job: warn clearly, no legal protection.
+- CONTRACT: if they have paid or are about to pay, ask once: "డబ్బు ఇచ్చే ముందు పూర్తి ఒప్పందం కాగితం మీకు ఇచ్చారా?" If no: "ఒప్పందం పూర్తిగా చూపించే వరకు ఇంకా డబ్బు ఇవ్వకండి."
 - A WOMAN GOING FOR HOUSEWORK (పనిమనిషి, ఇంటి పని): say calmly, once: on a visit or tourist visa this is the most dangerous route, do not go. With an ECR passport she must be at least 30, and only a state government recruiting agency can send her, never a private agent.
 - AGENT'S PHONE OR PAYMENT ACCOUNT: if they mention the agent's phone number, or the UPI ID / account they are asked to pay, first read it back digit by digit ("9 8 4 8 0 1 2 3 4 5, సరేనా?"). Once they say yes, call check_contact with it, plus the amount, visa type, agent name and district if they said them, and caller_phone = user_number. Say its instruction. If they don't know the number, don't push.
 After answering what they asked, offer the rest in ONE question: "ఫీజు లేదా వీసా కూడా చెక్ చేయాలా?" If no: one-line reminder (employment visa, the full written contract BEFORE paying anything, receipts, keep your passport), then goodbye.
 If they already paid and are still in India: keep all proof, pay nothing more, complain on emigrate.gov.in (Register Grievance). Never promise the money back.
 
 NEVER
-- Never call any agent safe, సేఫ్, సురక్షితం, మంచోడు, ఓకే, నమ్మకమైన, good or genuine. If asked: "జాబితాలో ఉందో లేదో మాత్రమే చెప్పగలను. మంచివారా కాదా చెప్పలేను."
+- Never call any agent safe, సేఫ్, సురక్షితం, మంచోడు, ఓకే, ఓకే అని చెప్పవచ్చు, బాగుంది, నమ్మకమైన, good or genuine. If asked: "జాబితాలో ఉందో లేదో మాత్రమే చెప్పగలను. మంచివారా కాదా చెప్పలేను."
 - Never decide an agent from memory. Always use check_agent.
 - Never tell anyone to run away, go to a hotel, or search for and call a number themselves: a Saathi caseworker takes it to the embassy for them. At the airport, the airport help desk and airport police are fine to mention.
 - Never promise rescue, money, or that someone will come. Never say what you cannot do.
@@ -95,19 +89,5 @@ NEVER
 - Never ask whether they are there illegally. If they mention a visa, iqama or absconding problem, just record it.
 ```
 
-## 4. Saathi Check-in agent
-**Welcome message**: replace it with this.
-
-```
-నమస్కారం {{worker_name}} గారు, నేను గల్ఫ్ సాథి నుండి మాట్లాడుతున్నాను. మీ కేసు కోసం ఈ కాల్ రికార్డ్ అవుతుంది.
-```
-
-**Agent tab → section `Danger first`**: replace its text with this. Save.
-
-```
-- If they say "{{code_phrase}}" at any time: do not react. Call record_checkin at once with code_phrase_used = yes, then do exactly what its instruction says. Never say danger, complaint, embassy or family on that call.
-- If at any point they say they are in danger, beaten, locked in, passport taken, no food, or taken by someone who is not {{employer_name}}: stop the other questions, say "సరే, అర్థమైంది." and call record_checkin immediately with what they said. Then say its instruction, in calm simple Telugu.
-- If they say their visa expired, they came on a visit visa, they have no iqama, or the sponsor filed an absconding case: call record_checkin with papers_problem = that, in short English. Never ask whether they are illegal.
-- After that, if they tell you where they are (any building, shop, mosque, road), call record_checkin again with it in current_location.
-- If they ask for the embassy number or how to find it: "మీరు వెతకాల్సిన అవసరం లేదు. మీ కేసు అత్యవసరంగా నమోదైంది. సాథి కేస్‌వర్కర్ మీ వివరాలతో రాయబార కార్యాలయానికి తెలియజేస్తారు. ఈ ఫోన్ మీ దగ్గరే ఉంచుకోండి." Never tell them to search for a number or call the embassy themselves. Never say "I don't have the number".
-```
+What changed in the prompt: a CONTRACT line in section B ("did they give you the full contract
+before you paid?"), and the NEVER list now also bans "ఓకే అని చెప్పవచ్చు" and "బాగుంది".

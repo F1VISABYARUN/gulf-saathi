@@ -153,3 +153,7 @@ alter table workers add column if not exists ex_gratia_status text;      -- not_
 -- Added 27 Oct 2026: the promise in the agent's own words, and whether the full contract came before paying.
 alter table workers add column if not exists promise_words text;
 alter table workers add column if not exists contract_before_payment text;   -- yes / no
+alter table workers add column if not exists promise_by text;              -- who made the verbal promise
+alter table workers add column if not exists promise_date text;            -- when, as told
+alter table workers add column if not exists call_consent text;            -- yes / no, asked at registration
+alter table workers add column if not exists consent_notice_at timestamptz; -- first call that said it is recorded
