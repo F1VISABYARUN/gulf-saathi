@@ -384,5 +384,11 @@ def test_home_explains_the_repeat_agent_check_and_who_pays(mem):
 def test_home_has_the_case_network_diagram(mem):
     page = client.get("/").text
     section = page[page.index('id="repeat-agent"'):page.index('id="who"')]
-    assert section.count('<svg class="net') == 2  # wide for desktop, tall for phones
-    assert "Shared contact" in section and "98480 XXXXX" in section and "not proof" in section
+    diagram = section[section.index('id="case-network"'):section.index('<ol class="flow">')]  # above the five cards
+    assert diagram.count('<svg class="net') == 2  # wide for desktop, tall for phones
+    for text in ("Same number", "Worker 1 · Jagtial", "CRITICAL", "Worker 2 · Nizamabad", "HIGH", "Callers 3 &amp; 4",
+                 "Phone 98480 XXXXX", "UPI ****@ybl", "Caller 5 · warned before paying",
+                 "links cases only by exact phone numbers or payment accounts"):
+        assert text in diagram
+    for banned in ("fraud", "safe", "criminal", "genuine", "employer", "agent name", "promise"):
+        assert banned not in diagram.lower()
