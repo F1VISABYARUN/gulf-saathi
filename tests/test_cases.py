@@ -126,7 +126,7 @@ def test_wrong_person_at_airport_is_critical(store, licensed, placed, texts):
     r = record_checkin(store, {"case_id": w["case_id"].lower(), "call_kind": "arrival",
                                "pickup_status": "other_person", "pickup_person": "a man named Faisal"}, NOW)
     assert r["risk_level"] == "critical" and r["escalated"]
-    assert "Never promise rescue" in r["instruction"] and "alerting the Indian Embassy in UAE" in r["instruction"]
+    assert "Never promise rescue" in r["instruction"] and "take it to the Indian Embassy in UAE" in r["instruction"]
     assert "call the embassy themselves" in r["instruction"]  # forbidden, not suggested
     assert "Al Noor Cleaning LLC" in r["instruction"]  # don't go with anyone else
 
@@ -878,3 +878,30 @@ def test_proof_of_work_merges_saves_from_one_call(store, licensed, placed, texts
     assert len(rows) == 2
     assert rows[0]["where"] == "Deira, Dubai" and rows[0]["passport"] == "NO"
     assert "Asked for urgent help" in rows[0]["said"] and "Passport is not with the worker" in rows[0]["said"]
+
+
+# --- review fixes (27 Oct): honest promises, the promise in their own words --------------
+
+def test_promise_in_their_words_and_no_contract_before_paying(store, licensed, placed):
+    from gulf_saathi.promise import STOP_FLAGS, predeparture_checks
+    w = register(store, licensed, promise_words='HR said: "B1 visa = sure job"', contract_before_payment="no")["worker"]
+    flags = {f["code"] for f in predeparture_checks(w)}
+    assert "no_contract_before_paying" in flags and "no_contract_before_paying" not in STOP_FLAGS
+    packet = case_packet(store, w, NOW)
+    assert 'HR said: "B1 visa = sure job"' in packet and "contract received before paying: no" in packet
+    assert "B1 visa = sure job" in json.dumps(cases.prajavani_petition(store, w, NOW))
+    ok = register(store, licensed, worker_phone="9876500001", contract_before_payment="yes")["worker"]
+    assert "no_contract_before_paying" not in {f["code"] for f in predeparture_checks(ok)}
+
+
+def test_voice_never_claims_the_embassy_was_already_told(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    crit = record_checkin(store, {"case_id": w["case_id"], "call_kind": "arrival", "pickup_status": "other_person"}, NOW)
+    papers = record_checkin(store, {"case_id": w["case_id"], "papers_problem": "visa expired"}, NOW)
+    for say in (crit["instruction"], papers["instruction"]):
+        assert "is alerting" not in say and "go home even" not in say
+    assert "caseworker will take it to the Indian Embassy" in crit["instruction"]
+    assert "emergency travel papers" in papers["instruction"]
+    dead = cases.report_problem(store, {"caller_phone": "9123456780", "caller_relation": "wife", "worker_died": "yes"}, NOW)
+    assert "do not pay anyone who asks for money to bring the body home" in dead["instruction"]
+    assert "do not pay anyone who asks for money" in json.dumps(cases.death_packet(store, store.get("workers", id=w["id"]), NOW))

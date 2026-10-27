@@ -149,3 +149,7 @@ alter table workers add column if not exists death_reported_at timestamptz;
 alter table workers add column if not exists death_note text;            -- who reported it, where, what was said
 alter table workers add column if not exists remains_status text;        -- reported / embassy_informed / ... / closed
 alter table workers add column if not exists ex_gratia_status text;      -- not_applied / applied / paid / rejected
+
+-- Added 27 Oct 2026: the promise in the agent's own words, and whether the full contract came before paying.
+alter table workers add column if not exists promise_words text;
+alter table workers add column if not exists contract_before_payment text;   -- yes / no

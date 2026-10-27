@@ -169,7 +169,8 @@ def health():
 
 NEW_WORKER_COLUMNS = ("visa_job", "visa_type", "sub_agent_name", "sub_agent_phone", "payment_to",
                       "welcome_sms", "welcome_sms_status", "source", "reported_by", "petition_status",
-                      "petition_ref", "worker_gender", "death_note", "remains_status", "ex_gratia_status")
+                      "petition_ref", "worker_gender", "death_note", "remains_status", "ex_gratia_status",
+                      "promise_words", "contract_before_payment")
 
 
 @app.get("/health/db")

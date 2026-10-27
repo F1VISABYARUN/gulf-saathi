@@ -91,6 +91,9 @@ def predeparture_checks(w: dict) -> list[dict]:
     if w.get("visa_type") in ("visit", "tourist"):
         flags.append({"code": "visit_visa",
                       "text": f"The visa on the papers is a {w['visa_type']} visa, not an employment visa"})
+    if w.get("contract_before_payment") == "no":
+        flags.append({"code": "no_contract_before_paying",
+                      "text": "No full written contract before paying the agent: the real terms can arrive after the money is gone"})
     if compare_jobs(w.get("job_title"), w.get("visa_job")) == "conflict":
         flags.append({"code": "visa_job_mismatch",
                       "text": f"Promised job \"{w.get('job_title')}\" but the visa says \"{w.get('visa_job')}\""})

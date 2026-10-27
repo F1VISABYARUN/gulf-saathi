@@ -352,3 +352,15 @@ def test_proof_of_work_page(mem):
     assert client.get(f"/dashboard/case/{cid}/proof-of-work").status_code == 401
     page = client.get(f"/dashboard/case/{cid}/proof-of-work", auth=AUTH).text
     assert "Record of contact and work: Mallesh" in page and "Noor Cleaning" in page and "No calls answered yet" in page
+
+
+@pytest.mark.parametrize("q, match, first", [
+    ({"owner": "Bolle Ganga Narsaiah"}, "needs_confirmation", "GAGAN MAN POWER CONSULTANTS"),
+    ({"owner": "Mallesh"}, "need_more_info", None),                      # one name: ask for more, never a verdict
+    ({"owner": "Seedi Kavitha"}, "needs_confirmation", "GTM INTERNATIONAL"),  # "do you mean Cheeti Kavitha?"
+    ({"agency": "Vision Tours and Travels", "district": "Hyderabad"}, "confirmed_in_list", "M/s VISION TOURS AND TRAVELS"),
+])
+def test_agent_cases_that_failed_on_18_oct_calls(q, match, first):
+    r = client.post("/check-agent", json=q).json()
+    assert r["match"] == match
+    assert (r["candidates"][0]["agency"] if r["candidates"] else None) == first

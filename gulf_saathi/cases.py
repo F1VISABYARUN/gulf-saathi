@@ -374,6 +374,7 @@ def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
     if age is not None and not 14 <= age <= 90:
         raise CaseError(f"age must be a number of years: {data.get('worker_age')}")
     sub_agent_phone = normalize_phone(data.get("sub_agent_phone")) if data.get("sub_agent_phone") else None
+    contract_first = yes_no(data.get("contract_before_payment"))
     code_phrase = _text(data, "code_phrase") or DEFAULT_CODE_PHRASE
     if not code_phrase_ok(code_phrase):
         raise CaseError(f'danger code phrase "{code_phrase}" is too easy to say by accident. {CODE_PHRASE_HELP}')
@@ -393,6 +394,8 @@ def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
         **agent, "agent_check": agent_check, "agent_check_detail": agent_detail,
         "sub_agent_name": _text(data, "sub_agent_name"), "sub_agent_phone": sub_agent_phone,
         "payment_to": _text(data, "payment_to"),
+        "promise_words": _text(data, "promise_words", 1000),
+        "contract_before_payment": {True: "yes", False: "no"}.get(contract_first),
         "payments": fee["payments"], "amount_paid_total": fee["total"], "fee_status": fee["status"],
         "departure_date": departure, "flight_no": _text(data, "flight_no", 20),
         "arrival_call_at": iso(arrival_call_at) if arrival_call_at else None,
@@ -630,9 +633,9 @@ def checkin_instruction(worker: dict, kind: str, level: str, codes: set, escalat
         return ("IMPORTANT: the worker said the danger phrase and may not be able to talk freely. Do NOT mention "
                 "danger, help, complaints, family or embassy. Chat normally for a few seconds and end the call politely.")
     if level == "critical":
-        say = (f"Speak calmly and slowly. Say: you are not alone. Your case is registered as URGENT and the Saathi "
-               f"team is alerting the Indian Embassy in {country} now, with your name, phone number and what you told "
-               f"us. {family}")
+        say = (f"Speak calmly and slowly. Say: you are not alone. Your case is marked URGENT, and a Saathi caseworker "
+               f"will take it to the Indian Embassy in {country} with your name, phone number and what you told us. "
+               f"{family}")
         if codes & {"wrong_pickup", "no_pickup"}:
             employer = worker.get("employer_name") or "your registered employer"
             say += (f"Then: if you are still inside the airport, stay inside. Go to the airport help desk or airport "
@@ -665,8 +668,8 @@ def checkin_instruction(worker: dict, kind: str, level: str, codes: set, escalat
 # Workers on a visit visa, an expired visa or a false "absconding" report fear the
 # local police will arrest them, so they stay silent. Saathi is not the police.
 PAPERS_FIRST = ("FIRST say gently: Saathi is not the police; we never give your details to the police in that country. "
-                "This is the agent's wrongdoing, not yours. The Indian Embassy helps Indians go home even when their "
-                "papers are not in order. Do not promise they will not be fined or sent back. Then: ")
+                "This is the agent's wrongdoing, not yours. The Indian Embassy can give emergency travel papers to Indians "
+                "whose passport or visa is not in order. Do not promise they will not be fined or sent back. Then: ")
 
 
 def record_checkin(store, data: dict, now: datetime) -> dict:
@@ -791,7 +794,7 @@ def family_instruction(worker: dict, relation: str, level: str) -> str:
     who = relation if relation not in ("family", "yes") else "family member"
     urgent = rank(level) >= rank("high")
     return ((f"Speak calmly and warmly to the {who}: you are not alone. " if urgent else f"Speak warmly to the {who}: ")
-            + ("The case is registered as URGENT and the Saathi team is alerting the Indian Embassy in "
+            + ("The case is marked URGENT, and a Saathi caseworker will take it to the Indian Embassy in "
                f"{country} with these details. " if urgent else "The problem is registered and a Saathi caseworker "
                "will look at it. ")
             + "Saathi will prepare the Pravasi Prajavani petition for them, so they do not need to travel to "
@@ -898,8 +901,9 @@ def death_instruction(worker: dict) -> str:
                if ex_gratia_country(worker) else
                "Say: a Saathi caseworker will check what government support the family can get. ")
     return ("Speak slowly and gently. Say: I am very sorry. You are not alone; Saathi will stay with your family "
-            f"through this. The Saathi team is informing the Indian Embassy in {country} with these details, so they "
-            "can help with bringing them home and with the papers. " + support +
+            f"through this. A Saathi caseworker will inform the Indian Embassy in {country} with these details, so "
+            "they can help with bringing them home and with the papers. Also say: do not pay anyone who asks for "
+            "money to bring the body home; tell Saathi first, so a caseworker can check with the embassy. " + support +
             "Then, only what they have not said yet, ONE question at a time: who told you, and that person's phone "
             "number; in which city it happened. Do not press for how it happened. Never promise when the body will "
             "come home or that money will come. Never ask for the passport number or bank details.")
@@ -1138,6 +1142,7 @@ def proof_of_work(store, worker: dict, now: datetime) -> dict:
            if w.get("contract_salary") else "salary not recorded")
         + f", in {', '.join(x for x in [w.get('dest_city'), w.get('dest_country')] if x) or 'place not recorded'}"
         + f" (recorded {fmt_ist(w.get('created_at'))})",
+        *([f"What was promised, in their own words: {w['promise_words']}"] if w.get("promise_words") else []),
         f"Calls answered: {len(answered)}. First: {fmt_ist(answered[0]['created_at']) if answered else 'none'}. "
         f"Last contact: {fmt_ist(w.get('last_contact_at'))}.",
     ]
@@ -1210,6 +1215,8 @@ def death_packet(store, worker: dict, now: datetime) -> dict:
         "Keep copies of: the local death certificate and its translation, the embassy's papers, the cancelled "
         "passport, the airline cargo papers, and the job contract or visa.",
         "Unpaid salary and end-of-service money: ask the embassy to claim them from the employer for the family.",
+        "Tell the family: do not pay anyone who asks for money to bring the body home. People have posed as helpers "
+        "and demanded large sums. Check every such request with the embassy first.",
         "If the death was an accident and the worker had Pravasi Bharatiya Bima Yojana insurance (compulsory for ECR "
         "emigrants), claim it through the insurer. Check the current amount and rules.",
     ]
@@ -1226,6 +1233,7 @@ def death_packet(store, worker: dict, now: datetime) -> dict:
         "ఖర్చులు యజమాని భరించాలి. భరించకపోతే, రాయబార కార్యాలయాన్ని ICWF నిధి నుంచి సహాయం అడుగుతాం.",
         "ఈ పత్రాలు దాచుకోండి: మరణ ధ్రువీకరణ పత్రం, రద్దు చేసిన పాస్‌పోర్ట్, ఉద్యోగ పత్రాలు, బ్యాంక్ ఖాతా వివరాలు.",
         "రావాల్సిన జీతం, ఇతర డబ్బుల కోసం రాయబార కార్యాలయం ద్వారా యజమానిని అడుగుతాం.",
+        "మృతదేహాన్ని ఇంటికి తీసుకురావడానికి ఎవరైనా డబ్బులు అడిగితే ఇవ్వకండి. ముందుగా సాథికి చెప్పండి.",
     ]
     if eg is not False:
         te_steps.append("గల్ఫ్ దేశాల్లో మరణించిన కార్మికుల కుటుంబాలకు తెలంగాణ ప్రభుత్వం ఎక్స్‌గ్రేషియా ఇస్తుంది. "
@@ -1299,7 +1307,8 @@ def prajavani_petition(store, worker: dict, now: datetime) -> dict:
             f"(ID {v(w.get('sponsor_id'))})",
             f"Recruiting agent: {v(w.get('agent_name'))}   Village agent phone: {v(w.get('sub_agent_phone'))}   "
             f"Check against the MEA licensed list: {v(w.get('agent_check'), 'not checked')}",
-        ] + ([f"Paid to the agent: Rs {fmt_rupees(int(w['amount_paid_total']))} (legal limit Rs 35,400)"]
+        ] + ([f"What was promised, in their own words: {w['promise_words']}"] if w.get("promise_words") else [])
+          + ([f"Paid to the agent: Rs {fmt_rupees(int(w['amount_paid_total']))} (legal limit Rs 35,400)"]
              if w.get("amount_paid_total") else []) + ([job_line] if job_line else []),
         "problems": [reason_text(r) for r in reasons] or ["See timeline below."],
         "timeline": events,
@@ -1365,6 +1374,8 @@ def case_packet(store, worker: dict, now: datetime) -> str:
         f"  Agency: {v(w.get('agent_name'))}   Owner: {v(w.get('agent_owner'))}",
         f"  Licence no. given: {v(w.get('agent_licence'))}   District: {v(w.get('agent_district'))}",
         f"  Check against MEA licensed list: {v(w.get('agent_check'))}",
+        f"  What was promised, in their own words: {v(w.get('promise_words'))}",
+        f"  Full written contract received before paying: {v(w.get('contract_before_payment'))}",
     ]
     if w.get("amount_paid_total"):
         lines.append(f"  Paid to agent: Rs {fmt_rupees(int(w['amount_paid_total']))} "

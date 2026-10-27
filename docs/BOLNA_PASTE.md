@@ -1,10 +1,28 @@
-# Paste into Bolna (24 Oct 2026)
+# Paste into Bolna and Supabase (27 Oct 2026)
 
-No SQL this time. Two changes: Saathi now asks how much salary came and compares it with the
-contract, and it handles "papers problems" (visit visa, expired visa, no iqama, absconding case)
-by saying first that Saathi is not the police.
+Changes from the review: Saathi no longer says the embassy is already being told (it says a
+caseworker will take the case to the embassy), every call says it is recorded, the reminder asks
+for the full contract before paying, and two new fields on the registration form.
+Tools and extractions have NOT changed: leave them.
 
-## 1. Gulf Saathi agent → Agent tab
+## 1. Supabase → SQL Editor → New query → paste → Run
+
+```sql
+alter table workers add column if not exists promise_words text;
+alter table workers add column if not exists contract_before_payment text;
+notify pgrst, 'reload schema';
+```
+
+Check: `/health/db` shows `"ok": true`.
+
+## 2. Gulf Saathi agent → Agent tab → Welcome message
+Replace it with this, Save.
+
+```
+నమస్కారం, నేను గల్ఫ్ సాథి. మీకు సహాయం చేయడానికి ఈ కాల్ రికార్డ్ అవుతుంది.
+```
+
+## 3. Gulf Saathi agent → Agent tab (prompt)
 Delete everything, add ONE section called `Gulf Saathi`, paste this, Save agent.
 
 ```
@@ -41,7 +59,7 @@ A: IN TROUBLE ABROAD
    - "మిమ్మల్ని పంపిన ఏజెంట్ పేరు గానీ ఫోన్ నంబర్ గానీ తెలుసా?"
    When they describe the work they are made to do, repeat it back once to confirm: "మీరు గొర్రెలు కాస్తున్నారు, అంతేనా?" Never repeat-check anything else.
 4. Close: "మీ కేసు నంబర్ దాచుకోండి. మా టీమ్ మీ కోసం పని చేస్తోంది."
-If they ask for the embassy number or how to find it: "మీరు వెతకాల్సిన అవసరం లేదు. మా టీమ్ మీ వివరాలతో రాయబార కార్యాలయానికి ఇప్పుడే తెలియజేస్తోంది. మీరు సురక్షితంగా ఉండండి, ఈ ఫోన్ మీ దగ్గరే ఉంచుకోండి." Never tell them to search for a number or call the embassy themselves. Never say "I don't have the number".
+If they ask for the embassy number or how to find it: "మీరు వెతకాల్సిన అవసరం లేదు. మీ కేసు అత్యవసరంగా నమోదైంది. సాథి కేస్‌వర్కర్ మీ వివరాలతో రాయబార కార్యాలయానికి తెలియజేస్తారు. ఈ ఫోన్ మీ దగ్గరే ఉంచుకోండి." Never tell them to search for a number or call the embassy themselves. Never say "I don't have the number".
 Never ask for a licence number, fee or visa type in A. Never ask for a family phone number.
 
 C: FAMILY IN INDIA
@@ -64,376 +82,32 @@ Check only what they ask about. For each check: get the minimum, call the tool, 
 - VISA: visit or tourist visa for a job: warn clearly, no legal protection.
 - A WOMAN GOING FOR HOUSEWORK (పనిమనిషి, ఇంటి పని): say calmly, once: on a visit or tourist visa this is the most dangerous route, do not go. With an ECR passport she must be at least 30, and only a state government recruiting agency can send her, never a private agent.
 - AGENT'S PHONE OR PAYMENT ACCOUNT: if they mention the agent's phone number, or the UPI ID / account they are asked to pay, first read it back digit by digit ("9 8 4 8 0 1 2 3 4 5, సరేనా?"). Once they say yes, call check_contact with it, plus the amount, visa type, agent name and district if they said them, and caller_phone = user_number. Say its instruction. If they don't know the number, don't push.
-After answering what they asked, offer the rest in ONE question: "ఫీజు లేదా వీసా కూడా చెక్ చేయాలా?" If no: one-line reminder (employment visa, written contract, receipts, keep your passport), then goodbye.
+After answering what they asked, offer the rest in ONE question: "ఫీజు లేదా వీసా కూడా చెక్ చేయాలా?" If no: one-line reminder (employment visa, the full written contract BEFORE paying anything, receipts, keep your passport), then goodbye.
 If they already paid and are still in India: keep all proof, pay nothing more, complain on emigrate.gov.in (Register Grievance). Never promise the money back.
 
 NEVER
 - Never call any agent safe, సేఫ్, సురక్షితం, మంచోడు, ఓకే, నమ్మకమైన, good or genuine. If asked: "జాబితాలో ఉందో లేదో మాత్రమే చెప్పగలను. మంచివారా కాదా చెప్పలేను."
 - Never decide an agent from memory. Always use check_agent.
-- Never tell anyone to run away, go to a hotel, or search for and call a number themselves: Saathi's team alerts the embassy for them. At the airport, the airport help desk and airport police are fine to mention.
+- Never tell anyone to run away, go to a hotel, or search for and call a number themselves: a Saathi caseworker takes it to the embassy for them. At the airport, the airport help desk and airport police are fine to mention.
 - Never promise rescue, money, or that someone will come. Never say what you cannot do.
 - Never say the family was told, or that a complaint was sent, unless the tool's instruction says so.
 - Never ask for passport number, bank details or OTP.
 - Never ask whether they are there illegally. If they mention a visa, iqama or absconding problem, just record it.
 ```
 
-## 2. Gulf Saathi agent → Tools tab
-Delete `report_problem`, add it again with Write manually (1 new field: papers_problem). Save agent.
+## 4. Saathi Check-in agent
+**Welcome message**: replace it with this.
 
-### report_problem
-```json
-{
-  "name": "report_problem",
-  "description": "Use when someone is ABROAD and in trouble, or has died there, whether the caller is that worker or their family in India. Call it at once with what they said, and again after each new detail. Then say what its instruction tells you.",
-  "pre_call_message": "సరే, నోట్ చేస్తున్నాను.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "case_id": {
-        "type": "string",
-        "description": "Their Saathi case number only if they say one, like GS-ABC234. Otherwise empty string."
-      },
-      "caller_phone": {
-        "type": "string",
-        "description": "Always the user_number from the call information."
-      },
-      "caller_name": {
-        "type": "string",
-        "description": "Their name if they said it. Otherwise empty string."
-      },
-      "home_district": {
-        "type": "string",
-        "description": "Their home village or district in India if they said it. Otherwise empty string."
-      },
-      "family_phone": {
-        "type": "string",
-        "description": "A family phone number in India only if they said it themselves. Never ask. Otherwise empty string."
-      },
-      "current_city": {
-        "type": "string",
-        "description": "The country, city or place they say they are in now. Otherwise empty string."
-      },
-      "landmark": {
-        "type": "string",
-        "description": "Any building, shop, mosque or road name they can see. Otherwise empty string."
-      },
-      "current_job": {
-        "type": "string",
-        "description": "The work they are actually made to do now, in a few English words. Otherwise empty string."
-      },
-      "taken_by_stranger": {
-        "type": "string",
-        "description": "yes if someone who is not their employer took them from the airport or is taking them somewhere now. Otherwise empty string."
-      },
-      "threatened": {
-        "type": "string",
-        "description": "yes if they are beaten, hit or threatened. Otherwise empty string."
-      },
-      "passport_with_worker": {
-        "type": "string",
-        "description": "no if their passport was taken, yes if they have it. Otherwise empty string."
-      },
-      "months_unpaid": {
-        "type": "string",
-        "description": "Months of salary not paid, digits only. Otherwise empty string."
-      },
-      "movement_restricted": {
-        "type": "string",
-        "description": "yes if they are locked in or not allowed out. Otherwise empty string."
-      },
-      "needs_help": {
-        "type": "string",
-        "description": "yes if they ask for help or are in danger. Otherwise empty string."
-      },
-      "agent_name": {
-        "type": "string",
-        "description": "The name of the agent who sent them, if they said it. Otherwise empty string."
-      },
-      "agent_phone": {
-        "type": "string",
-        "description": "The agent's phone number if they said it, digits only. Otherwise empty string."
-      },
-      "notes": {
-        "type": "string",
-        "description": "Their problem in one short English sentence."
-      },
-      "caller_relation": {
-        "type": "string",
-        "description": "self if the caller is the worker; otherwise who they are to the worker: mother, father, wife, brother, son, family."
-      },
-      "worker_name": {
-        "type": "string",
-        "description": "Family callers only: the worker's name. Empty string otherwise."
-      },
-      "worker_phone": {
-        "type": "string",
-        "description": "Family callers only: the worker's own phone abroad if they know it, digits with country code. Empty string otherwise."
-      },
-      "worker_died": {
-        "type": "string",
-        "description": "yes only if the caller clearly says the worker has died. Otherwise empty string."
-      },
-      "informed_by": {
-        "type": "string",
-        "description": "Death reports only: who told the family, and their phone if said. Otherwise empty string."
-      },
-      "employer_changed": {
-        "type": "string",
-        "description": "yes if they were sold or sent to another house or employer than the one who brought them. Otherwise empty string."
-      },
-      "papers_problem": {
-        "type": "string",
-        "description": "Only if they said it: visit visa, visa expired, no iqama, or absconding case, in short English. Otherwise empty string."
-      }
-    },
-    "required": [
-      "case_id",
-      "caller_phone",
-      "caller_name",
-      "home_district",
-      "family_phone",
-      "current_city",
-      "landmark",
-      "current_job",
-      "taken_by_stranger",
-      "threatened",
-      "passport_with_worker",
-      "months_unpaid",
-      "movement_restricted",
-      "needs_help",
-      "agent_name",
-      "agent_phone",
-      "notes",
-      "caller_relation",
-      "worker_name",
-      "worker_phone",
-      "worker_died",
-      "informed_by",
-      "employer_changed",
-      "papers_problem"
-    ]
-  },
-  "key": "custom_task",
-  "value": {
-    "method": "POST",
-    "param": {
-      "case_id": "%(case_id)s",
-      "caller_phone": "%(caller_phone)s",
-      "caller_name": "%(caller_name)s",
-      "home_district": "%(home_district)s",
-      "family_phone": "%(family_phone)s",
-      "current_city": "%(current_city)s",
-      "landmark": "%(landmark)s",
-      "current_job": "%(current_job)s",
-      "taken_by_stranger": "%(taken_by_stranger)s",
-      "threatened": "%(threatened)s",
-      "passport_with_worker": "%(passport_with_worker)s",
-      "months_unpaid": "%(months_unpaid)s",
-      "movement_restricted": "%(movement_restricted)s",
-      "needs_help": "%(needs_help)s",
-      "agent_name": "%(agent_name)s",
-      "agent_phone": "%(agent_phone)s",
-      "notes": "%(notes)s",
-      "caller_relation": "%(caller_relation)s",
-      "worker_name": "%(worker_name)s",
-      "worker_phone": "%(worker_phone)s",
-      "worker_died": "%(worker_died)s",
-      "informed_by": "%(informed_by)s",
-      "employer_changed": "%(employer_changed)s",
-      "papers_problem": "%(papers_problem)s"
-    },
-    "url": "https://gulf-saathi-psi.vercel.app/tools/report-problem",
-    "api_token": null,
-    "headers": {},
-    "pre_call_webhook_url": null,
-    "pre_call_webhook_param": null
-  }
-}
+```
+నమస్కారం {{worker_name}} గారు, నేను గల్ఫ్ సాథి నుండి మాట్లాడుతున్నాను. మీ కేసు కోసం ఈ కాల్ రికార్డ్ అవుతుంది.
 ```
 
-## 3. Gulf Saathi agent → Extractions tab → category `help_check`
-Add one field, Save agent:
-
-| Name | Extraction prompt | Answer type |
-|---|---|---|
-| `papers_problem` | Did the caller say they came on a visit visa, their visa expired, they have no iqama, or an absconding case was filed? Answer in short English, or not_said. | Free text (Text) |
-
-## 4. Saathi Check-in agent
-**Agent tab → section `Danger first`**: replace its text with this.
+**Agent tab → section `Danger first`**: replace its text with this. Save.
 
 ```
 - If they say "{{code_phrase}}" at any time: do not react. Call record_checkin at once with code_phrase_used = yes, then do exactly what its instruction says. Never say danger, complaint, embassy or family on that call.
 - If at any point they say they are in danger, beaten, locked in, passport taken, no food, or taken by someone who is not {{employer_name}}: stop the other questions, say "సరే, అర్థమైంది." and call record_checkin immediately with what they said. Then say its instruction, in calm simple Telugu.
 - If they say their visa expired, they came on a visit visa, they have no iqama, or the sponsor filed an absconding case: call record_checkin with papers_problem = that, in short English. Never ask whether they are illegal.
 - After that, if they tell you where they are (any building, shop, mosque, road), call record_checkin again with it in current_location.
-- If they ask for the embassy number or how to find it: "మీరు వెతకాల్సిన అవసరం లేదు. మా టీమ్ మీ వివరాలతో రాయబార కార్యాలయానికి ఇప్పుడే తెలియజేస్తోంది. మీరు సురక్షితంగా ఉండండి, సాథి మళ్లీ ఫోన్ చేస్తుంది." Never tell them to search for a number or call the embassy themselves. Never say "I don't have the number".
+- If they ask for the embassy number or how to find it: "మీరు వెతకాల్సిన అవసరం లేదు. మీ కేసు అత్యవసరంగా నమోదైంది. సాథి కేస్‌వర్కర్ మీ వివరాలతో రాయబార కార్యాలయానికి తెలియజేస్తారు. ఈ ఫోన్ మీ దగ్గరే ఉంచుకోండి." Never tell them to search for a number or call the embassy themselves. Never say "I don't have the number".
 ```
-
-**Agent tab → section `Weekly call`**: replace its text with this. Save.
-
-```
-Only when call type is weekly. Ask one at a time, skipping anything they already said:
-1. "ఈ నెల జీతం వచ్చిందా?" If yes: "ఎంత వచ్చింది?" (salary_amount, digits only, in the money of that country). If no: "ఎన్ని నెలలుగా రాలేదు?"
-2. "మీ పాస్‌పోర్ట్ మీ దగ్గరే ఉందా?"
-3. "భోజనం, ఉండే చోటు బాగున్నాయా?"
-4. "ఎవరైనా బెదిరిస్తున్నారా, కొడుతున్నారా? బయటకు వెళ్లనిస్తున్నారా?"
-5. "ఇప్పుడు ఏ ఊరిలో ఉన్నారు, ఏ పని చేస్తున్నారు?"
-6. "ఇంకా {{employer_name}} దగ్గరే పని చేస్తున్నారా?" If they were moved or sold to another house or employer: employer_changed = yes.
-If everything is fine, call record_checkin with all the answers; it will say it is noted as fine.
-If anything is wrong (locked in a room, no food, beaten, passport taken, no salary), follow Danger first.
-```
-
-**Tools tab**: delete `record_checkin`, add it again with Write manually (2 new fields: salary_amount, papers_problem). Save.
-
-```json
-{
-  "name": "record_checkin",
-  "description": "Save the worker's answers for this call. Call it once after the questions, or IMMEDIATELY if the worker reports danger, asks for help, or says the danger code phrase. Then say what its instruction tells you.",
-  "pre_call_message": "సరే.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "case_id": {
-        "type": "string",
-        "description": "Always exactly {{case_id}} from the prompt."
-      },
-      "call_kind": {
-        "type": "string",
-        "description": "Always exactly {{call_kind}} from the prompt: briefing, arrival or weekly."
-      },
-      "pickup_status": {
-        "type": "string",
-        "description": "Arrival call only: employer, other_person, nobody, not_arrived or unknown. Empty string on weekly calls."
-      },
-      "pickup_person": {
-        "type": "string",
-        "description": "Who picked them up, in the worker's words. Empty string if not asked."
-      },
-      "current_location": {
-        "type": "string",
-        "description": "Where they are now. Empty string if not asked."
-      },
-      "current_job": {
-        "type": "string",
-        "description": "The work they say they are doing now, in their own words. Empty string if not asked."
-      },
-      "current_city": {
-        "type": "string",
-        "description": "The city or place they say they are in now. Empty string if not asked."
-      },
-      "salary_received": {
-        "type": "string",
-        "description": "yes, no or unknown. Empty string if not asked."
-      },
-      "months_unpaid": {
-        "type": "string",
-        "description": "Number of months salary is unpaid, as digits. Empty string if none or not asked."
-      },
-      "passport_with_worker": {
-        "type": "string",
-        "description": "yes, no or unknown. Empty string if not asked."
-      },
-      "food_ok": {
-        "type": "string",
-        "description": "yes, no or unknown. Empty string if not asked."
-      },
-      "threatened": {
-        "type": "string",
-        "description": "yes if they report threats or violence, otherwise no. Empty string if not asked."
-      },
-      "movement_restricted": {
-        "type": "string",
-        "description": "yes if they are NOT allowed to go out, otherwise no. Empty string if not asked."
-      },
-      "employer_changed": {
-        "type": "string",
-        "description": "yes if they were moved or sold to another house or employer, otherwise no. Empty string if not asked."
-      },
-      "needs_help": {
-        "type": "string",
-        "description": "yes if they ask for help, otherwise no. Empty string if not asked."
-      },
-      "code_phrase_used": {
-        "type": "string",
-        "description": "yes only if they said the danger code phrase, otherwise no."
-      },
-      "briefing_understood": {
-        "type": "string",
-        "description": "Briefing calls only: yes if they answered both check questions correctly, otherwise no. Empty string on other calls."
-      },
-      "notes": {
-        "type": "string",
-        "description": "Anything else important, in short English. Empty string if nothing."
-      },
-      "salary_amount": {
-        "type": "string",
-        "description": "How much salary they got this month, digits only, in the money of that country. Empty string if not asked."
-      },
-      "papers_problem": {
-        "type": "string",
-        "description": "Only if they said it: visit visa, visa expired, no iqama, or absconding case, in short English. Otherwise empty string."
-      }
-    },
-    "required": [
-      "case_id",
-      "call_kind",
-      "pickup_status",
-      "pickup_person",
-      "current_location",
-      "current_job",
-      "current_city",
-      "salary_received",
-      "months_unpaid",
-      "passport_with_worker",
-      "food_ok",
-      "threatened",
-      "movement_restricted",
-      "employer_changed",
-      "needs_help",
-      "code_phrase_used",
-      "briefing_understood",
-      "notes",
-      "salary_amount",
-      "papers_problem"
-    ]
-  },
-  "key": "custom_task",
-  "value": {
-    "method": "POST",
-    "param": {
-      "case_id": "%(case_id)s",
-      "call_kind": "%(call_kind)s",
-      "pickup_status": "%(pickup_status)s",
-      "pickup_person": "%(pickup_person)s",
-      "current_location": "%(current_location)s",
-      "current_job": "%(current_job)s",
-      "current_city": "%(current_city)s",
-      "salary_received": "%(salary_received)s",
-      "months_unpaid": "%(months_unpaid)s",
-      "passport_with_worker": "%(passport_with_worker)s",
-      "food_ok": "%(food_ok)s",
-      "threatened": "%(threatened)s",
-      "movement_restricted": "%(movement_restricted)s",
-      "employer_changed": "%(employer_changed)s",
-      "needs_help": "%(needs_help)s",
-      "code_phrase_used": "%(code_phrase_used)s",
-      "briefing_understood": "%(briefing_understood)s",
-      "notes": "%(notes)s",
-      "salary_amount": "%(salary_amount)s",
-      "papers_problem": "%(papers_problem)s"
-    },
-    "url": "https://gulf-saathi-psi.vercel.app/tools/record-checkin",
-    "api_token": null,
-    "headers": {},
-    "pre_call_webhook_url": null,
-    "pre_call_webhook_param": null
-  }
-}
-```
-
-**Extractions tab → category `checkin`**: add two fields, Save.
-
-| Name | Extraction prompt | Answer type |
-|---|---|---|
-| `salary_amount` | How much salary did the worker say they got this month? Digits only. If not said, answer not_said. | Free text |
-| `papers_problem` | Did the worker say they came on a visit visa, their visa expired, they have no iqama, or an absconding case was filed? Answer in short English, or not_said. | Free text |

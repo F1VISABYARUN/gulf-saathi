@@ -10,7 +10,7 @@ from .dashboard import esc
 # The journey, one step per call. "live" = working on real calls; "testing" = built, being tested.
 STEPS = [
     ("Before paying", "డబ్బు ఇచ్చే ముందు",
-     "Is this agent in the government licensed list? Saathi checks the MEA eMigrate active list (8 Apr 2026) "
+     "Is this agent in the government licensed list? Saathi checks the MEA eMigrate active list (2,447 agents, 8 Apr 2026) "
      "by name, owner, district or licence number. Every payment is added up and compared with the legal limit: "
      "Rs 30,000 + 18% GST = Rs 35,400.", "live"),
     ("Before flying", "ప్రయాణానికి ముందు",
@@ -258,6 +258,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
     <li>This prototype runs on a Bolna trial account, which may only be able to call numbers verified in that account.</li>
     <li>Calls to Gulf numbers have not been tested yet.</li>
     <li>When Saathi answers, say "తెలుగు".</li>
+    <li>Calls are recorded so Saathi can help with your case. Agent phone numbers you mention are saved to warn other callers, as a count only, never with your name.</li>
   </ul>
 </div></section>
 """, "Gulf Saathi: a Telugu voice line that checks agents, fees, visas, and calls workers on arrival day and every week.")
