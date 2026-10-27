@@ -35,6 +35,49 @@ NUMBERS = [
 
 AI_PHOTO = "AI-generated illustration"
 
+# Outline icons for the repeat-agent flow (drawn, not photos).
+ICONS = {
+    "warning": '<path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5"/><path d="M12 18h.01"/>',
+    "phone": '<path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/>',
+    "shield": '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+}
+
+# Example only: made-up names and number. Wording follows what the live check says.
+SCAM_STEPS = [
+    ("warning", "bad", "Worker 1, Jagtial", 'He paid sub-agent "Gangadhar" Rs 90,000 on phone 98480 XXXXX. On arrival day a '
+     "stranger picks him up.", "CRITICAL"),
+    ("warning", "bad", "Worker 2, Nizamabad", "Same phone number. Visit visa, salary unpaid 2 months. The dashboard now "
+     'shows: "This number: seen in 2 cases, 2 at risk. Needs review."', "HIGH"),
+    ("phone", "", "Callers 3 and 4", "They check the number before paying. One was asked Rs 1.5 lakh (the legal limit is "
+     "Rs 35,400). The other was offered a visit visa for a job. Saathi saves both reports.", ""),
+    ("phone", "", "Caller 5", 'Gives the same number. Saathi says live, in Telugu: "This number has come up in 2 other '
+     "Saathi cases, and both workers reported serious problems. This is not proof against anyone, but please don't pay "
+     'more until a caseworker checks."', ""),
+    ("shield", "good", "Caller 5 does not pay", "The caseworker takes the pattern to the police cyber cell or files an "
+     "eMigrate complaint.", "DID NOT PAY"),
+]
+
+# (number, text, source label, link). Checked by the team against the sources.
+STATS = [
+    ("9.9 million", "Indians live in the six Gulf countries.", "MEA, Dec 2025",
+     "https://www.mea.gov.in/population-of-overseas-indians"),
+    ("Nearly 15 lakh", "of them are from Telangana.", "State NRI Advisory Committee, via UNI, Aug 2026",
+     "https://www.uniindia.com/telangana-nri-panel-studies-philippines-migration-policy-for-gulf-workers/south/news/3947967.html"),
+    ("72%", "of Telangana returnees borrowed money to migrate.", "IOM / CESS survey",
+     "https://publications.iom.int/books/international-returnee-migrants-telangana-survey"),
+    ("476", "complaints against illegal agents in Telangana, 2021–25, and 0 prosecution sanctions.",
+     "Lok Sabha USQ 2190, 31 Jul 2026", "https://sansad.in/getFile/lsapps/loksabhaquestions/annex/188/AU2190_NjP8nJ.pdf"),
+]
+
+PAYERS = [
+    ("State governments", "First customer",
+     "Telangana is drafting an NRI policy and a Gulf welfare board, and already pays Rs 5 lakh ex-gratia per Gulf death "
+     "(G.O. 205, 16 Sep 2024). Saathi gives the state a live, district-wise view and early warning. AP and Kerala are next."),
+    ("Licensed agents", "Opt-in",
+     "They pay to have their workers checked on weekly. Saathi reports how the workers are doing and never vouches for an agent."),
+    ("Partners", "Later", "Fair loans, insurance and remittances for verified, monitored workers."),
+]
+
 STYLE = """
 :root{--ink:#1d1a16;--muted:#5c544a;--line:#e6dccd;--bg:#f8f3ea;--card:#fffdf9;--sand:#efe2cc;--accent:#a8501c;--accent-ink:#fff;
 --deep:#1f2328;--alert:#b42318;--ok:#067647}
@@ -120,6 +163,29 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .video{max-width:960px;margin:0 auto}
 .video video{display:block;width:100%;aspect-ratio:16/9;background:#000;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
 .video p{text-align:center;margin:10px 0 0}
+.label{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--muted);border:1px dashed var(--muted);border-radius:6px;padding:2px 8px;margin:0 0 10px}
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;list-style:none;padding:0;margin:0;counter-reset:f}
+.flow li{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column}
+.flow li:not(:last-child):after{content:"→";position:absolute;right:-13px;top:22px;color:var(--muted);font-weight:800}
+.flow .top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.flow .n{counter-increment:f;width:26px;height:26px;border-radius:50%;background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none}
+.flow .n:before{content:counter(f)}
+.flow svg{width:24px;height:24px;color:var(--muted);flex:none}
+.flow li.bad{border-color:var(--alert)} .flow li.bad .n{background:var(--alert)} .flow li.bad svg{color:var(--alert)}
+.flow li.good{border-color:var(--ok)} .flow li.good svg{color:var(--ok)}
+.flow h3{margin:0;font-size:16px} .flow p{margin:0 0 12px;color:var(--muted);font-size:15px}
+.flow .lvl{margin-top:auto;align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:.04em;border-radius:6px;padding:3px 8px;color:#fff;background:var(--alert);white-space:nowrap}
+.flow li.good .lvl{background:var(--ok)}
+@media (max-width:900px){.flow{grid-template-columns:1fr}.flow li:not(:last-child):after{content:"↓";right:auto;left:22px;top:auto;bottom:-20px}}
+.never{background:var(--sand);border-radius:12px;padding:16px 18px;margin-top:20px}
+.never h3{margin:0 0 8px;font-size:17px} .never ul{margin:0;padding-left:18px} .never li{margin-bottom:6px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.stats .num b{font-size:clamp(28px,2.6vw,36px)}
+@media (max-width:900px){.stats{grid-template-columns:1fr 1fr}} @media (max-width:520px){.stats{grid-template-columns:1fr}}
+.pay{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px}
+@media (max-width:820px){.pay{grid-template-columns:1fr}}
+.pay article{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:12px;padding:16px}
+.pay h3{margin:0 0 2px;font-size:18px} .pay .k{font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--accent);text-transform:uppercase;margin-bottom:8px} .pay p{margin:0;color:var(--muted)}
 footer{padding:24px 0 40px;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
 """
 
@@ -145,6 +211,16 @@ def render_home(counts: dict, demo_calls_on: bool) -> str:
     label = {"live": "WORKING ON REAL CALLS", "testing": "BUILT, BEING TESTED"}
     steps = "".join(f'<li><h3>{esc(en)}</h3><div class="t">{esc(te)}</div><p>{esc(text)}</p>'
                     f'<span class="st {st}">{label[st]}</span></li>' for en, te, text, st in STEPS)
+    icon = lambda name: (f'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+                         f'stroke-linejoin="round" aria-hidden="true">{ICONS[name]}</svg>')
+    flow = "".join(f'<li class="{cls}"><div class="top"><span class="n"></span>{icon(ic)}<h3>{esc(title)}</h3></div>'
+                   f'<p>{esc(text)}</p>' + (f'<span class="lvl">{esc(lvl)}</span>' if lvl else "") + "</li>"
+                   for ic, cls, title, text, lvl in SCAM_STEPS)
+    stats = "".join(f'<div class="num"><b>{esc(n)}</b><p>{esc(text)}</p><div class="src">Source: '
+                    f'<a href="{esc(url)}" target="_blank" rel="noopener">{esc(src)}</a></div></div>'
+                    for n, text, src, url in STATS)
+    payers = "".join(f'<article><div class="k">{i}. {esc(k)}</div><h3>{esc(who)}</h3><p>{esc(text)}</p></article>'
+                     for i, (who, k, text) in enumerate(PAYERS, 1))
     numbers = "".join(f'<div class="num"><b>{esc(n)}</b><p>{esc(text)}</p><div class="src">Source: {esc(src)}</div></div>'
                       for n, text, src in NUMBERS)
     demo_note = (f'<p class="honest"><span class="tag">INCLUDES DEMO DATA</span> {esc(counts["demo"])} of these cases are made-up '
@@ -226,6 +302,21 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   Nothing is decided by the AI's opinion.</p>
 </div></section>
 
+<section id="repeat-agent"><div class="wrap">
+  <h2>How Saathi catches a repeat scam agent</h2>
+  <span class="label">Example. Made-up names and number.</span>
+  <p class="lede">Village sub-agents cheat family after family using the same phone number or UPI account. Each family
+  complains alone, so nobody sees the pattern. Saathi connects them, and warns the next family before they pay.</p>
+  <ol class="flow">{flow}</ol>
+  <div class="never"><h3>What Saathi never does</h3><ul>
+    <li>Matches phone numbers and payment accounts, never names. Two people named Gangadhar are not the same person.</li>
+    <li>Says only a count. Never other victims' names, and never calls anyone a criminal.</li>
+    <li>A link is a lead for review, not proof. Numbers are shared only with the police or in an eMigrate complaint, never published.</li>
+    <li>One person calling 10 times counts as one caller. Demo data never feeds real warnings.</li></ul></div>
+  <p class="honest" style="margin-top:12px">The number warning is proven on a real Bolna call. The full multi-caller flow is
+  tested in code, not yet with many real callers.</p>
+</div></section>
+
 <section id="who"><div class="wrap">
   <h2>Who it helps</h2>
   <div class="who">
@@ -239,6 +330,14 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
       <div class="in"><h3><span class="mini"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5h17l9 9v13"/><path d="M29 5v9h9"/><path d="M12 5v38h16"/><path d="M18 20h12M18 27h8"/><path d="M38 31l-7 3v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8v-5z"/><path d="M35 39.5l2.2 2.2 4-4.2"/></svg></span>Government</h3>
       <p>An evidence trail for police and TOMCOM, built one call at a time. A prototype, not a government service.</p></div></article>
   </div>
+</div></section>
+
+<section id="who-pays"><div class="wrap">
+  <h2>Why this matters, and who pays</h2>
+  <div class="stats">{stats}</div>
+  <span class="label" style="margin-top:28px">Proposed model, not yet in place.</span>
+  <div class="pay" style="margin-top:4px">{payers}</div>
+  <p class="lede" style="margin-top:18px">Same engine, any language, any route: India to the Gulf today; Nepal, Bangladesh and beyond next.</p>
 </div></section>
 
 <section id="numbers"><div class="wrap">

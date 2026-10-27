@@ -364,3 +364,13 @@ def test_agent_cases_that_failed_on_18_oct_calls(q, match, first):
     r = client.post("/check-agent", json=q).json()
     assert r["match"] == match
     assert (r["candidates"][0]["agency"] if r["candidates"] else None) == first
+
+
+def test_home_explains_the_repeat_agent_check_and_who_pays(mem):
+    page = client.get("/").text
+    assert page.index('id="how"') < page.index('id="repeat-agent"') < page.index('id="who-pays"') < page.index('id="numbers"')
+    assert "Example. Made-up names and number." in page and "98480 XXXXX" in page and "DID NOT PAY" in page
+    assert "Proposed model, not yet in place." in page
+    # every number in "why this matters, and who pays" links to its source, in a new tab
+    section = page[page.index('id="who-pays"'):page.index('id="numbers"')]
+    assert section.count('target="_blank" rel="noopener"') == 4
