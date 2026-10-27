@@ -171,6 +171,19 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .flow .lvl{align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:.04em;border-radius:6px;padding:3px 8px;color:#fff;background:var(--alert);white-space:nowrap}
 .flow li.good .lvl{background:var(--ok)}
 @media (max-width:900px){.flow .top{flex-direction:row;align-items:center}.flow h3{white-space:normal}.flow{grid-template-columns:1fr;gap:22px}.flow li:not(:last-child):after{content:"↓";right:auto;left:20px;top:auto;bottom:-22px}}
+.netbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:20px}
+.netbox h3{margin:0 0 4px;font-size:16px}
+.net{display:block;width:100%;height:auto;margin:8px 0}
+.net.tall{display:none;max-width:420px;margin:8px auto}
+@media (max-width:700px){.net.wide{display:none}.net.tall{display:block}}
+.net line{stroke:var(--muted);stroke-width:2;opacity:.6} .net line.go{stroke:var(--ok);stroke-width:3;stroke-dasharray:6 5;opacity:1}
+.net .node rect{fill:var(--bg);stroke:var(--line);stroke-width:2}
+.net text{text-anchor:middle;font-family:inherit} .net .t{font-size:17px;font-weight:700;fill:var(--ink)} .net .s{font-size:14px;fill:var(--muted)}
+.net .node.bad rect{stroke:var(--alert)} .net .node.bad .s{fill:var(--alert);font-weight:800}
+.net .node.id rect{fill:var(--sand)}
+.net .node.good rect{stroke:var(--ok)} .net .node.good .s{fill:var(--ok);font-weight:800}
+.net .hub circle{fill:#fde68a;stroke:#d97706;stroke-width:3} .net .hub .t{fill:#1d1a16;font-size:19px} .net .hub .s{fill:#5c4512;font-size:14px}
+.net.tall .node .t{font-size:14.5px} .net.tall .node .s{font-size:12.5px} .net.tall .hub .t{font-size:16px} .net.tall .hub .s{font-size:12.5px}
 .never{background:var(--sand);border-radius:12px;padding:16px 18px;margin-top:20px}
 .never h3{margin:0 0 8px;font-size:17px} .never ul{margin:0;padding-left:18px} .never li{margin-bottom:6px}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
@@ -183,6 +196,50 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .pay h3{margin:0 0 2px;font-size:18px} .pay .k{font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--accent);text-transform:uppercase;margin-bottom:8px} .pay p{margin:0;color:var(--muted)}
 footer{padding:24px 0 40px;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
 """
+
+
+def _node(x, y, w, title, sub, cls=""):
+    """A rounded box with a title and a short second line, for the case-network diagram."""
+    return (f'<g class="node {cls}"><rect x="{x}" y="{y}" width="{w}" height="64" rx="14"/>'
+            f'<text x="{x + w / 2}" y="{y + 27}" class="t">{esc(title)}</text>'
+            f'<text x="{x + w / 2}" y="{y + 49}" class="s">{esc(sub)}</text></g>')
+
+
+def _hub(cx, cy, r):
+    return (f'<g class="hub"><circle cx="{cx}" cy="{cy}" r="{r}"/>'
+            f'<text x="{cx}" y="{cy - 8}" class="t">Shared contact</text>'
+            f'<text x="{cx}" y="{cy + 18}" class="s">2 cases · 2 reports</text></g>')
+
+
+def network_svg() -> str:
+    """The made-up Gangadhar example as a network: who links to the shared number and
+    payment account. Wide layout for desktop, tall layout for phones."""
+    left = [("Worker 1 · Jagtial", "CRITICAL", "bad"), ("Worker 2 · Nizamabad", "HIGH", "bad"),
+            ("Callers 3 & 4", "reported the number", "")]
+    right = [("Phone number", "98480 XXXXX", "id"), ("Payment ID", "same UPI account", "id")]
+    out = "Caller 5", "warned before paying · DID NOT PAY", "good"
+    # Desktop: workers left, hub centre, identifiers right, caller 5 below.
+    hx, hy, r = 450, 185, 92
+    lines = "".join(f'<line x1="250" y1="{y + 32}" x2="{hx}" y2="{hy}"/>' for y in (30, 150, 270))
+    lines += "".join(f'<line x1="650" y1="{y + 32}" x2="{hx}" y2="{hy}"/>' for y in (70, 236))
+    lines += f'<line x1="{hx}" y1="{hy}" x2="{hx}" y2="340" class="go"/>'
+    nodes = "".join(_node(10, y, 240, *n) for y, n in zip((30, 150, 270), left))
+    nodes += "".join(_node(650, y, 240, *n) for y, n in zip((70, 236), right))
+    nodes += _node(300, 340, 300, *out)
+    wide = (f'<svg class="net wide" viewBox="0 0 900 414" role="img" aria-label="Case network: two workers in trouble '
+            f'and two callers link to one shared phone number and payment account; caller 5 is warned and does not pay">'
+            f'{lines}{_hub(hx, hy, r)}{nodes}</svg>')
+    # Phone: two workers on top, callers, hub, identifiers, caller 5.
+    hx, hy, r = 180, 290, 74
+    lines = "".join(f'<line x1="{x}" y1="{y}" x2="{hx}" y2="{hy}"/>' for x, y in ((90, 84), (270, 84), (180, 176)))
+    lines += "".join(f'<line x1="{x}" y1="420" x2="{hx}" y2="{hy}"/>' for x in (90, 270))
+    lines += f'<line x1="{hx}" y1="{hy}" x2="{hx}" y2="510" class="go"/>'
+    nodes = _node(5, 20, 170, *left[0]) + _node(185, 20, 170, *left[1]) + _node(70, 112, 220, *left[2])
+    nodes += _node(5, 420, 170, *right[0]) + _node(185, 420, 170, *right[1]) + _node(20, 510, 320, *out)
+    tall = (f'<svg class="net tall" viewBox="0 0 360 580" role="img" aria-label="Case network: two workers in trouble '
+            f'and two callers link to one shared phone number and payment account; caller 5 is warned and does not pay">'
+            f'{lines}{_hub(hx, hy, r)}{nodes}</svg>')
+    return wide + tall
 
 
 def _page(title: str, body: str, description: str = "") -> str:
@@ -297,6 +354,10 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <p class="lede">Village sub-agents cheat family after family using the same phone number or UPI account. Each family
   complains alone, so nobody sees the pattern. Saathi connects them, and warns the next family before they pay.</p>
   <ol class="flow">{flow}</ol>
+  <div class="netbox"><h3>The same example as a case network</h3>
+  {network_svg()}
+  <p class="src">Made-up example. A connection is a lead for investigation, not proof. Names are never matched, only
+  the phone number and the payment account.</p></div>
   <div class="never"><h3>What Saathi never does</h3><ul>
     <li>Matches phone numbers and payment accounts, never names. Two people named Gangadhar are not the same person.</li>
     <li>Says only a count. Never other victims' names, and never calls anyone a criminal.</li>

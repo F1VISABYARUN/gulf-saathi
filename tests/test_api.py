@@ -379,3 +379,10 @@ def test_home_explains_the_repeat_agent_check_and_who_pays(mem):
     section = page[page.index('id="who-pays"'):page.index('id="numbers"')]
     assert section.count('target="_blank" rel="noopener"') == 6  # four stat cards, the Oman line and its backup
     assert "Rajya Sabha Q. 2319, Mar 2026" in section
+
+
+def test_home_has_the_case_network_diagram(mem):
+    page = client.get("/").text
+    section = page[page.index('id="repeat-agent"'):page.index('id="who"')]
+    assert section.count('<svg class="net') == 2  # wide for desktop, tall for phones
+    assert "Shared contact" in section and "98480 XXXXX" in section and "not proof" in section
