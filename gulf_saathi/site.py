@@ -325,7 +325,8 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <h2>Why this matters, and who pays</h2>
   <div class="stats">{stats}</div>
   <p class="src" style="margin-top:12px">Also: 3,647 Indian women were sent home from Oman, 2021–25.
-  Source: MEA reply in the Rajya Sabha, Mar 2026.</p>
+  Source: <a href="https://www.mea.gov.in/rajya-sabha.htm?dtl/40875/QUESTION+NO+2319+INDIAN+WOMEN+RESCUED+AND+REPATRIATED"
+  target="_blank" rel="noopener">Rajya Sabha Q. 2319, Mar 2026</a></p>
   <span class="label big-label" style="margin-top:28px">Proposed model, not yet in place.</span>
   <div class="pay" style="margin-top:4px">{payers}</div>
   <p class="lede" style="margin-top:18px">Telugu today. Built so new languages and routes (Nepal, Bangladesh) can be added.</p>
