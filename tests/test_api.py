@@ -1,3 +1,4 @@
+import re
 from fastapi.testclient import TestClient
 
 from gulf_saathi.api import app
@@ -200,8 +201,9 @@ def test_home_page_is_public_and_shows_totals_only(mem):
     assert "3,647 Indian women were sent home from Oman" in page and 'id="why"' not in page  # old block gone, Oman kept
     assert "Rs " not in page and "₹35,400" in page and "Demo dashboard" in page
     assert "Secret Name" not in page and "9876543210" not in page
+    words = re.sub(r'href="[^"]*"', "", page).lower()  # source URLs are not our wording
     for banned in ("fraud", "genuine", "government-ready", "rescue", "safe", "trusted"):
-        assert banned not in page.lower()
+        assert banned not in words
     assert page.count("<img") == page.count('alt="')
 
 
