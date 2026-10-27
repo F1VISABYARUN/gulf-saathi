@@ -1011,6 +1011,41 @@ def has_predeparture_flags(w: dict) -> bool:
     return bool(promise.predeparture_checks(w))
 
 
+def team_phones() -> set[str]:
+    """The team's own phones (GS_TEAM_PHONES, comma separated): their test calls are not traction."""
+    out = set()
+    for raw in os.getenv("GS_TEAM_PHONES", "").split(","):
+        try:
+            if raw.strip():
+                out.add(normalize_phone(raw))
+        except CaseError:
+            pass
+    return out
+
+
+def call_counts(calls: list[dict], workers: list[dict], team: set[str]) -> dict:
+    """Answered calls on the live system, never demo cases. 'outside_team' is None
+    until the team's own phones are listed, so test calls never pass as real users."""
+    demo_ids = {w["id"] for w in workers if w.get("is_demo")}
+    phones = {w["id"]: w.get("worker_phone") for w in workers}
+    answered = outside = 0
+    callers = set()
+    for c in calls:
+        if not c.get("answered") or c.get("worker_id") in demo_ids:
+            continue
+        raw = c.get("raw") or {}
+        number = raw.get("user_number") or (raw.get("telephony_data") or {}).get("to_number") or phones.get(c.get("worker_id"))
+        try:
+            number = normalize_phone(number) if number else None
+        except CaseError:
+            number = None
+        answered += 1
+        if team and number and number not in team:
+            outside += 1
+            callers.add(number)
+    return {"answered": answered, "outside_team": outside if team else None, "outside_callers": len(callers) if team else None}
+
+
 def summary_counts(workers: list[dict], briefed: dict) -> dict:
     """The numbers a state office asks for first."""
     return {

@@ -42,6 +42,23 @@ STATS = [
      "Lok Sabha USQ 2190, 31 Jul 2026, Annex I", "https://sansad.in/getFile/lsapps/loksabhaquestions/annex/188/AU2190_NjP8nJ.pdf"),
 ]
 
+# Real Bolna test call 2d3958cc (21 Oct 2026), clip 00:30-01:02. Times are seconds into the clip.
+CALL_CLIP = [
+    (0.0, "Caller", "అక్కడ పోయిన తర్వాత నా పాస్‌పోర్ట్ పోయింది.", "After I went there, my passport was gone."),
+    (3.6, "Saathi", "అర్థమైంది. మీరు ఒంటరి కాదు. ఇప్పుడే మీ సమస్య నమోదు చేస్తున్నాను.",
+     "I understand. You are not alone. I'm registering your problem now."),
+    (8.2, "Caller", "ఇప్పుడు నేను ఇండియాకి రావాలంటే ఏం చేయాలి?", "What do I do to get back to India?"),
+    (15.9, "Saathi", "మీ కేసు అత్యవసరంగా నమోదు అయింది…", "Your case is registered as urgent…"),
+    (22.0, "Saathi", "మీ దగ్గర కనిపించే భవనం, షాప్, మసీదు లేదా రోడ్డు పేరు ఏమిటి? మీ కేసు నంబర్ జీ ఎస్, డబ్ల్యూ 9 హెచ్ డబ్ల్యూ ఎస్ వై.",
+     "What building, shop, mosque or road can you see? Your case number is G S, W 9 H W S Y."),
+]
+
+WEDGES = [
+    ("Now", "Telangana to the Gulf: check before paying, then calls on arrival day and every week."),
+    ("Next", "Every Indian worker going abroad: more states, routes and languages, same rules."),
+    ("Later", "A voice record of any promise someone can't read: jobs, loans, welfare schemes."),
+]
+
 PAYERS = [
     ("State governments", "First customer",
      "Telangana pays ₹5 lakh per Gulf death (G.O. 205). Saathi gives a live district view and early warning, before it "
@@ -139,6 +156,15 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .label{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--muted);border:1px dashed var(--muted);border-radius:6px;padding:2px 8px;margin:0 0 10px}
 .hear{max-width:560px;margin:4px 0 14px} .hl{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
 details.more{margin-top:22px}
+#why{padding:28px 0}
+.traction{margin:14px 0 0;font-size:16px}
+.player{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;max-width:820px}
+.player audio{width:100%;margin-bottom:10px}
+.caps{list-style:none;margin:0;padding:0}
+.caps li{display:grid;grid-template-columns:70px 1fr;gap:2px 12px;padding:8px 10px;border-radius:10px;cursor:pointer}
+.caps li b{grid-row:span 2;font-size:13px;color:var(--muted)} .caps .te{font-weight:700} .caps .en{font-size:14px;color:var(--muted)}
+.caps li.on{background:rgba(217,165,74,.16)}
+.wedges{margin:0;padding-left:18px} .wedges li{margin-bottom:6px}
 details.more>summary{display:inline-block;cursor:pointer;list-style:none;font-weight:700;color:var(--accent);
 border:2px solid var(--accent);border-radius:10px;padding:8px 14px}
 details.more>summary::-webkit-details-marker{display:none}
@@ -277,6 +303,17 @@ def render_home(counts: dict, demo_calls_on: bool) -> str:
     stats = "".join(f'<div class="num"><b>{esc(n)}</b><p>{esc(text)}</p><div class="src">Source: '
                     f'<a href="{esc(url)}" target="_blank" rel="noopener">{esc(src)}</a></div></div>'
                     for n, text, src, url in STATS)
+    clip = "".join(f'<li data-t="{t}"><b>{esc(who)}</b><span class="te" lang="te">{esc(te)}</span>'
+                   f'<span class="en">{esc(en)}</span></li>' for t, who, te, en in CALL_CLIP)
+    wedges = "".join(f'<li><b>{esc(k)}:</b> {esc(v)}</li>' for k, v in WEDGES)
+    calls = counts.get("calls") or {}
+    if calls.get("outside_team") is not None:
+        traction = (f'Live system: <b>{esc(calls["answered"])}</b> calls answered, <b>{esc(calls["outside_team"])}</b> '
+                    f'from {esc(calls["outside_callers"])} {"person" if calls["outside_callers"] == 1 else "people"} outside the team.')
+    elif calls:
+        traction = f'Live system: <b>{esc(calls.get("answered", 0))}</b> calls answered so far (includes the team\'s test calls).'
+    else:
+        traction = ""
     payers = "".join(f'<article><div class="k">{i}. {esc(k)}</div><h3>{esc(who)}</h3><p>{esc(text)}</p></article>'
                      for i, (who, k, text) in enumerate(PAYERS, 1))
     demo_note = (f'<p class="honest"><span class="tag">INCLUDES DEMO DATA</span> {esc(counts["demo"])} of these cases are made-up '
@@ -315,6 +352,16 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <span class="badge">Voice by Bolna · Telugu speech by Sarvam · Prototype</span>
 </div></div></header>
 
+<section id="why"><div class="wrap">
+  <div class="stats">{stats}</div>
+  <p class="src" style="margin-top:12px">Also: 3,647 Indian women were sent home from Oman, 2021–25.
+  Source: <a href="https://www.mea.gov.in/rajya-sabha.htm?dtl/40875/QUESTION+NO+2319+INDIAN+WOMEN+RESCUED+AND+REPATRIATED"
+  target="_blank" rel="noopener">Rajya Sabha Q. 2319, Mar 2026</a>
+  (also reported by <a href="https://timesofindia.indiatimes.com/city/chandigarh/over-10k-women-rescued-from-7-gulf-countries-in-5-yrs-rs-told/articleshow/129519566.cms"
+  target="_blank" rel="noopener">Times of India, 13 Mar 2026</a>)</p>
+  {f'<p class="traction">{traction}</p>' if traction else ''}
+</div></section>
+
 <section id="watch"><div class="wrap video">
   <h2>Watch the demo</h2>
   <video controls playsinline preload="metadata" poster="/gulf-saathi-poster.jpg">
@@ -323,6 +370,28 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   </video>
   <p class="honest">Prototype demo · demo data · real Bolna test calls</p>
 </div></section>
+
+<section id="hear"><div class="wrap">
+  <h2>Hear a real call</h2>
+  <p class="lede">A worker abroad says his passport was taken. Saathi registers it as urgent and reads out the case number.</p>
+  <div class="player"><audio id="callaudio" controls preload="metadata">
+    <source src="/gs_call_help_line.mp3" type="audio/mpeg" onerror="document.getElementById('hear').hidden=true"></audio>
+  <ol class="caps" id="caps">{clip}</ol></div>
+  <p class="src">Real Bolna call, 21 Oct 2026, from the team's test phone. Recorded before one line was softened: Saathi
+  now says a caseworker will act on it, not that the team is alerting the embassy.</p>
+</div></section>
+<script>
+(() => {{
+  const a = document.getElementById('callaudio'), items = [...document.querySelectorAll('#caps li')];
+  if (!a) return;
+  a.addEventListener('timeupdate', () => {{
+    let cur = null;
+    items.forEach(li => {{ if (a.currentTime >= +li.dataset.t) cur = li; }});
+    items.forEach(li => li.classList.toggle('on', li === cur));
+  }});
+  items.forEach(li => li.addEventListener('click', () => {{ a.currentTime = +li.dataset.t; a.play(); }}));
+}})();
+</script>
 
 <section id="story"><div class="wrap story">
   <figure style="margin:0"><img src="/gs_desert_goats.webp" alt="A worker alone in the desert with goats, looking at his phone" loading="lazy">
@@ -379,17 +448,13 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 </div></section>
 
 <section id="who-pays"><div class="wrap">
-  <h2>Why this matters, and who pays</h2>
-  <div class="stats">{stats}</div>
-  <p class="src" style="margin-top:12px">Also: 3,647 Indian women were sent home from Oman, 2021–25.
-  Source: <a href="https://www.mea.gov.in/rajya-sabha.htm?dtl/40875/QUESTION+NO+2319+INDIAN+WOMEN+RESCUED+AND+REPATRIATED"
-  target="_blank" rel="noopener">Rajya Sabha Q. 2319, Mar 2026</a>
-  (also reported by <a href="https://timesofindia.indiatimes.com/city/chandigarh/over-10k-women-rescued-from-7-gulf-countries-in-5-yrs-rs-told/articleshow/129519566.cms"
-  target="_blank" rel="noopener">Times of India, 13 Mar 2026</a>)</p>
-  <details class="more"><summary>Show who pays</summary>
-  <span class="label big-label" style="margin-top:16px">Proposed model, not yet in place.</span>
-  <div class="pay" style="margin-top:4px">{payers}</div>
-  <p class="lede" style="margin-top:18px">Telugu today. Built so new languages and routes (Nepal, Bangladesh) can be added.</p>
+  <h2>Who pays</h2>
+  <p class="lede">State governments first: Telangana already pays ₹5 lakh per Gulf death (G.O. 205). Saathi gives it a live
+  district view and early warning. <span class="label big-label" style="margin:0 0 0 6px">Proposed model, not yet in place.</span></p>
+  <details class="more"><summary>Show the model and what comes next</summary>
+  <div class="pay" style="margin-top:14px">{payers}</div>
+  <h3 style="margin:22px 0 8px;font-size:18px">Where it goes next <span class="label" style="margin:0 0 0 6px">Roadmap</span></h3>
+  <ul class="wedges">{wedges}</ul>
   </details>
 </div></section>
 

@@ -198,7 +198,7 @@ def test_home_page_is_public_and_shows_totals_only(mem):
     for img in ("gs_hero_airport.webp", "gs_desert_goats.webp", "gs_family_sms.webp", "gs_caseworker.webp", "gs_dashboard.webp"):
         assert f"/{img}" in page
     assert "Lok Sabha USQ 2190, 31 Jul 2026, Annex I" in page and "118 action-taken reports" in page
-    assert "3,647 Indian women were sent home from Oman" in page and 'id="why"' not in page  # old block gone, Oman kept
+    assert "3,647 Indian women were sent home from Oman" in page
     assert "Rs " not in page and "₹35,400" in page and "Demo dashboard" in page
     assert "Secret Name" not in page and "9876543210" not in page
     words = re.sub(r'href="[^"]*"', "", page).lower()  # source URLs are not our wording
@@ -374,11 +374,12 @@ def test_home_explains_the_repeat_agent_check_and_who_pays(mem):
     page = client.get("/").text
     assert page.index('id="how"') < page.index('id="repeat-agent"') < page.index('id="who-pays"') < page.index('id="numbers"')
     assert "Example. Made-up names and number." in page and "98480 XXXXX" in page and "DID NOT PAY" in page
-    assert "Proposed model, not yet in place." in page
-    # every number in "why this matters, and who pays" links to its source, in a new tab
-    section = page[page.index('id="who-pays"'):page.index('id="numbers"')]
-    assert section.count('target="_blank" rel="noopener"') == 6  # four stat cards, the Oman line and its backup
-    assert "Rajya Sabha Q. 2319, Mar 2026" in section
+    assert "Proposed model, not yet in place." in page and "Where it goes next" in page
+    # the numbers sit right under the hero, each linked to its source in a new tab
+    assert page.index("</header>") < page.index('id="why"') < page.index('id="watch"')
+    strip = page[page.index('id="why"'):page.index('id="watch"')]
+    assert strip.count('target="_blank" rel="noopener"') == 6  # four stat cards, the Oman line and its backup
+    assert "Rajya Sabha Q. 2319, Mar 2026" in strip
 
 
 def test_home_has_the_case_network_diagram(mem):
@@ -406,3 +407,20 @@ def test_architecture_diagram_shows_only_what_is_built(mem):
     for banned in ("safe", "blacklist", "syndicate", "fraud", "criminal", "genuine", "score",
                    "tomcom", "police", "embassy", "embassies"):
         assert banned not in arch.lower(), banned
+
+
+
+def test_real_call_player_and_honest_call_counter(mem, monkeypatch):
+    page = client.get("/").text
+    hear = page[page.index('id="hear"'):page.index('id="story"')]
+    assert 'src="/gs_call_help_line.mp3"' in hear and "hidden=true" in hear  # hidden until the file is added
+    assert "నా పాస్‌పోర్ట్ పోయింది" in hear and "my passport was gone" in hear and "before one line was softened" in hear
+    # Answered calls only, never demo cases; the team's own phones never count as outside callers.
+    w = mem.insert("workers", {"case_id": "GS-AAAAAA", "worker_name": "A", "worker_phone": "+919876543210", "is_demo": False})
+    d = mem.insert("workers", {"case_id": "GS-BBBBBB", "worker_name": "D", "worker_phone": "+919000000001", "is_demo": True})
+    for cid, wid, num, answered in (("c1", w["id"], "+919876543210", True), ("c2", w["id"], "+919123456780", True),
+                                   ("c3", w["id"], "+919123456780", False), ("c4", d["id"], "+919000000001", True)):
+        mem.upsert("calls", {"id": cid, "worker_id": wid, "answered": answered, "raw": {"user_number": num}})
+    assert "<b>2</b> calls answered so far (includes the team" in client.get("/").text
+    monkeypatch.setenv("GS_TEAM_PHONES", "98765 43210")
+    assert "<b>2</b> calls answered, <b>1</b> from 1 person outside the team" in client.get("/").text

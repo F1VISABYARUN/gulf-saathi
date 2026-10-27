@@ -95,7 +95,8 @@ def home():
     try:
         workers = STORE.select("workers", order="updated_at")
         counts = {**cases.summary_counts(workers, {}), "demo": sum(1 for w in workers if w.get("is_demo")),
-                  "signals": sum(1 for x in signals.repeated_signals(workers) if x["strong"])}
+                  "signals": sum(1 for x in signals.repeated_signals(workers) if x["strong"]),
+                  "calls": cases.call_counts(STORE.select("calls"), workers, cases.team_phones())}
     except StoreError:
         counts = {}
     return site.render_home(counts, demo_calls_on=bool(os.getenv("GS_DEMO_CODE", "").strip() and demo_agent_id()))
