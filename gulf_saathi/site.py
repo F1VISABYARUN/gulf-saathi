@@ -42,14 +42,19 @@ STATS = [
      "Lok Sabha USQ 2190, 31 Jul 2026, Annex I", "https://sansad.in/getFile/lsapps/loksabhaquestions/annex/188/AU2190_NjP8nJ.pdf"),
 ]
 
-# Real Bolna test call 2d3958cc (21 Oct 2026), clip 00:30-01:02. Times are seconds into the clip.
+# Real Bolna test call 2d3958cc (21 Oct 2026), clip 27.5-70.0 s of the recording. Times are seconds into the clip,
+# matched to the call's own log and the pauses in the audio. The clip stops before two script glitches later on.
 CALL_CLIP = [
-    (0.0, "Caller", "అక్కడ పోయిన తర్వాత నా పాస్‌పోర్ట్ పోయింది.", "After I went there, my passport was gone."),
-    (3.6, "Saathi", "అర్థమైంది. మీరు ఒంటరి కాదు. ఇప్పుడే మీ సమస్య నమోదు చేస్తున్నాను.",
-     "I understand. You are not alone. I'm registering your problem now."),
-    (8.2, "Caller", "ఇప్పుడు నేను ఇండియాకి రావాలంటే ఏం చేయాలి?", "What do I do to get back to India?"),
-    (15.9, "Saathi", "మీ కేసు అత్యవసరంగా నమోదు అయింది…", "Your case is registered as urgent…"),
-    (22.0, "Saathi", "మీ దగ్గర కనిపించే భవనం, షాప్, మసీదు లేదా రోడ్డు పేరు ఏమిటి? మీ కేసు నంబర్ జీ ఎస్, డబ్ల్యూ 9 హెచ్ డబ్ల్యూ ఎస్ వై.",
+    (0.2, "Caller", "అక్కడ పోయిన తర్వాత నా పాస్‌పోర్ట్ పోయింది.", "After I went there, my passport was gone."),
+    (5.5, "Caller", "…", "(talks about the sponsor who took him; partly unclear)"),
+    (8.3, "Caller", "ఇప్పుడు నేను ఇండియాకి రావాలంటే ఏం చేయాలి?", "What do I do to get back to India?"),
+    (12.2, "Saathi", "సరే, నోట్ చేస్తున్నాను.", "OK, I'm noting it down."),
+    (19.4, "Saathi", "మీరు ఒంటరి కాదు. మీ కేసు అత్యవసరంగా నమోదు అయింది; సాథి బృందం మీరు చెప్పిన విషయాలతో భారత రాయబార "
+     "కార్యాలయాన్ని అప్రమత్తం చేస్తోంది.", "You are not alone. Your case is registered as urgent; the Saathi team is "
+     "alerting the Indian Embassy with what you told us."),
+    (29.6, "Saathi", "వీలైతే ఇతరులు ఉన్న చోట ఉండండి, ఫోన్‌ను దాచుకుని ఛార్జ్‌లో ఉంచండి.",
+     "If you can, stay where other people are. Keep your phone hidden and charged."),
+    (35.0, "Saathi", "దగ్గర కనిపించే భవనం, షాప్, మసీదు లేదా రోడ్డు పేరు ఏమిటి? మీ కేసు నంబర్ జీ ఎస్, డబ్ల్యూ 9 హెచ్ డబ్ల్యూ ఎస్ వై.",
      "What building, shop, mosque or road can you see? Your case number is G S, W 9 H W S Y."),
 ]
 
@@ -307,7 +312,10 @@ def render_home(counts: dict, demo_calls_on: bool) -> str:
                    f'<span class="en">{esc(en)}</span></li>' for t, who, te, en in CALL_CLIP)
     wedges = "".join(f'<li><b>{esc(k)}:</b> {esc(v)}</li>' for k, v in WEDGES)
     calls = counts.get("calls") or {}
-    if calls.get("outside_team") is not None:
+    if calls.get("outside_team") == 0:
+        traction = (f'Live system: <b>{esc(calls["answered"])}</b> calls answered so far, all from the team\'s test phone. '
+                    "Calls from families start with the pilot.")
+    elif calls.get("outside_team") is not None:
         traction = (f'Live system: <b>{esc(calls["answered"])}</b> calls answered, <b>{esc(calls["outside_team"])}</b> '
                     f'from {esc(calls["outside_callers"])} {"person" if calls["outside_callers"] == 1 else "people"} outside the team.')
     elif calls:
@@ -373,12 +381,14 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 
 <section id="hear"><div class="wrap">
   <h2>Hear a real call</h2>
-  <p class="lede">A worker abroad says his passport was taken. Saathi registers it as urgent and reads out the case number.</p>
+  <p class="lede">A worker in Dubai says his passport is gone. Saathi notes it, registers the case as urgent and reads out
+  the case number. Tap a line to jump to it.</p>
   <div class="player"><audio id="callaudio" controls preload="metadata">
     <source src="/gs_call_help_line.mp3" type="audio/mpeg" onerror="document.getElementById('hear').hidden=true"></audio>
   <ol class="caps" id="caps">{clip}</ol></div>
-  <p class="src">Real Bolna call, 21 Oct 2026, from the team's test phone. Recorded before one line was softened: Saathi
-  now says a caseworker will act on it, not that the team is alerting the embassy.</p>
+  <p class="src">Real Bolna call, 21 Oct 2026; the caller is a team member on a test phone. 42 seconds from the middle of the
+  call. Recorded before one line was softened: Saathi now says a caseworker will act on it, not that the team is
+  alerting the embassy.</p>
 </div></section>
 <script>
 (() => {{

@@ -424,3 +424,17 @@ def test_real_call_player_and_honest_call_counter(mem, monkeypatch):
     assert "<b>2</b> calls answered so far (includes the team" in client.get("/").text
     monkeypatch.setenv("GS_TEAM_PHONES", "98765 43210")
     assert "<b>2</b> calls answered, <b>1</b> from 1 person outside the team" in client.get("/").text
+
+
+
+def test_counter_says_plainly_when_all_calls_are_the_teams(mem, monkeypatch):
+    w = mem.insert("workers", {"case_id": "GS-CCCCCC", "worker_name": "A", "worker_phone": "+919876543210", "is_demo": False})
+    mem.upsert("calls", {"id": "t1", "worker_id": w["id"], "answered": True, "raw": {"user_number": "+919876543210"}})
+    monkeypatch.setenv("GS_TEAM_PHONES", "+91 98765 43210")
+    assert "all from the team's test phone. Calls from families start with the pilot." in client.get("/").text.replace("&#x27;", "'")
+
+
+def test_call_clip_file_is_in_public():
+    from pathlib import Path
+    clip = Path(__file__).resolve().parents[1] / "public" / "gs_call_help_line.mp3"
+    assert clip.exists() and 100_000 < clip.stat().st_size < 1_000_000
