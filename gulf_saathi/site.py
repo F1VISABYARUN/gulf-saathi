@@ -171,18 +171,26 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .flow .lvl{align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:.04em;border-radius:6px;padding:3px 8px;color:#fff;background:var(--alert);white-space:nowrap}
 .flow li.good .lvl{background:var(--ok)}
 @media (max-width:900px){.flow .top{flex-direction:row;align-items:center}.flow h3{white-space:normal}.flow{grid-template-columns:1fr;gap:22px}.flow li:not(:last-child):after{content:"↓";right:auto;left:20px;top:auto;bottom:-22px}}
-.netbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin:0 0 22px}
-.net{display:block;width:100%;height:auto;max-height:300px;margin:4px 0}
-.net.tall{display:none;max-width:420px;max-height:none;margin:4px auto}
-@media (max-width:700px){.net.wide{display:none}.net.tall{display:block}}
-.net line{stroke:var(--muted);stroke-width:2;opacity:.6} .net line.go{stroke:var(--ok);stroke-width:3;stroke-dasharray:6 5;opacity:1}
-.net .node rect{fill:var(--bg);stroke:var(--line);stroke-width:2}
-.net text{text-anchor:middle;font-family:inherit} .net .t{font-size:16px;font-weight:700;fill:var(--ink)} .net .s{font-size:13px;fill:var(--muted)}
-.net .node.bad rect{stroke:var(--alert)} .net .node.bad .s{fill:var(--alert);font-weight:800}
-.net .node.id rect{fill:var(--sand)}
-.net .node.good rect{stroke:var(--ok);fill:#e7f6ec} .net .node.good .t{fill:#05603a}
-.net .hub circle{fill:#fff4dc;stroke:#d9a54a;stroke-width:3} .net .hub .t{fill:#3d2a06;font-size:15px}
-.net.tall .node .t{font-size:14px} .net.tall .node .s{font-size:12px} .net.tall .hub .t{font-size:13px}
+.netbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 22px}
+.cn{display:grid;grid-template-columns:1.15fr 36px 1fr 36px 1fr;align-items:center}
+.cn-in{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.cn-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);
+border-left:4px solid var(--muted);border-radius:10px;padding:8px 12px;font-size:14px}
+.cn-row span{font-size:12px;color:var(--muted);text-align:right}
+.cn-row.bad{border-left-color:var(--alert)} .cn-row.bad span{color:var(--alert);font-weight:800;letter-spacing:.04em}
+.cn-arrow{height:2px;background:var(--muted);position:relative;margin:0 6px;opacity:.7}
+.cn-arrow:after{content:"";position:absolute;right:-2px;top:-5px;border:6px solid transparent;border-right:0;border-left:8px solid var(--muted)}
+.cn-hub,.cn-out{border-radius:14px;padding:14px 16px;text-align:center}
+.cn-hub{border:2px solid #d9a54a;background:rgba(217,165,74,.12)}
+.cn-out{border:2px solid var(--ok);background:rgba(6,118,71,.08)}
+.cn .k{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.cn-hub .id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:15px;font-weight:700;margin:2px 0}
+.cn-hub .cnt{margin-top:8px;font-size:13px;color:var(--muted)}
+.cn-out b{display:block;font-size:15px;margin-bottom:8px}
+.cn-out .pill{display:inline-block;background:var(--ok);color:#fff;font-size:11px;font-weight:800;letter-spacing:.05em;border-radius:6px;padding:3px 8px}
+@media (max-width:820px){.cn{grid-template-columns:1fr;gap:0}
+.cn-arrow{width:2px;height:22px;margin:6px auto}
+.cn-arrow:after{right:-5px;top:auto;bottom:-2px;border:6px solid transparent;border-bottom:0;border-top:8px solid var(--muted)}}
 .arch{margin-top:28px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
 .arch h3{margin:0 0 12px;font-size:18px}
 .stages{display:grid;grid-template-columns:1fr 1fr 1.35fr .85fr 1.15fr .9fr;gap:26px;list-style:none;margin:0;padding:0}
@@ -218,46 +226,22 @@ footer{padding:24px 0 40px;color:var(--muted);font-size:14px;border-top:1px soli
 """
 
 
-def _node(x, y, w, title, sub="", cls=""):
-    """A rounded box for the case-network diagram: one line, or a title over a short second line."""
-    text = (f'<text x="{x + w / 2}" y="{y + 21}" class="t">{esc(title)}</text>'
-            f'<text x="{x + w / 2}" y="{y + 40}" class="s">{esc(sub)}</text>' if sub else
-            f'<text x="{x + w / 2}" y="{y + 31}" class="t">{esc(title)}</text>')
-    return f'<g class="node {cls}"><rect x="{x}" y="{y}" width="{w}" height="50" rx="12"/>{text}</g>'
-
-
-def _hub(cx, cy, r):
-    return f'<g class="hub"><circle cx="{cx}" cy="{cy}" r="{r}"/><text x="{cx}" y="{cy + 6}" class="t">Same number</text></g>'
-
-
-def network_svg() -> str:
-    """The made-up Gangadhar example as a network: cases linked only by an exact phone
-    number or payment account. Wide layout for desktop, tall layout for phones."""
-    left = [("Worker 1 · Jagtial", "CRITICAL", "bad"), ("Worker 2 · Nizamabad", "HIGH", "bad"), ("Callers 3 & 4", "", "")]
-    right = [("Phone 98480 XXXXX", "", "id"), ("UPI ****@ybl", "", "id")]
-    out = ("Caller 5 · warned before paying", "", "good")
-    label = ('Case network: worker 1, worker 2 and callers 3 and 4 link to the same phone number and UPI account; '
-             'caller 5 is warned before paying')
-    # Desktop (about 300px tall): workers left, circle centre, identifiers right, caller 5 below.
-    hx, hy, r = 450, 92, 66
-    lines = "".join(f'<line x1="250" y1="{y + 25}" x2="{hx}" y2="{hy}"/>' for y in (6, 67, 128))
-    lines += "".join(f'<line x1="650" y1="{y + 25}" x2="{hx}" y2="{hy}"/>' for y in (36, 98))
-    lines += f'<line x1="{hx}" y1="{hy}" x2="{hx}" y2="196" class="go"/>'
-    nodes = "".join(_node(10, y, 240, *n) for y, n in zip((6, 67, 128), left))
-    nodes += "".join(_node(650, y, 240, *n) for y, n in zip((36, 98), right))
-    nodes += _node(310, 196, 280, *out)
-    wide = (f'<svg class="net wide" viewBox="0 0 900 252" role="img" aria-label="{label}">'
-            f'{lines}{_hub(hx, hy, r)}{nodes}</svg>')
-    # Phone: workers, then the circle, then the identifiers, then caller 5.
-    hx, hy, r = 180, 168, 54
-    lines = "".join(f'<line x1="{x}" y1="{y}" x2="{hx}" y2="{hy}"/>' for x, y in ((90, 52), (270, 52), (180, 108)))
-    lines += "".join(f'<line x1="{x}" y1="236" x2="{hx}" y2="{hy}"/>' for x in (90, 270))
-    lines += f'<line x1="{hx}" y1="{hy}" x2="{hx}" y2="302" class="go"/>'
-    nodes = _node(4, 2, 172, *left[0]) + _node(184, 2, 172, *left[1]) + _node(90, 62, 180, *left[2])
-    nodes += _node(4, 236, 166, *right[0]) + _node(190, 236, 166, *right[1]) + _node(20, 302, 320, *out)
-    tall = (f'<svg class="net tall" viewBox="0 0 360 356" role="img" aria-label="{label}">'
-            f'{lines}{_hub(hx, hy, r)}{nodes}</svg>')
-    return wide + tall
+def case_network() -> str:
+    """The made-up Gangadhar example as a small network: reports on the left, the exact
+    number they share in the middle, the next caller on the right."""
+    rows = [("Worker 1 · Jagtial", "CRITICAL", "bad"), ("Worker 2 · Nizamabad", "HIGH", "bad"),
+            ("Callers 3 & 4", "₹1.5 lakh asked · visit visa offered", "")]
+    left = "".join(f'<li class="cn-row {cls}"><b>{esc(name)}</b><span>{esc(tag)}</span></li>' for name, tag, cls in rows)
+    return f"""<div class="cn">
+  <ul class="cn-in">{left}</ul>
+  <div class="cn-arrow" aria-hidden="true"></div>
+  <div class="cn-hub"><div class="k">Same number</div>
+    <div class="id">Phone 98480 XXXXX</div><div class="id">UPI ****@ybl</div>
+    <div class="cnt">2 cases · 2 reports</div></div>
+  <div class="cn-arrow" aria-hidden="true"></div>
+  <div class="cn-out"><div class="k">Next caller</div><b>Caller 5 · warned before paying</b>
+    <span class="pill">DID NOT PAY</span></div>
+</div>"""
 
 
 # What is built, stage by stage, left to right. Only what exists; the roadmap is separate.
@@ -412,8 +396,8 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <p class="lede">Village sub-agents cheat family after family using the same phone number or UPI account. Each family
   complains alone, so nobody sees the pattern. Saathi connects them, and warns the next family before they pay.</p>
   <span class="label">Example. Made-up names and number.</span>
-  <div class="netbox" id="case-network">{network_svg()}
-  <p class="src" style="margin:4px 0 0">Saathi links cases only by exact phone numbers or payment accounts. A link is a lead
+  <div class="netbox" id="case-network">{case_network()}
+  <p class="src" style="margin:12px 0 0">Saathi links cases only by exact phone numbers or payment accounts. A link is a lead
   for a caseworker to review, not proof against anyone.</p></div>
   <ol class="flow">{flow}</ol>
   <div class="never"><h3>What Saathi never does</h3><ul>

@@ -385,9 +385,9 @@ def test_home_has_the_case_network_diagram(mem):
     page = client.get("/").text
     section = page[page.index('id="repeat-agent"'):page.index('id="who"')]
     diagram = section[section.index('id="case-network"'):section.index('<ol class="flow">')]  # above the five cards
-    assert diagram.count('<svg class="net') == 2  # wide for desktop, tall for phones
+    assert 'class="cn"' in diagram
     for text in ("Same number", "Worker 1 · Jagtial", "CRITICAL", "Worker 2 · Nizamabad", "HIGH", "Callers 3 &amp; 4",
-                 "Phone 98480 XXXXX", "UPI ****@ybl", "Caller 5 · warned before paying",
+                 "Phone 98480 XXXXX", "UPI ****@ybl", "Caller 5 · warned before paying", "DID NOT PAY",
                  "links cases only by exact phone numbers or payment accounts"):
         assert text in diagram
     for banned in ("fraud", "safe", "criminal", "genuine", "employer", "agent name", "promise"):
