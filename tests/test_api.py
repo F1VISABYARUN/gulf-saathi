@@ -114,7 +114,7 @@ def test_health_shows_config_and_db(mem):
 
 def test_case_page_notices_edit_and_book_arrival(mem):
     r = client.post("/api/workers", auth=AUTH, json={
-        "worker_name": "MALLAIAH", "worker_phone": "9491750870", "family_phone": "9441808262",
+        "worker_name": "MALLAIAH", "worker_phone": "9000000011", "family_phone": "9000000012",
         "payments": "500000", "arrival_call_at": "2026-10-30T16:27"})
     case_id = r.json()["case_id"]
     page = client.get(f"/dashboard/case/{case_id}", auth=AUTH).text
@@ -129,27 +129,27 @@ def test_case_page_notices_edit_and_book_arrival(mem):
 
     # The edit page is the form, filled in.
     edit = client.get(f"/dashboard/case/{case_id}/edit", auth=AUTH).text
-    assert 'value="+919491750870"' in edit and 'value="500000"' in edit and 'value="2026-10-30T16:27"' in edit
+    assert 'value="+919000000011"' in edit and 'value="500000"' in edit and 'value="2026-10-30T16:27"' in edit
     assert "Save changes" in edit
 
     r = client.post(f"/api/cases/{case_id}", auth=AUTH, json={
-        "worker_name": "MALLAIAH", "worker_name_te": "మల్లయ్య", "worker_phone": "8341820870",
-        "family_phone": "9441808262", "payments": "500000", "arrival_call_at": "2026-10-30T16:27",
+        "worker_name": "MALLAIAH", "worker_name_te": "మల్లయ్య", "worker_phone": "9000000013",
+        "family_phone": "9000000012", "payments": "500000", "arrival_call_at": "2026-10-30T16:27",
         "code_phrase": "అమ్మ బాగుందా"})
     assert r.json() == {"case_id": case_id}
     page = client.get(f"/dashboard/case/{case_id}", auth=AUTH).text
-    assert "+918341820870" in page and "English name" not in page
+    assert "+919000000013" in page and "English name" not in page
 
     bad = client.post(f"/api/cases/{case_id}", auth=AUTH, json={
-        "worker_name": "M", "worker_phone": "8341820870", "family_phone": "9441808262", "code_phrase": "ANNA"})
+        "worker_name": "M", "worker_phone": "9000000013", "family_phone": "9000000012", "code_phrase": "ANNA"})
     assert bad.status_code == 400 and "too easy" in bad.json()["detail"]
     assert client.post(f"/api/cases/{case_id}", json={}).status_code == 401
     assert client.get("/dashboard/case/GS-NOPE/edit", auth=AUTH).status_code == 404
 
 
 def test_old_case_with_weak_code_phrase_shows_warning(mem):
-    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "M", "worker_phone": "9491750870",
-                                                      "family_phone": "9441808262"})
+    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "M", "worker_phone": "9000000011",
+                                                      "family_phone": "9000000012"})
     case_id = r.json()["case_id"]
     mem.update("workers", {"case_id": case_id}, {"code_phrase": "ANNA"})  # saved before the rule existed
     page = client.get(f"/dashboard/case/{case_id}", auth=AUTH).text
@@ -157,15 +157,15 @@ def test_old_case_with_weak_code_phrase_shows_warning(mem):
 
 
 def test_book_arrival_without_a_time(mem):
-    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "M", "worker_phone": "9491750870",
-                                                      "family_phone": "9441808262"})
+    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "M", "worker_phone": "9000000011",
+                                                      "family_phone": "9000000012"})
     r = client.post(f"/api/cases/{r.json()['case_id']}/book-arrival", auth=AUTH)
     assert r.status_code == 400 and "no arrival-day call time" in r.json()["detail"]
 
 
 def test_state_view_agents_page_and_briefing(mem):
-    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "M", "worker_phone": "9491750870",
-                                                      "family_phone": "9441808262", "agent_name": "<b>Fake</b> Overseas",
+    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "M", "worker_phone": "9000000011",
+                                                      "family_phone": "9000000012", "agent_name": "<b>Fake</b> Overseas",
                                                       "payments": "300000"})
     case_id = r.json()["case_id"]
     assert client.get("/dashboard/agents").status_code == 401
@@ -438,3 +438,19 @@ def test_call_clip_file_is_in_public():
     from pathlib import Path
     clip = Path(__file__).resolve().parents[1] / "public" / "gs_call_help_line.mp3"
     assert clip.exists() and 100_000 < clip.stat().st_size < 1_000_000
+
+
+def test_dashboard_district_filter_and_overdue_clock(mem):
+    from datetime import timedelta
+    from gulf_saathi import cases
+    for name, phone, district in (("Rajanna", "9000000021", "Jagtial"), ("Mallesh", "9000000022", "Nizamabad")):
+        client.post("/api/workers", auth=AUTH, json={"worker_name": name, "worker_phone": phone,
+                                                     "family_phone": "9000000020", "home_district": district})
+    page = client.get("/dashboard", params={"district": "Jagtial"}, auth=AUTH).text
+    assert "Rajanna" in page and "Mallesh" not in page and "All home districts" in page
+    w = mem.get("workers", worker_name="Rajanna")
+    mem.insert("escalations", {"worker_id": w["id"], "level": "critical", "reasons": [], "status": "open",
+                               "created_at": (api.now() - timedelta(days=9)).isoformat()})
+    assert "OVERDUE · Alert open 9 days · no caseworker action yet" in client.get("/dashboard", auth=AUTH).text
+    assert "OVERDUE" in client.get(f"/dashboard/case/{w['case_id']}", auth=AUTH).text
+    assert cases.case_clock(w, mem.select("escalations"), api.now())["overdue"]

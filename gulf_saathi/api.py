@@ -171,7 +171,8 @@ def health():
 NEW_WORKER_COLUMNS = ("visa_job", "visa_type", "sub_agent_name", "sub_agent_phone", "payment_to",
                       "welcome_sms", "welcome_sms_status", "source", "reported_by", "petition_status",
                       "petition_ref", "worker_gender", "death_note", "remains_status", "ex_gratia_status",
-                      "promise_words", "contract_before_payment", "promise_by", "promise_date", "call_consent")
+                      "promise_words", "contract_before_payment", "promise_by", "promise_date", "call_consent",
+                      "passport_type", "emigration_clearance", "pbby", "pbby_nominee", "home_district", "home_mandal")
 
 
 @app.get("/health/db")
@@ -343,10 +344,12 @@ def _worker_or_404(case_id: str) -> dict:
 
 
 @app.get("/dashboard", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
-def dashboard_list(q: str = ""):
+def dashboard_list(q: str = "", district: str = ""):
     workers = STORE.select("workers", order="updated_at")
     totals = cases.summary_counts(workers, cases.briefed_worker_ids(STORE))
-    return dashboard.render_list(workers, status(), totals, q[:100])
+    alerts = STORE.select("escalations", {"status": "open"})
+    clocks = {w["id"]: cases.case_clock(w, alerts, now()) for w in workers}
+    return dashboard.render_list(workers, status(), totals, q[:100], clocks, district[:60])
 
 
 @app.get("/dashboard/agents", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
@@ -365,7 +368,8 @@ def dashboard_new():
 def dashboard_case(case_id: str):
     w = _worker_or_404(case_id)
     sig = signals.signals_for_case(w, STORE.select("workers", order="updated_at"))
-    return dashboard.render_case(w, cases.timeline(STORE, w), status(), sig, cases.embassy_alert(STORE, w, now()))
+    clock = cases.case_clock(w, STORE.select("escalations", {"worker_id": w["id"], "status": "open"}), now())
+    return dashboard.render_case(w, cases.timeline(STORE, w), status(), sig, cases.embassy_alert(STORE, w, now()), clock)
 
 
 @app.get("/dashboard/case/{case_id}/edit", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
@@ -416,6 +420,7 @@ def dashboard_death(case_id: str):
 async def api_death(case_id: str, request: Request):
     """A caseworker records a death they heard about from the employer, embassy or a volunteer."""
     w = cases.report_death(STORE, _worker_or_404(case_id), await json_object(request), now())
+    cases.mark_action(STORE, w, now())
     return {"ok": True, "case_id": w["case_id"]}
 
 
@@ -473,9 +478,11 @@ async def api_call_now(case_id: str, request: Request):
     kind = body.get("kind", "weekly")
     if kind not in cases.CALL_KINDS:
         raise HTTPException(400, f"kind must be one of {cases.CALL_KINDS}")
-    res = cases.schedule_call(STORE, _worker_or_404(case_id), kind, None, now())
+    w = _worker_or_404(case_id)
+    res = cases.schedule_call(STORE, w, kind, None, now())
     if not res["ok"]:
         raise HTTPException(502, res["error"])
+    cases.mark_action(STORE, w, now())
     return res
 
 

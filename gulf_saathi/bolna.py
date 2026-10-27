@@ -1,8 +1,9 @@
 """Place outbound calls through Bolna's API.
 
-Request shape from Hark's notes on Bolna's docs (POST /call with agent_id,
-recipient_phone_number, optional scheduled_at and user_data). Not yet tried
-against the live API from this code: the result says what happened.
+POST /call with agent_id, recipient_phone_number, optional scheduled_at and
+user_data. Used on live calls from the dashboard ("Call now": arrival and weekly
+check-ins, Oct 2026). Seen so far: Bolna placed booked calls at once, so
+scheduled_at may be ignored; automatic repeat calls are therefore off by default.
 """
 from __future__ import annotations
 

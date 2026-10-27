@@ -382,11 +382,11 @@ def test_registration_rejects_a_weak_code_phrase(store, licensed, placed):
 
 def test_edit_corrects_details_and_keeps_the_case(store, licensed, placed):
     w = register(store, licensed)["worker"]
-    edited = cases.update_worker(store, licensed, w, {**YADAIAH, "worker_phone": "8341820870",
+    edited = cases.update_worker(store, licensed, w, {**YADAIAH, "worker_phone": "9000000013",
                                                       "agent_name": "Golconda Overseas", "agent_owner": "",
                                                       "payments": "20000"}, NOW + timedelta(hours=1))
     assert edited["case_id"] == w["case_id"] and edited["id"] == w["id"]
-    assert edited["worker_phone"] == "+918341820870"
+    assert edited["worker_phone"] == "+919000000013"
     assert edited["agent_check"] == "not_found" and edited["fee_status"] == "within_cap"  # checks re-run
     assert edited["status"] == "registered" and edited["risk_level"] == "ok"
     with pytest.raises(CaseError, match="too easy"):
@@ -934,3 +934,58 @@ def test_danger_words_are_critical_without_the_code_phrase(store, licensed, plac
     w = register(store, licensed)["worker"]
     out = record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly", "code_phrase_used": "no", **said}, NOW)
     assert out["risk_level"] == "critical"
+
+
+# --- emigration papers, routes, case clock (28 Oct) ---------------------------------------
+
+def test_ecr_worker_without_clearance_or_pbby_is_flagged(store, licensed, placed):
+    from gulf_saathi.promise import STOP_FLAGS, predeparture_checks
+    w = register(store, licensed, passport_type="ecr", emigration_clearance="no", pbby="no")["worker"]  # UAE
+    codes = {f["code"] for f in predeparture_checks(w)}
+    assert {"no_emigration_clearance", "no_pbby"} <= codes and "no_emigration_clearance" in STOP_FLAGS
+    # ECNR (passed 10th) needs neither: no false alarm for a legal worker.
+    ok = register(store, licensed, worker_phone="9876500002", passport_type="ecnr", emigration_clearance="no", pbby="no")["worker"]
+    assert not {"no_emigration_clearance", "no_pbby"} & {f["code"] for f in predeparture_checks(ok)}
+    # Unknown passport type: flagged, but the text says it depends on ECR.
+    unknown = register(store, licensed, worker_phone="9876500003", emigration_clearance="no")["worker"]
+    flag = next(f for f in predeparture_checks(unknown) if f["code"] == "no_emigration_clearance")
+    assert flag["text"].startswith("If the passport is ECR")
+    with pytest.raises(CaseError, match="passport type"):
+        register(store, licensed, worker_phone="9876500004", passport_type="blue")
+
+
+def test_routes_the_government_has_warned_about(store, licensed, placed):
+    from gulf_saathi.promise import predeparture_checks
+    for i, country in enumerate(("Russia", "Myanmar", "Cambodia", "Laos")):
+        w = register(store, licensed, worker_phone=f"900000003{i}", dest_country=country, dest_city="")["worker"]
+        assert "high_risk_route" in {f["code"] for f in predeparture_checks(w)}
+    assert "high_risk_route" not in {f["code"] for f in predeparture_checks(register(store, licensed, worker_phone="9876500009")["worker"])}
+
+
+def test_case_clock_turns_overdue_after_a_week_without_action(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly", "threatened": "yes"}, NOW)
+    alerts = store.select("escalations", {"status": "open"})
+    w = store.get("workers", id=w["id"])
+    assert cases.case_clock(w, alerts, NOW + timedelta(days=3)) == {"open_days": 3, "last_action_days": None, "overdue": False}
+    assert cases.case_clock(w, alerts, NOW + timedelta(days=8))["overdue"] is True
+    cases.update_petition(store, w, "submitted", "", NOW + timedelta(days=8))  # a caseworker acts
+    w = store.get("workers", id=w["id"])
+    clock = cases.case_clock(w, alerts, NOW + timedelta(days=10))
+    assert clock == {"open_days": 10, "last_action_days": 2, "overdue": False}
+    assert cases.case_clock(w, [], NOW) is None  # no open alert, no clock
+
+
+def test_family_hears_how_long_the_case_has_been_open(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly", "threatened": "yes"}, NOW)
+    out = cases.report_problem(store, {"caller_phone": "9123456780", "caller_relation": "wife"}, NOW + timedelta(days=12))
+    assert "open for 12 days" in out["instruction"] and "Do not promise a date" in out["instruction"]
+
+
+def test_home_district_from_the_help_line_and_the_form(store, licensed, placed, texts):
+    w = register(store, licensed, home_district="Jagtial", home_mandal="Korutla", pbby="yes", pbby_nominee="wife")["worker"]
+    packet = case_packet(store, w, NOW)
+    assert "Home: Korutla, Jagtial" in packet and "PBBY insurance: yes (nominee: wife)" in packet
+    out = cases.report_problem(store, {"caller_phone": "+971501110000", "needs_help": "yes", "home_district": "Nirmal"}, NOW)
+    assert store.get("workers", case_id=out["case_id"])["home_district"] == "Nirmal"

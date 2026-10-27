@@ -157,3 +157,12 @@ alter table workers add column if not exists promise_by text;              -- wh
 alter table workers add column if not exists promise_date text;            -- when, as told
 alter table workers add column if not exists call_consent text;            -- yes / no, asked at registration
 alter table workers add column if not exists consent_notice_at timestamptz; -- first call that said it is recorded
+
+-- Added 28 Oct 2026: emigration papers, the worker's home district, and the case clock.
+alter table workers add column if not exists passport_type text;         -- ecr / ecnr / unknown
+alter table workers add column if not exists emigration_clearance text;  -- yes / no
+alter table workers add column if not exists pbby text;                  -- yes / no (Pravasi Bharatiya Bima Yojana)
+alter table workers add column if not exists pbby_nominee text;
+alter table workers add column if not exists home_district text;
+alter table workers add column if not exists home_mandal text;
+alter table workers add column if not exists last_action_at timestamptz; -- last thing a caseworker did on the case

@@ -1,15 +1,17 @@
 # Paste into Bolna and Supabase (28 Oct 2026)
 
-Only two things this time. The welcome messages, the check-in agent, tools and extractions have
-NOT changed since the last paste: leave them.
+Two things. The welcome messages, the check-in agent, tools and extractions have NOT changed: leave them.
 
 ## 1. Supabase → SQL Editor → New query → paste → Run
 
 ```sql
-alter table workers add column if not exists promise_by text;
-alter table workers add column if not exists promise_date text;
-alter table workers add column if not exists call_consent text;
-alter table workers add column if not exists consent_notice_at timestamptz;
+alter table workers add column if not exists passport_type text;
+alter table workers add column if not exists emigration_clearance text;
+alter table workers add column if not exists pbby text;
+alter table workers add column if not exists pbby_nominee text;
+alter table workers add column if not exists home_district text;
+alter table workers add column if not exists home_mandal text;
+alter table workers add column if not exists last_action_at timestamptz;
 notify pgrst, 'reload schema';
 ```
 
@@ -73,6 +75,8 @@ Check only what they ask about. For each check: get the minimum, call the tool, 
   not_found: "ఈ పేరు ప్రభుత్వ లైసెన్స్ జాబితాలో దొరకలేదు. డబ్బు ఇచ్చే ముందు లైసెన్స్ నంబర్ అడగండి."
 - FEE: ask "మొత్తం ఎంత అడిగారు లేదా ఇచ్చారు?" then call check_fee. over_cap: say the total and how much extra (over_by_spoken), illegal. within_cap: within the limit, pay only digitally with a receipt. Never add numbers yourself. If they mention 20,000: "కొన్ని పాత ప్రభుత్వ పేజీల్లో ఇంకా 20,000 అని ఉంది. ఇప్పటి పరిమితి 30,000 ప్లస్ GST."
 - VISA: visit or tourist visa for a job: warn clearly, no legal protection.
+- RUSSIA, UKRAINE, MYANMAR, CAMBODIA, LAOS: if the job is in one of these, warn calmly, once: the Indian government has warned about fake jobs there (Russian army "helper" jobs, scam call-centre jobs). Do not pay or go before a Saathi caseworker checks it.
+- PAPERS: if they are going soon, ask once: "eMigrate లో ఎమిగ్రేషన్ క్లియరెన్స్ వచ్చిందా? PBBY ఇన్సూరెన్స్ తీసుకున్నారా?" If they did not pass 10th (ECR passport) and the answer is no: "క్లియరెన్స్, ఇన్సూరెన్స్ లేకుండా వెళ్లకండి. PBBY 275 రూపాయలకే 10 లక్షల ప్రమాద బీమా ఇస్తుంది."
 - CONTRACT: if they have paid or are about to pay, ask once: "డబ్బు ఇచ్చే ముందు పూర్తి ఒప్పందం కాగితం మీకు ఇచ్చారా?" If no: "ఒప్పందం పూర్తిగా చూపించే వరకు ఇంకా డబ్బు ఇవ్వకండి."
 - A WOMAN GOING FOR HOUSEWORK (పనిమనిషి, ఇంటి పని): say calmly, once: on a visit or tourist visa this is the most dangerous route, do not go. With an ECR passport she must be at least 30, and only a state government recruiting agency can send her, never a private agent.
 - AGENT'S PHONE OR PAYMENT ACCOUNT: if they mention the agent's phone number, or the UPI ID / account they are asked to pay, first read it back digit by digit ("9 8 4 8 0 1 2 3 4 5, సరేనా?"). Once they say yes, call check_contact with it, plus the amount, visa type, agent name and district if they said them, and caller_phone = user_number. Say its instruction. If they don't know the number, don't push.
@@ -89,5 +93,5 @@ NEVER
 - Never ask whether they are there illegally. If they mention a visa, iqama or absconding problem, just record it.
 ```
 
-What changed in the prompt: a CONTRACT line in section B ("did they give you the full contract
-before you paid?"), and the NEVER list now also bans "ఓకే అని చెప్పవచ్చు" and "బాగుంది".
+What changed in the prompt (section B): a RUSSIA / UKRAINE / MYANMAR / CAMBODIA / LAOS warning, and a PAPERS
+question about eMigrate clearance and PBBY insurance.

@@ -375,6 +375,10 @@ def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
         raise CaseError(f"age must be a number of years: {data.get('worker_age')}")
     sub_agent_phone = normalize_phone(data.get("sub_agent_phone")) if data.get("sub_agent_phone") else None
     contract_first = yes_no(data.get("contract_before_payment"))
+    passport_type = (_text(data, "passport_type", 10) or "").lower() or None
+    if passport_type and passport_type not in promise.PASSPORT_TYPES:
+        raise CaseError(f"passport type must be one of {', '.join(promise.PASSPORT_TYPES)}: {passport_type}")
+    yes_no_text = lambda k: {True: "yes", False: "no"}.get(yes_no(data.get(k)))
     code_phrase = _text(data, "code_phrase") or DEFAULT_CODE_PHRASE
     if not code_phrase_ok(code_phrase):
         raise CaseError(f'danger code phrase "{code_phrase}" is too easy to say by accident. {CODE_PHRASE_HELP}')
@@ -397,6 +401,9 @@ def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
         "promise_by": _text(data, "promise_by"), "promise_words": _text(data, "promise_words", 1000),
         "promise_date": _text(data, "promise_date", 40),
         "call_consent": {True: "yes", False: "no"}.get(yes_no(data.get("call_consent"))),
+        "passport_type": passport_type, "emigration_clearance": yes_no_text("emigration_clearance"),
+        "pbby": yes_no_text("pbby"), "pbby_nominee": _text(data, "pbby_nominee"),
+        "home_district": _text(data, "home_district", 60), "home_mandal": _text(data, "home_mandal", 60),
         "contract_before_payment": {True: "yes", False: "no"}.get(contract_first),
         "payments": fee["payments"], "amount_paid_total": fee["total"], "fee_status": fee["status"],
         "departure_date": departure, "flight_no": _text(data, "flight_no", 20),
@@ -445,7 +452,7 @@ def update_worker(store, licensed: LicensedList, worker: dict, data: dict, now: 
     """Correct a case's details. The case ID, status, risk and timeline stay as they are.
     Does not book or move calls: the case page offers that."""
     fields = clean_case_fields(data, licensed)
-    changes = {**fields, "updated_at": iso(now)}
+    changes = {**fields, "updated_at": iso(now), "last_action_at": iso(now)}
     if not _other_booked_call(store, worker["id"], "", now):
         # Clears a "next call" time saved when booking had actually failed.
         changes["next_call_at"] = None
@@ -798,6 +805,9 @@ def report_problem(store, data: dict, now: datetime) -> dict:
         status = petition_line(store.get("workers", id=worker["id"]))
         if status and not opened:
             out["instruction"] += " " + status
+        age = case_age_line(store, store.get("workers", id=worker["id"]), now) if not opened else ""
+        if age:
+            out["instruction"] += " " + age
     return {**out, "case_id": worker["case_id"], "new_case": opened}
 
 
@@ -831,7 +841,8 @@ def petition_line(worker: dict) -> str:
 def update_petition(store, worker: dict, status: str, ref: str, now: datetime) -> dict:
     if status not in PETITION_STATUSES:
         raise CaseError(f"status must be one of {', '.join(PETITION_STATUSES)}")
-    changes = {"petition_status": status, "petition_ref": (ref or "").strip()[:100] or None, "updated_at": iso(now)}
+    changes = {"petition_status": status, "petition_ref": (ref or "").strip()[:100] or None, "updated_at": iso(now),
+               "last_action_at": iso(now)}
     if status == "submitted" and not worker.get("petition_submitted_at"):
         changes["petition_submitted_at"] = iso(now)
     store.update("workers", {"id": worker["id"]}, changes)
@@ -892,7 +903,7 @@ def clear_death(store, worker: dict, now: datetime) -> dict:
             f"{worker.get('death_note') or ''}").strip()[:2000]
     store.update("workers", {"id": worker["id"]}, {
         "death_reported_at": None, "death_note": None, "remains_status": None, "ex_gratia_status": None,
-        "status": "abroad", "notes": note, "updated_at": iso(now)})
+        "status": "abroad", "notes": note, "updated_at": iso(now), "last_action_at": iso(now)})
     return store.get("workers", id=worker["id"])
 
 
@@ -902,7 +913,7 @@ def update_death_status(store, worker: dict, remains: str, ex_gratia: str, now: 
     if ex_gratia not in EX_GRATIA_STATUSES:
         raise CaseError(f"ex-gratia status must be one of {', '.join(EX_GRATIA_STATUSES)}")
     store.update("workers", {"id": worker["id"]}, {"remains_status": remains, "ex_gratia_status": ex_gratia,
-                                                   "updated_at": iso(now)})
+                                                   "updated_at": iso(now), "last_action_at": iso(now)})
     return store.get("workers", id=worker["id"])
 
 
@@ -944,6 +955,8 @@ def _save_trace(store, worker: dict, data: dict, now: datetime) -> None:
             pass
     if a["current_city"] and not worker.get("dest_city"):
         changes["dest_city"] = a["current_city"][:200]
+    if a["home_district"] and not worker.get("home_district"):
+        changes["home_district"] = a["home_district"][:60]
     extra = [f"{label}: {a[k]}" for k, label in (("home_district", "Home"), ("landmark", "Near"))
              if a[k] and f"{label}: {a[k]}" not in (worker.get("notes") or "")]
     if extra:
@@ -1046,6 +1059,38 @@ def call_counts(calls: list[dict], workers: list[dict], team: set[str]) -> dict:
     return {"answered": answered, "outside_team": outside if team else None, "outside_callers": len(callers) if team else None}
 
 
+CLOCK_DAYS = 7  # an open alert with no caseworker action for this long is overdue
+
+
+def mark_action(store, worker: dict, now: datetime) -> None:
+    """A caseworker did something on this case (placed a call, recorded a death...)."""
+    store.update("workers", {"id": worker["id"]}, {"last_action_at": iso(now)})
+
+
+def case_clock(worker: dict, open_alerts: list[dict], now: datetime) -> dict | None:
+    """How long the oldest open alert has waited, and when a caseworker last acted. The
+    "48 days, no update" problem: nobody should be forgotten after the alert."""
+    started = [parse_ts(e["created_at"]) for e in open_alerts if e.get("worker_id") == worker["id"]]
+    started = [t for t in started if t]
+    if not started:
+        return None
+    open_days = (now - min(started)).days
+    last = parse_ts(worker.get("last_action_at"))
+    last = last if last and last >= min(started) else None  # actions before the alert don't count
+    last_days = (now - last).days if last else None
+    overdue = (last_days if last_days is not None else open_days) >= CLOCK_DAYS
+    return {"open_days": open_days, "last_action_days": last_days, "overdue": overdue}
+
+
+def case_age_line(store, worker: dict, now: datetime) -> str:
+    """What the voice agent tells a family calling again about an open case."""
+    clock = case_clock(worker, store.select("escalations", {"worker_id": worker["id"], "status": "open"}), now)
+    if not clock or clock["open_days"] < 1:
+        return ""
+    return (f"Also tell them gently: their case has been open for {clock['open_days']} days and is still being worked "
+            "on. Do not promise a date.")
+
+
 def summary_counts(workers: list[dict], briefed: dict) -> dict:
     """The numbers a state office asks for first."""
     return {
@@ -1099,7 +1144,8 @@ def resolve_escalation(store, escalation_id: str, now: datetime) -> dict | None:
     w = store.get("workers", id=rows[0]["worker_id"])
     latest = store.select("checkins", {"worker_id": w["id"]}, limit=1)
     level = latest[0]["risk_level"] if latest else "ok"
-    store.update("workers", {"id": w["id"]}, {"risk_level": overall_level(store, w["id"], level), "updated_at": iso(now)})
+    store.update("workers", {"id": w["id"]}, {"risk_level": overall_level(store, w["id"], level), "updated_at": iso(now),
+                                              "last_action_at": iso(now)})
     return rows[0]
 
 
@@ -1265,8 +1311,9 @@ def death_packet(store, worker: dict, now: datetime) -> dict:
         "Unpaid salary and end-of-service money: ask the embassy to claim them from the employer for the family.",
         "Tell the family: \"No one should ask you for money to bring the body home. If someone asks, tell the "
         "caseworker.\" (People have posed as helpers and demanded large sums.)",
-        "If the death was an accident and the worker had Pravasi Bharatiya Bima Yojana insurance (compulsory for ECR "
-        "emigrants), claim it through the insurer. Check the current amount and rules.",
+        "If the death was an accident: Pravasi Bharatiya Bima Yojana (PBBY, compulsory for ECR workers going to ECR "
+        "countries) pays Rs 10 lakh for accidental death. Claim it through the insurer. PBBY on this case: "
+        f"{v(w.get('pbby'), 'not recorded')}; nominee: {v(w.get('pbby_nominee'), 'not recorded')}.",
     ]
     if eg is not False:
         steps.append("Telangana ex-gratia: G.O. 205 (16 Sep 2024) sanctioned the Rs 5 lakh ex-gratia; G.O. 216 (7 Oct 2024) gave the guidelines. Deaths on or after 7 Dec 2023, any cause, in 7 Gulf countries "
@@ -1408,6 +1455,9 @@ def case_packet(store, worker: dict, now: datetime) -> str:
         f"  Phone: {w['worker_phone']}",
         f"  Status: {w['status']}",
         f"  Last contact: {fmt_ist(w.get('last_contact_at'))}   Missed check-ins in a row: {w.get('missed_checkins', 0)}",
+        f"  Home: {v(', '.join(x for x in [w.get('home_mandal'), w.get('home_district')] if x))}",
+        f"  Passport type: {v((w.get('passport_type') or '').upper())}   Emigration clearance: "
+        f"{v(w.get('emigration_clearance'))}   PBBY insurance: {v(w.get('pbby'))} (nominee: {v(w.get('pbby_nominee'))})",
         "",
         "2. FAMILY CONTACT",
         f"  {v(w.get('family_name'))} ({v(w.get('family_relation'))}), {w.get('family_phone')}",

@@ -34,6 +34,26 @@ JOB_CATEGORIES = {
 }
 
 VISA_TYPES = ("employment", "visit", "tourist", "unknown")
+PASSPORT_TYPES = ("ecr", "ecnr", "unknown")
+
+# The 18 Emigration Check Required countries (MEA). ECR passport holders going to work in
+# them need emigration clearance on eMigrate and PBBY insurance.
+ECR_COUNTRIES = ("afghanistan", "bahrain", "indonesia", "iraq", "jordan", "kuwait", "lebanon", "libya", "malaysia",
+                 "oman", "qatar", "saudi", "ksa", "sudan", "syria", "thailand", "uae", "emirates", "dubai", "abu dhabi",
+                 "sharjah", "yemen", "riyadh", "jeddah", "dammam", "muscat", "doha", "manama")
+# Routes MEA or Indian embassies have warned about: Russian army "helper" jobs (Sept 2026), scam
+# call-centre jobs in Myanmar, Cambodia and Laos (2022-24).
+HIGH_RISK_ROUTES = ("russia", "ukraine", "myanmar", "cambodia", "laos")
+
+
+def _where(w: dict) -> str:
+    return f"{w.get('dest_country') or ''} {w.get('dest_city') or ''}".lower()
+
+
+def ecr_route(w: dict) -> bool | None:
+    """Going to an ECR country? None if the destination is not recorded."""
+    where = _where(w).strip()
+    return any(c in where for c in ECR_COUNTRIES) if where else None
 
 
 def job_categories(text: str | None) -> set[str]:
@@ -91,6 +111,21 @@ def predeparture_checks(w: dict) -> list[dict]:
     if w.get("visa_type") in ("visit", "tourist"):
         flags.append({"code": "visit_visa",
                       "text": f"The visa on the papers is a {w['visa_type']} visa, not an employment visa"})
+    if any(r in _where(w) for r in HIGH_RISK_ROUTES):
+        flags.append({"code": "high_risk_route",
+                      "text": "A route the Indian government has warned about: Russian army 'helper' jobs, or scam "
+                              "call-centre jobs in Myanmar, Cambodia or Laos"})
+    # Workers who passed 10th have an ECNR passport and need neither clearance nor PBBY.
+    if w.get("passport_type") != "ecnr" and ecr_route(w) is not False:
+        maybe = "" if w.get("passport_type") == "ecr" else "If the passport is ECR: "
+        if w.get("emigration_clearance") == "no":
+            flags.append({"code": "no_emigration_clearance",
+                          "text": maybe + "no emigration clearance on eMigrate for a job in an ECR country: likely an "
+                                          "illegal route"})
+        if w.get("pbby") == "no":
+            flags.append({"code": "no_pbby",
+                          "text": maybe + "no PBBY insurance (compulsory for ECR workers: Rs 10 lakh cover for accidental "
+                                          "death or disability, premium Rs 275 for 2 years)"})
     if w.get("contract_before_payment") == "no":
         flags.append({"code": "no_contract_before_paying",
                       "text": "Payment taken before contract shown"})
@@ -101,7 +136,7 @@ def predeparture_checks(w: dict) -> list[dict]:
 
 
 # Flags serious enough that the worker should not pay more or fly until they are resolved.
-STOP_FLAGS = {"visit_visa", "visa_job_mismatch", "domestic_visit_visa"}
+STOP_FLAGS = {"visit_visa", "visa_job_mismatch", "domestic_visit_visa", "high_risk_route", "no_emigration_clearance"}
 
 
 def promise_rows(w: dict, latest_answers: dict) -> list[dict]:

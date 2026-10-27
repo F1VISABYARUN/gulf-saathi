@@ -10,7 +10,7 @@ from html import escape
 from .cases import (CODE_PHRASE_HELP, promise_said, EX_GRATIA_STATUSES, GENDERS, IST, REMAINS_STATUSES, code_phrase_ok, fmt_ist,
                     parse_ts, reason_text)
 from .fees import fmt_rupees
-from .promise import STOP_FLAGS, VISA_TYPES, predeparture_checks, promise_rows
+from .promise import PASSPORT_TYPES, STOP_FLAGS, VISA_TYPES, predeparture_checks, promise_rows
 
 BADGE = {"critical": "#b42318", "high": "#c4320a", "medium": "#a15c07", "ok": "#067647"}
 PICKUP = {"employer": "Registered employer", "other_person": "Someone else", "nobody": "Nobody came",
@@ -181,20 +181,40 @@ def search_workers(workers: list[dict], q: str) -> list[dict]:
     return out
 
 
-def render_list(workers: list[dict], status: dict, totals: dict | None = None, q: str = "") -> str:
+def clock_badge(clock: dict | None) -> str:
+    """'Alert open 12 days · last action 9 days ago', red when nobody has acted for a week."""
+    if not clock:
+        return ""
+    last = ("no caseworker action yet" if clock["last_action_days"] is None else
+            f"last action {clock['last_action_days']} days ago")
+    style = "background:#b42318;color:#fff" if clock["overdue"] else "background:#f2f4f7;color:#344054"
+    return (f'<div class="clock" style="{style};display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;'
+            f'font-weight:700;margin-top:4px">{"OVERDUE · " if clock["overdue"] else ""}Alert open {clock["open_days"]} '
+            f'days · {esc(last)}</div>')
+
+
+def render_list(workers: list[dict], status: dict, totals: dict | None = None, q: str = "",
+                clocks: dict | None = None, district: str = "") -> str:
+    clocks = clocks or {}
+    districts = sorted({" ".join(w["home_district"].split()).title() for w in workers if w.get("home_district")})
     shown = search_workers(workers, q)
+    if district:
+        shown = [w for w in shown if " ".join((w.get("home_district") or "").split()).title() == district]
+    pick = "".join(f'<option value="{esc(d)}"{" selected" if d == district else ""}>{esc(d)}</option>' for d in districts)
     search = f"""<form method="get" action="/dashboard" class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
 <input name="q" value="{esc(q)}" placeholder="Find a case: name, phone, employer, sponsor, city" style="flex:1;min-width:220px">
-<button class="btn" type="submit">Find</button>{' <a href="/dashboard">Show all</a>' if q else ''}
+<select name="district" style="width:auto;min-width:160px"><option value="">All home districts</option>{pick}</select>
+<button class="btn" type="submit">Find</button>{' <a href="/dashboard">Show all</a>' if q or district else ''}
 <span class="muted" style="font-size:13px;flex-basis:100%">For the embassy or a volunteer asking whose family a worker is.</span></form>"""
     workers_all, workers = workers, shown
     rows = []
     order = {"critical": 0, "high": 1, "medium": 2, "ok": 3}
     # Most serious first; within a level, most recently updated first.
     by_recent = sorted(workers, key=lambda w: w.get("updated_at") or "", reverse=True)
-    for w in sorted(by_recent, key=lambda w: order.get(w.get("risk_level"), 3)):
+    # Most serious first; overdue cases (alert open, nobody acting) first within a level.
+    for w in sorted(by_recent, key=lambda w: (order.get(w.get("risk_level"), 3), not (clocks.get(w["id"]) or {}).get("overdue"))):
         rows.append(f"""<tr>
-<td>{case_badge(w)}</td>
+<td>{case_badge(w)}{clock_badge(clocks.get(w["id"]))}</td>
 <td class="nowrap"><a href="/dashboard/case/{esc(w['case_id'])}"><b>{esc(w['case_id'])}</b></a></td>
 <td>{esc(w['worker_name'])}{demo_tag(w)}<div class="muted">{esc(w.get('worker_phone'))}</div>{''.join(f'<div class="flag">{esc(f)}</div>' for f in predeparture_flags(w))}</td>
 <td>{esc(w.get('dest_city'))}{', ' if w.get('dest_city') and w.get('dest_country') else ''}{esc(w.get('dest_country'))}</td>
@@ -280,7 +300,8 @@ def status_line(status: dict) -> str:
 FIELDS = [
     ("Worker", [("worker_name", "Name (English) *", "Yadaiah"), ("worker_name_te", "Name in Telugu (for the family SMS)", "యాదయ్య"),
                 ("worker_phone", "Worker phone *", "98765 43210"), ("code_phrase", "Danger code phrase", "అమ్మ బాగుందా"),
-                ("worker_gender", "Woman or man", ""), ("worker_age", "Age", "34")]),
+                ("worker_gender", "Woman or man", ""), ("worker_age", "Age", "34"),
+                ("home_district", "Home district", "Jagtial"), ("home_mandal", "Home mandal", "Korutla")]),
     ("Family", [("family_name", "Family member name", "Lakshmi"), ("family_relation", "Relation", "wife"),
                 ("family_phone", "Family phone *", "91234 56780")]),
     ("Employer and sponsor", [("employer_name", "Employer / company", "Al Noor Cleaning LLC"),
@@ -303,6 +324,9 @@ FIELDS = [
                           ("call_consent", "Worker agreed to recorded Saathi calls?", "")]),
     ("Visa papers (type exactly what the visa says)", [("visa_type", "Visa type", ""),
                                                        ("visa_job", "Job written on the visa", "Agricultural worker")]),
+    ("Emigration papers", [("passport_type", "Passport type (ECR if the worker did not pass 10th)", ""),
+                           ("emigration_clearance", "Emigration clearance on eMigrate?", ""),
+                           ("pbby", "PBBY insurance taken?", ""), ("pbby_nominee", "PBBY nominee", "wife, Lakshmi")]),
     ("Travel", [("departure_date", "Departure date", ""), ("flight_no", "Flight", "EK 527"),
                 ("arrival_call_at", "Arrival-day call (India time)", "")]),
 ]
@@ -330,9 +354,10 @@ def render_form(values: dict | None = None, case_id: str | None = None) -> str:
     for legend, fields in FIELDS:
         inputs = []
         for name, label, ph in fields:
-            if name in ("visa_type", "worker_gender", "contract_before_payment", "call_consent"):
+            if name in ("visa_type", "worker_gender", "contract_before_payment", "call_consent", "passport_type",
+                        "emigration_clearance", "pbby"):
                 current = _form_value(name, values)
-                choices = {"visa_type": VISA_TYPES, "worker_gender": GENDERS}.get(name, ("yes", "no"))
+                choices = {"visa_type": VISA_TYPES, "worker_gender": GENDERS, "passport_type": PASSPORT_TYPES}.get(name, ("yes", "no"))
                 opts = "".join(f'<option value="{t}"{" selected" if current == t else ""}>{t}</option>'
                                for t in ("", *choices))
                 inputs.append(f'<div><label for="{name}">{esc(label)}</label><select id="{name}" name="{name}">{opts}</select></div>')
@@ -386,7 +411,7 @@ def _answers_table(answers: dict) -> str:
 
 
 def render_case(w: dict, events: list[dict], status: dict, signals: list[dict] | None = None,
-                alert: dict | None = None) -> str:
+                alert: dict | None = None, clock: dict | None = None) -> str:
     kv = lambda label, value: f'<div class="kv"><b>{esc(label)}</b>{esc(value) if value not in (None, "") else "<span class=muted>—</span>"}</div>'
     reasons = "".join(f"<li>{esc(reason_text(r))}</li>" for r in (w.get("risk_reasons") or []))
     fee = ""
@@ -508,6 +533,7 @@ place: d_place.value, when: d_when.value, notes: d_notes.value}}, this, 'Recorde
   </p><div id="msg"></div>
   <div class="muted">Status: {esc(w.get('status'))} · Last contact: {esc(fmt_ist(w.get('last_contact_at')))} ·
   Missed in a row: {esc(w.get('missed_checkins') or 0)} · Next call: {esc(fmt_ist(w.get('next_call_at')))} · {briefing} · refreshes every 20 seconds</div>
+  {clock_badge(clock)}
 </div>
 {embassy}
 <div class="card"><h2>Pravasi Prajavani petition</h2>
@@ -536,6 +562,9 @@ The caller hears the status when they call Saathi again.</p>
   {kv('Village sub-agent', ' · '.join(x for x in [w.get('sub_agent_name'), w.get('sub_agent_phone')] if x))}
   {kv('Visa type (papers)', w.get('visa_type'))}{kv('Job on visa (papers)', w.get('visa_job'))}
   {kv('Verbal promise (not on paper)', promise_said(w))}{kv('Recorded calls', ' · '.join(x for x in [('agreed at registration: ' + w['call_consent']) if w.get('call_consent') else '', ('notice played on a call ' + fmt_ist(w['consent_notice_at'])) if w.get('consent_notice_at') else ''] if x))}{kv('Full contract before paying', w.get('contract_before_payment'))}
+  {kv('Home', ', '.join(x for x in [w.get('home_mandal'), w.get('home_district')] if x))}
+  {kv('Passport type', (w.get('passport_type') or '').upper())}{kv('Emigration clearance (eMigrate)', w.get('emigration_clearance'))}
+  {kv('PBBY insurance', ' · '.join(x for x in [w.get('pbby'), ('nominee: ' + w['pbby_nominee']) if w.get('pbby_nominee') else ''] if x))}
   {kv('Danger code phrase', w.get('code_phrase'))}
 </div>{welcome}</div>
 <div class="card"><h2>Timeline</h2>{''.join(evs)}</div>
