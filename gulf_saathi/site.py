@@ -183,6 +183,27 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .net .node.good rect{stroke:var(--ok);fill:#e7f6ec} .net .node.good .t{fill:#05603a}
 .net .hub circle{fill:#fff4dc;stroke:#d9a54a;stroke-width:3} .net .hub .t{fill:#3d2a06;font-size:15px}
 .net.tall .node .t{font-size:14px} .net.tall .node .s{font-size:12px} .net.tall .hub .t{font-size:13px}
+.arch{margin-top:28px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.arch h3{margin:0 0 12px;font-size:18px}
+.stages{display:grid;grid-template-columns:1fr 1fr 1.35fr .85fr 1.15fr .9fr;gap:26px;list-style:none;margin:0;padding:0}
+.stage{position:relative;display:flex;flex-direction:column;gap:8px}
+.stage:not(:last-child):after{content:"→";position:absolute;right:-21px;top:40%;font-weight:900;font-size:20px;color:var(--ink)}
+.sh{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--accent)}
+.ab{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px;line-height:1.35}
+.ab.small{font-size:13px;padding:6px 8px}
+.stage.human .ab{background:var(--deep);color:#fff;border-color:var(--deep);font-weight:700}
+.levels{display:flex;flex-direction:column;gap:6px}
+.lv{color:#fff;font-size:12px;font-weight:800;letter-spacing:.04em;border-radius:999px;padding:4px 10px;text-align:center}
+.lv.ok{background:#067647} .lv.medium{background:#a15c07} .lv.high{background:#c4320a} .lv.critical{background:#b42318}
+.loop{position:relative;height:24px;margin:10px 23% 0 7%;border:2px dashed var(--accent);border-top:0;border-radius:0 0 14px 14px}
+.loop:before{content:"▲";position:absolute;left:-8px;top:-12px;font-size:13px;color:var(--accent)}
+.looplabel{text-align:center;margin:6px 0 14px;font-size:14px;font-weight:600;color:var(--accent)}
+.roadmap{border:2px dashed var(--line);border-radius:12px;padding:10px 14px;opacity:.65;filter:grayscale(1)}
+.roadmap .rl{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.roadmap ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px} .roadmap li{margin-bottom:2px}
+@media (max-width:900px){.stages{grid-template-columns:1fr;gap:26px}
+.stage:not(:last-child):after{content:"↓";right:auto;left:12px;top:auto;bottom:-25px}
+.loop{display:none}.looplabel{text-align:left;border:2px dashed var(--accent);border-radius:10px;padding:8px 10px;margin-top:16px}}
 .never{background:var(--sand);border-radius:12px;padding:16px 18px;margin-top:20px}
 .never h3{margin:0 0 8px;font-size:17px} .never ul{margin:0;padding-left:18px} .never li{margin-bottom:6px}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
@@ -237,6 +258,46 @@ def network_svg() -> str:
     tall = (f'<svg class="net tall" viewBox="0 0 360 356" role="img" aria-label="{label}">'
             f'{lines}{_hub(hx, hy, r)}{nodes}</svg>')
     return wide + tall
+
+
+# What is built, stage by stage, left to right. Only what exists; the roadmap is separate.
+ARCH_STAGES = [
+    ("Call", ["Worker or family calls, in Telugu", "Bolna voice agent · Sarvam saaras:v3 speech-to-text"]),
+    ("Backend", ["Saathi backend · FastAPI on Vercel", "Case store · Supabase"]),
+    ("Fixed, explainable rules", ['Agent in the MEA eMigrate licensed list? Says only "in list" or "not found"',
+                                  "Total fee above ₹35,400 (₹30,000 + 18% GST)?",
+                                  "Visit or tourist visa offered for a job?",
+                                  "Same phone or payment account in other Saathi cases?"]),
+    ("Risk level", None),
+    ("Outputs", ["Telugu warning on the call", "Telugu SMS to the family (prepared; sending not switched on yet)",
+                 "Caseworker dashboard + English case packet"]),
+    ("Then", ["A human caseworker decides and acts"]),
+]
+RISK_LEVELS = (("OK", "ok"), ("MEDIUM", "medium"), ("HIGH", "high"), ("CRITICAL", "critical"))
+ROADMAP = ["Recognise a worker calling from a Gulf or borrowed phone and link it to their case",
+           "Other Indian languages", "State dashboard for officials"]
+
+
+def architecture() -> str:
+    stages = []
+    for title, boxes in ARCH_STAGES:
+        if boxes is None:
+            inner = "".join(f'<span class="lv {cls}">{esc(name)}</span>' for name, cls in RISK_LEVELS)
+            inner = f'<div class="levels">{inner}</div>'
+        else:
+            small = " small" if len(boxes) > 2 else ""
+            inner = "".join(f'<div class="ab{small}">{esc(b)}</div>' for b in boxes)
+        human = " human" if title == "Then" else ""
+        stages.append(f'<li class="stage{human}"><div class="sh">{esc(title)}</div>{inner}</li>')
+    road = "".join(f"<li>{esc(r)}</li>" for r in ROADMAP)
+    return f"""<div class="arch" id="architecture">
+  <h3>How it is built</h3>
+  <ol class="stages">{''.join(stages)}</ol>
+  <div class="loop" aria-hidden="true"></div>
+  <p class="looplabel">↺ Arrival-day and weekly check-in calls (Saathi Check-in agent) start the flow again</p>
+  <div class="roadmap"><div class="rl">Planned, not built</div><ul>{road}</ul></div>
+  <p class="src" style="margin:10px 0 0">Built and tested. Roadmap items are marked.</p>
+</div>"""
 
 
 def _page(title: str, body: str, description: str = "") -> str:
@@ -343,6 +404,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <ol class="timeline">{steps}</ol>
   <p class="honest" style="margin-top:18px">The voice AI only writes down what the worker said. Fixed rules, which anyone can read, decide the risk level.
   Nothing is decided by the AI's opinion.</p>
+  {architecture()}
 </div></section>
 
 <section id="repeat-agent"><div class="wrap">

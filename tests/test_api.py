@@ -392,3 +392,17 @@ def test_home_has_the_case_network_diagram(mem):
         assert text in diagram
     for banned in ("fraud", "safe", "criminal", "genuine", "employer", "agent name", "promise"):
         assert banned not in diagram.lower()
+
+
+def test_architecture_diagram_shows_only_what_is_built(mem):
+    page = client.get("/").text
+    how = page[page.index('id="how"'):page.index('id="repeat-agent"')]
+    arch = how[how.index('id="architecture"'):]
+    for text in ("Bolna voice agent", "Sarvam saaras:v3", "FastAPI on Vercel", "Supabase", "₹35,400",
+                 "Visit or tourist visa", "Same phone or payment account", "CRITICAL", "Telugu warning on the call",
+                 "sending not switched on yet", "English case packet", "A human caseworker decides and acts",
+                 "Saathi Check-in agent", "Planned, not built", "Built and tested. Roadmap items are marked."):
+        assert text in arch, text
+    for banned in ("safe", "blacklist", "syndicate", "fraud", "criminal", "genuine", "score",
+                   "tomcom", "police", "embassy", "embassies"):
+        assert banned not in arch.lower(), banned
