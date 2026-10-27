@@ -384,7 +384,7 @@ def test_home_explains_the_repeat_agent_check_and_who_pays(mem):
 def test_home_has_the_case_network_diagram(mem):
     page = client.get("/").text
     section = page[page.index('id="repeat-agent"'):page.index('id="who"')]
-    diagram = section[section.index('id="case-network"'):section.index('<ol class="flow">')]  # above the five cards
+    diagram = section[section.index('id="case-network"'):section.index('<div class="hear">')]  # above the warning
     assert 'class="cn"' in diagram
     for text in ("Same number", "Worker 1 · Jagtial", "CRITICAL", "Worker 2 · Nizamabad", "HIGH", "Callers 3 &amp; 4",
                  "Phone 98480 XXXXX", "UPI ****@ybl", "Caller 5 · warned before paying", "DID NOT PAY",
@@ -399,8 +399,8 @@ def test_architecture_diagram_shows_only_what_is_built(mem):
     how = page[page.index('id="how"'):page.index('id="repeat-agent"')]
     arch = how[how.index('id="architecture"'):]
     for text in ("Bolna voice agent", "Sarvam saaras:v3", "FastAPI on Vercel", "Supabase", "₹35,400",
-                 "Visit or tourist visa", "Same phone or payment account", "CRITICAL", "Telugu warning on the call",
-                 "sending not switched on yet", "English case packet", "A human caseworker decides and acts",
+                 "Visit visa for a job", "Number seen in other cases", "CRITICAL", "Telugu warning on the call",
+                 "not switched on yet", "English case packet", "A human caseworker decides and acts",
                  "Saathi Check-in agent", "Planned, not built", "Built and tested. Roadmap items are marked."):
         assert text in arch, text
     for banned in ("safe", "blacklist", "syndicate", "fraud", "criminal", "genuine", "score",

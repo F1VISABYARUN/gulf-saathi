@@ -10,19 +10,15 @@ from .dashboard import esc
 # The journey, one step per call. "live" = working on real calls; "testing" = built, being tested.
 STEPS = [
     ("Before paying", "డబ్బు ఇచ్చే ముందు",
-     "Is this agent in the government licensed list? Saathi checks 2,447 licensed agents (MEA eMigrate list, 8 Apr 2026) "
-     "by name, owner, district or licence number. Every payment is added up and compared with the legal limit: "
-     "₹30,000 + 18% GST = ₹35,400.", "live"),
+     "Is the agent licensed? Checks 2,447 agents (MEA eMigrate, 8 Apr 2026). Adds up every payment against the "
+     "₹35,400 legal limit.", "live"),
     ("Before flying", "ప్రయాణానికి ముందు",
-     "The promised job, visa type, every payment and the family's number are recorded. Red flags show at once: "
-     "a visit visa, a visa naming a different job, a fee over the limit.", "testing"),
-    ("Arrival day", "చేరిన రోజు", "Saathi calls: did the registered employer pick you up, or someone else?", "testing"),
+     "Records the promised job, visa and payments. Flags a visit visa or a different job at once.", "testing"),
+    ("Arrival day", "చేరిన రోజు", "Calls on landing: did the registered employer pick you up?", "testing"),
     ("Every week", "ప్రతి వారం",
-     "Salary, passport, food, threats, freedom to go out, and is this the job and city you were promised? "
-     "Two missed calls in a row raise an alert.", "testing"),
+     "Salary, passport, food, threats, same job and city? Two missed calls raise an alert.", "testing"),
     ("When something is wrong", "సమస్య వస్తే",
-     "A Telugu SMS for the family (prepared; sending is not switched on yet), the caseworker dashboard, and an "
-     "English complaint-ready packet for a person to take to MADAD, the Indian Embassy or the police.", "testing"),
+     "Caseworker dashboard, English complaint-ready packet, and a family SMS (sending not switched on yet).", "testing"),
 ]
 
 AI_PHOTO = "AI-generated illustration"
@@ -31,19 +27,6 @@ PHONE_ICON = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
               'stroke-linejoin="round" aria-hidden="true"><path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 '
               '1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/></svg>')
 
-# Example only: made-up names and number. Wording follows what the live check says.
-# (class, title, text, badge); card 4's warning is the speech bubble below.
-SCAM_STEPS = [
-    ("bad", "Worker 1 · Jagtial", 'He paid sub-agent "Gangadhar" ₹90,000 on phone 98480 XXXXX. On arrival day a '
-     "stranger picks him up.", "CRITICAL"),
-    ("bad", "Worker 2 · Nizamabad", "Same phone number. Visit visa, salary unpaid 2 months. The dashboard now "
-     'shows: "This number: seen in 2 cases, 2 at risk. Needs review."', "HIGH"),
-    ("", "Callers 3 & 4", "They check the number before paying. One was asked ₹1.5 lakh (the legal limit is "
-     "₹35,400). The other was offered a visit visa for a job. Saathi saves both reports.", ""),
-    ("warn", "Caller 5 warned", "Gives the same number. Saathi says, live:", ""),
-    ("good", "Family protected", "The caseworker takes the pattern to the police cyber cell or files an "
-     "eMigrate complaint.", "DID NOT PAY"),
-]
 WARNING_TE = "ఈ నంబర్ మరో 2 సాథి కేసుల్లో వచ్చింది. ఇది రుజువు కాదు, కానీ కేస్‌వర్కర్ చూసే వరకు డబ్బు ఇవ్వకండి."
 WARNING_EN = "This number came up in 2 other Saathi cases. It's not proof, but don't pay until a caseworker checks."
 
@@ -154,23 +137,11 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .video video{display:block;width:100%;aspect-ratio:16/9;background:#000;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
 .video p{text-align:center;margin:10px 0 0}
 .label{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--muted);border:1px dashed var(--muted);border-radius:6px;padding:2px 8px;margin:0 0 10px}
-.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;list-style:none;padding:0;margin:0;counter-reset:f}
-.flow li{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column}
-.flow li:not(:last-child):after{content:"→";position:absolute;right:-17px;top:16px;color:var(--ink);font-weight:900;font-size:22px;line-height:1}
-.flow .top{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:8px}
-.flow .n{counter-increment:f;width:26px;height:26px;border-radius:50%;background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none}
-.flow .n:before{content:counter(f)}
-.flow li.bad{border-color:var(--alert)} .flow li.bad .n{background:var(--alert)}
-.flow li.good{border-color:var(--ok)} .flow li.good .n{background:var(--ok)}
-.flow li.warn{border-color:#d9a54a;box-shadow:0 6px 18px rgba(180,120,20,.15)}
-.bubble{position:relative;background:#fff4dc;border:1px solid #f0cf8a;border-radius:12px;padding:34px 12px 10px;margin:0 0 12px;color:#3d2a06}
-.bubble:before{content:"";position:absolute;left:18px;top:-8px;border:8px solid transparent;border-top:0;border-bottom-color:#f0cf8a}
-.bubble svg{position:absolute;left:12px;top:12px;width:20px;height:20px;color:#a86a00}
-.bubble .te{margin:0 0 6px;font-weight:700;font-size:14px;line-height:1.5;color:#3d2a06} .bubble .en{margin:0;font-size:13px;line-height:1.45;color:#5c4512}
-.flow h3{margin:0;font-size:15px;white-space:nowrap} .flow p{margin:0 0 12px;color:var(--muted);font-size:15px}
-.flow .lvl{align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:.04em;border-radius:6px;padding:3px 8px;color:#fff;background:var(--alert);white-space:nowrap}
-.flow li.good .lvl{background:var(--ok)}
-@media (max-width:900px){.flow .top{flex-direction:row;align-items:center}.flow h3{white-space:normal}.flow{grid-template-columns:1fr;gap:22px}.flow li:not(:last-child):after{content:"↓";right:auto;left:20px;top:auto;bottom:-22px}}
+.hear{max-width:560px;margin:4px 0 14px} .hl{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.rules3{margin:0;padding-left:18px;color:var(--muted)} .rules3 li{margin-bottom:4px}
+.bubble{position:relative;background:#fff4dc;border:1px solid #f0cf8a;border-radius:12px;padding:12px 14px 12px 42px;color:#3d2a06}
+.bubble svg{position:absolute;left:14px;top:14px;width:20px;height:20px;color:#a86a00}
+.bubble .te{margin:0 0 6px;font-weight:700;font-size:15px;line-height:1.5;color:#3d2a06} .bubble .en{margin:0;font-size:14px;line-height:1.45;color:#5c4512}
 .netbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 22px}
 .cn{display:grid;grid-template-columns:1.15fr 36px 1fr 36px 1fr;align-items:center}
 .cn-in{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
@@ -206,14 +177,10 @@ border-left:4px solid var(--muted);border-radius:10px;padding:8px 12px;font-size
 .loop{position:relative;height:24px;margin:10px 23% 0 7%;border:2px dashed var(--accent);border-top:0;border-radius:0 0 14px 14px}
 .loop:before{content:"▲";position:absolute;left:-8px;top:-12px;font-size:13px;color:var(--accent)}
 .looplabel{text-align:center;margin:6px 0 14px;font-size:14px;font-weight:600;color:var(--accent)}
-.roadmap{border:2px dashed var(--line);border-radius:12px;padding:10px 14px;opacity:.65;filter:grayscale(1)}
-.roadmap .rl{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
-.roadmap ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px} .roadmap li{margin-bottom:2px}
+.roadmap{border-top:2px dashed var(--line);padding-top:10px;margin:0;color:var(--muted);font-size:14px;opacity:.75}
 @media (max-width:900px){.stages{grid-template-columns:1fr;gap:26px}
 .stage:not(:last-child):after{content:"↓";right:auto;left:12px;top:auto;bottom:-25px}
 .loop{display:none}.looplabel{text-align:left;border:2px dashed var(--accent);border-radius:10px;padding:8px 10px;margin-top:16px}}
-.never{background:var(--sand);border-radius:12px;padding:16px 18px;margin-top:20px}
-.never h3{margin:0 0 8px;font-size:17px} .never ul{margin:0;padding-left:18px} .never li{margin-bottom:6px}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .stats .num b{font-size:clamp(28px,2.6vw,36px);white-space:nowrap}
 .big-label{font-size:14px;padding:4px 10px;border-width:2px}
@@ -246,20 +213,15 @@ def case_network() -> str:
 
 # What is built, stage by stage, left to right. Only what exists; the roadmap is separate.
 ARCH_STAGES = [
-    ("Call", ["Worker or family calls, in Telugu", "Bolna voice agent · Sarvam saaras:v3 speech-to-text"]),
-    ("Backend", ["Saathi backend · FastAPI on Vercel", "Case store · Supabase"]),
-    ("Fixed, explainable rules", ['Agent in the MEA eMigrate licensed list? Says only "in list" or "not found"',
-                                  "Total fee above ₹35,400 (₹30,000 + 18% GST)?",
-                                  "Visit or tourist visa offered for a job?",
-                                  "Same phone or payment account in other Saathi cases?"]),
+    ("Call", ["Telugu call from worker or family", "Bolna voice agent · Sarvam saaras:v3 speech-to-text"]),
+    ("Backend", ["FastAPI on Vercel", "Supabase case store"]),
+    ("Fixed rules", ["Licensed agent?", "Fee over ₹35,400?", "Visit visa for a job?", "Number seen in other cases?"]),
     ("Risk level", None),
-    ("Outputs", ["Telugu warning on the call", "Telugu SMS to the family (prepared; sending not switched on yet)",
-                 "Caseworker dashboard + English case packet"]),
+    ("Outputs", ["Telugu warning on the call", "Dashboard + English case packet", "Family SMS (not switched on yet)"]),
     ("Then", ["A human caseworker decides and acts"]),
 ]
 RISK_LEVELS = (("OK", "ok"), ("MEDIUM", "medium"), ("HIGH", "high"), ("CRITICAL", "critical"))
-ROADMAP = ["Recognise a worker calling from a Gulf or borrowed phone and link it to their case",
-           "Other Indian languages", "State dashboard for officials"]
+ROADMAP = ["recognising a worker's Gulf or borrowed phone", "other Indian languages", "a state dashboard"]
 
 
 def architecture() -> str:
@@ -273,14 +235,14 @@ def architecture() -> str:
             inner = "".join(f'<div class="ab{small}">{esc(b)}</div>' for b in boxes)
         human = " human" if title == "Then" else ""
         stages.append(f'<li class="stage{human}"><div class="sh">{esc(title)}</div>{inner}</li>')
-    road = "".join(f"<li>{esc(r)}</li>" for r in ROADMAP)
+    road = esc(" · ".join(ROADMAP))
     return f"""<div class="arch" id="architecture">
   <h3>How it is built</h3>
   <ol class="stages">{''.join(stages)}</ol>
   <div class="loop" aria-hidden="true"></div>
-  <p class="looplabel">↺ Arrival-day and weekly check-in calls (Saathi Check-in agent) start the flow again</p>
-  <div class="roadmap"><div class="rl">Planned, not built</div><ul>{road}</ul></div>
-  <p class="src" style="margin:10px 0 0">Built and tested. Roadmap items are marked.</p>
+  <p class="looplabel">↺ Arrival-day and weekly check-in calls (Saathi Check-in agent)</p>
+  <p class="roadmap"><b>Planned, not built:</b> {road}</p>
+  <p class="src" style="margin:8px 0 0">Built and tested. Roadmap items are marked.</p>
 </div>"""
 
 
@@ -307,10 +269,6 @@ def render_home(counts: dict, demo_calls_on: bool) -> str:
                     f'<span class="st {st}">{label[st]}</span></li>' for en, te, text, st in STEPS)
     bubble = (f'<div class="bubble">{PHONE_ICON}<p class="te" lang="te">{esc(WARNING_TE)}</p>'
               f'<p class="en">"{esc(WARNING_EN)}"</p></div>')
-    flow = "".join(f'<li class="{cls}"><div class="top"><span class="n"></span><h3>{esc(title)}</h3></div>'
-                   f'<p>{esc(text)}</p>' + (bubble if cls == "warn" else "")
-                   + (f'<span class="lvl">{esc(lvl)}</span>' if lvl else "") + "</li>"
-                   for cls, title, text, lvl in SCAM_STEPS)
     stats = "".join(f'<div class="num"><b>{esc(n)}</b><p>{esc(text)}</p><div class="src">Source: '
                     f'<a href="{esc(url)}" target="_blank" rel="noopener">{esc(src)}</a></div></div>'
                     for n, text, src, url in STATS)
@@ -386,27 +344,24 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <h2>How it works</h2>
   <p class="lede">One phone number, in Telugu, at every step of the journey. No app, no reading needed.</p>
   <ol class="timeline">{steps}</ol>
-  <p class="honest" style="margin-top:18px">The voice AI only writes down what the worker said. Fixed rules, which anyone can read, decide the risk level.
-  Nothing is decided by the AI's opinion.</p>
+  <p class="honest" style="margin-top:18px">The AI only writes down what was said. Fixed rules decide the risk level.</p>
   {architecture()}
 </div></section>
 
 <section id="repeat-agent"><div class="wrap">
   <h2>How Saathi catches a repeat scam agent</h2>
-  <p class="lede">Village sub-agents cheat family after family using the same phone number or UPI account. Each family
-  complains alone, so nobody sees the pattern. Saathi connects them, and warns the next family before they pay.</p>
+  <p class="lede">Sub-agents cheat family after family with the same phone number or UPI account. Each family complains
+  alone. Saathi connects the reports and warns the next family before they pay.</p>
   <span class="label">Example. Made-up names and number.</span>
   <div class="netbox" id="case-network">{case_network()}
   <p class="src" style="margin:12px 0 0">Saathi links cases only by exact phone numbers or payment accounts. A link is a lead
   for a caseworker to review, not proof against anyone.</p></div>
-  <ol class="flow">{flow}</ol>
-  <div class="never"><h3>What Saathi never does</h3><ul>
-    <li>Matches phone numbers and payment accounts, never names. Two people named Gangadhar are not the same person.</li>
-    <li>Says only a count. Never other victims' names, and never calls anyone a criminal.</li>
-    <li>A link is a lead for review, not proof. Numbers are shared only with the police or in an eMigrate complaint, never published.</li>
-    <li>One person calling 10 times counts as one caller. Demo data never feeds real warnings.</li></ul></div>
-  <p class="honest" style="margin-top:12px">The number warning is proven on a real Bolna call. The full multi-caller flow is
-  tested in code, not yet with many real callers.</p>
+  <div class="hear"><div class="hl">What caller 5 hears, live</div>{bubble}</div>
+  <ul class="rules3">
+    <li>Never matches by name: two people with the same name are not the same person.</li>
+    <li>Tells callers only a count: no names, no accusations.</li>
+    <li>Numbers go only to the police or an eMigrate complaint, never published.</li></ul>
+  <p class="honest" style="margin-top:10px">Proven on a real Bolna call. The multi-caller flow is tested in code.</p>
 </div></section>
 
 <section id="who"><div class="wrap">
@@ -417,10 +372,10 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
       <p>Hears in Telugu when something is wrong, not months later.</p></div></article>
     <article><img src="/gs_caseworker.webp" alt="A caseworker with a headset at a laptop" loading="lazy">
       <div class="in"><p class="cap" style="margin:0 0 8px">{AI_PHOTO}</p><h3>Volunteers and caseworkers</h3>
-      <p>Get a ready case: who, where, which agent, what was promised, when contact stopped.</p></div></article>
+      <p>A ready case: who, where, which agent, what was promised.</p></div></article>
     <article><div class="plain"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5h17l9 9v13"/><path d="M29 5v9h9"/><path d="M12 5v38h16"/><path d="M18 20h12M18 27h8"/><path d="M38 31l-7 3v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8v-5z"/><path d="M35 39.5l2.2 2.2 4-4.2"/></svg><span>Police · TOMCOM · State</span></div>
       <div class="in"><h3><span class="mini"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5h17l9 9v13"/><path d="M29 5v9h9"/><path d="M12 5v38h16"/><path d="M18 20h12M18 27h8"/><path d="M38 31l-7 3v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8v-5z"/><path d="M35 39.5l2.2 2.2 4-4.2"/></svg></span>Government</h3>
-      <p>An evidence trail for police and TOMCOM, built one call at a time. A prototype, not a government service.</p></div></article>
+      <p>An evidence trail, built one call at a time. A prototype, not a government service.</p></div></article>
   </div>
 </div></section>
 
