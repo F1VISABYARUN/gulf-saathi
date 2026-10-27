@@ -377,5 +377,5 @@ def test_home_explains_the_repeat_agent_check_and_who_pays(mem):
     assert "Proposed model, not yet in place." in page
     # every number in "why this matters, and who pays" links to its source, in a new tab
     section = page[page.index('id="who-pays"'):page.index('id="numbers"')]
-    assert section.count('target="_blank" rel="noopener"') == 5  # four stat cards and the Oman line
+    assert section.count('target="_blank" rel="noopener"') == 6  # four stat cards, the Oman line and its backup
     assert "Rajya Sabha Q. 2319, Mar 2026" in section
