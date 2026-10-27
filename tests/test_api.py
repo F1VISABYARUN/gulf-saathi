@@ -196,7 +196,9 @@ def test_home_page_is_public_and_shows_totals_only(mem):
     assert page.count("AI-generated illustration<") == 4 and "Najeeb Muhammad" in page  # one caption per photo
     for img in ("gs_hero_airport.webp", "gs_desert_goats.webp", "gs_family_sms.webp", "gs_caseworker.webp", "gs_dashboard.webp"):
         assert f"/{img}" in page
-    assert "Source: Lok Sabha unstarred question 2190" in page and "Demo dashboard" in page
+    assert "Lok Sabha USQ 2190, 31 Jul 2026, Annex I" in page and "118 action-taken reports" in page
+    assert "3,647 Indian women were sent home from Oman" in page and 'id="why"' not in page  # old block gone, Oman kept
+    assert "Rs " not in page and "₹35,400" in page and "Demo dashboard" in page
     assert "Secret Name" not in page and "9876543210" not in page
     for banned in ("fraud", "genuine", "government-ready", "rescue", "safe", "trusted"):
         assert banned not in page.lower()
