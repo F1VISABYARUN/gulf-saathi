@@ -907,7 +907,7 @@ def test_voice_never_claims_the_embassy_was_already_told(store, licensed, placed
     assert "no one should ask you for money to bring the body home; if someone asks, tell the caseworker" in dead["instruction"]
     pkt = json.dumps(cases.death_packet(store, store.get("workers", id=w["id"]), NOW), ensure_ascii=False)
     assert "No one should ask you for money to bring the body home. If someone asks, tell the caseworker." in pkt
-    assert "G.O. 205 (16 Sep 2024)" in pkt and "G.O. 216 (7 Oct 2024)" in pkt and "as reported in the news" not in pkt
+    assert "G.O. 205 (16 Sep 2024)" in pkt and "G.O. 216 (Oct 2024)" in pkt and "as reported in the news" not in pkt
 
 
 

@@ -857,7 +857,7 @@ def update_petition(store, worker: dict, status: str, ref: str, now: datetime) -
 REMAINS_STATUSES = ("reported", "embassy_informed", "family_decided", "papers_signed", "remains_home",
                     "buried_abroad", "closed")
 EX_GRATIA_STATUSES = ("not_applied", "applied", "paid", "rejected")
-# Telangana ex-gratia: G.O. 205 (16 Sep 2024) sanctioned the Rs 5 lakh ex-gratia; G.O. 216 (7 Oct 2024) gave the guidelines. Deaths on or after 7 Dec 2023, any cause, in 7 Gulf countries
+# Telangana ex-gratia: G.O. 205 (16 Sep 2024) sanctioned the Rs 5 lakh ex-gratia; G.O. 216 (Oct 2024) gave the guidelines. Deaths on or after 7 Dec 2023, any cause, in 7 Gulf countries
 # (The Hindu, 20 Nov 2024).
 EX_GRATIA_PLACES = ("bahrain", "manama", "iraq", "kuwait", "oman", "muscat", "salalah", "qatar", "doha", "saudi",
                     "ksa", "riyadh", "jeddah", "dammam", "mecca", "makkah", "medina", "uae", "emirates", "dubai",
@@ -1316,7 +1316,7 @@ def death_packet(store, worker: dict, now: datetime) -> dict:
         f"{v(w.get('pbby'), 'not recorded')}; nominee: {v(w.get('pbby_nominee'), 'not recorded')}.",
     ]
     if eg is not False:
-        steps.append("Telangana ex-gratia: G.O. 205 (16 Sep 2024) sanctioned the Rs 5 lakh ex-gratia; G.O. 216 (7 Oct 2024) gave the guidelines. Deaths on or after 7 Dec 2023, any cause, in 7 Gulf countries "
+        steps.append("Telangana ex-gratia: G.O. 205 (16 Sep 2024) sanctioned the Rs 5 lakh ex-gratia; G.O. 216 (Oct 2024) gave the guidelines. Deaths on or after 7 Dec 2023, any cause, in 7 Gulf countries "
                      "(Bahrain, Iraq, Kuwait, Oman, Qatar, Saudi Arabia, UAE). "
                      "Apply at the District Collector's office with the death certificate, cancelled passport, proof "
                      "of work abroad and the family's bank details. Check the current rules at the Collectorate.")
