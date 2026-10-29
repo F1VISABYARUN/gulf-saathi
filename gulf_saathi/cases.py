@@ -76,8 +76,8 @@ REASONS = {
     "missed_2plus": ("high", "{n} check-in calls missed in a row", "వరుసగా {n} కాల్స్‌కు జవాబు రాలేదు"),
     "unpaid_1": ("medium", "Salary unpaid this month", "ఈ నెల జీతం రాలేదు"),
     "salary_short": ("high", "Paid less than the contract: {detail}", "ఒప్పందంలో చెప్పిన జీతం కంటే తక్కువ ఇస్తున్నారు"),
-    "papers_problem": ("high", "Papers problem (risk of arrest; the agent's doing, not the worker's): {detail}",
-                       "వీసా లేదా పత్రాల సమస్య ఉంది; అరెస్టు భయం ఉంది"),
+    "papers_problem": ("high", "Legal or papers problem (risk of arrest; not the worker's wrongdoing): {detail}",
+                       "వీసా, పత్రాలు లేదా కేసు సమస్య ఉంది; అరెస్టు భయం ఉంది"),
     "city_mismatch": ("medium", "In a different city from the one promised: {detail}",
                       "చెప్పిన ఊరు కాకుండా వేరే చోట ఉన్నారు"),
     "food_not_ok": ("medium", "Problems with food or accommodation", "భోజనం లేదా వసతి సరిగా లేదు"),
@@ -400,6 +400,8 @@ def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
         "payment_to": _text(data, "payment_to"),
         "promise_by": _text(data, "promise_by"), "promise_words": _text(data, "promise_words", 1000),
         "promise_date": _text(data, "promise_date", 40),
+        "exit_penalty": None if str(data.get("exit_penalty") or "").strip().lower() in ("", "no", "none", "లేదు")
+        else _text(data, "exit_penalty", 120),
         "call_consent": {True: "yes", False: "no"}.get(yes_no(data.get("call_consent"))),
         "passport_type": passport_type, "emigration_clearance": yes_no_text("emigration_clearance"),
         "pbby": yes_no_text("pbby"), "pbby_nominee": _text(data, "pbby_nominee"),
@@ -686,7 +688,7 @@ def checkin_instruction(worker: dict, kind: str, level: str, codes: set, escalat
 # Workers on a visit visa, an expired visa or a false "absconding" report fear the
 # local police will arrest them, so they stay silent. Saathi is not the police.
 PAPERS_FIRST = ("FIRST say gently: Saathi is not the police; we never give your details to the police in that country. "
-                "This is the agent's wrongdoing, not yours. The Indian Embassy can give emergency travel papers even when your "
+                "This is not your wrongdoing. The Indian Embassy can give emergency travel papers even when your "
                 "papers are not in order. Do not promise they will not be fined or sent back. Then: ")
 
 
@@ -1178,8 +1180,9 @@ def embassy_alert(store, worker: dict, now: datetime) -> dict:
     papers = next((r for r in w.get("risk_reasons") or [] if r["code"] == "papers_problem"), None)
     if papers:
         agent = ", ".join(x for x in [w.get("agent_name"), w.get("sub_agent_phone")] if x) or "not known yet"
-        lines += ["", f"Papers: {papers.get('detail')}. The worker is a victim of illegal recruitment (agent: {agent}). "
-                      "May need an Emergency Certificate to return home. Please do not treat the worker as an offender."]
+        lines += ["", f"Legal or papers problem: {papers.get('detail')}. The worker may be a victim of illegal recruitment "
+                      f"(agent: {agent}) or of someone misusing their ID, phone or bank account. May need an Emergency "
+                      "Certificate to return home. Please do not treat the worker as an offender."]
     lines += ["", "Reported by phone to Gulf Saathi (Telangana) and not independently verified. "
                   "Please contact the worker. Full case packet available on request."]
     body = "\n".join(lines)
@@ -1309,6 +1312,9 @@ def death_packet(store, worker: dict, now: datetime) -> dict:
         "Keep copies of: the local death certificate and its translation, the embassy's papers, the cancelled "
         "passport, the airline cargo papers, and the job contract or visa.",
         "Unpaid salary and end-of-service money: ask the embassy to claim them from the employer for the family.",
+        "If the employer will not pay to bring the body home and the embassy says it has no funds, ask the Telangana "
+        "government through CM Pravasi Prajavani for help from the Chief Minister's Relief Fund (it paid Rs 1.5 lakh "
+        "in an Oman case in 2026).",
         "Tell the family: \"No one should ask you for money to bring the body home. If someone asks, tell the "
         "caseworker.\" (People have posed as helpers and demanded large sums.)",
         "If the death was an accident: Pravasi Bharatiya Bima Yojana (PBBY, compulsory for ECR workers going to ECR "
@@ -1318,8 +1324,12 @@ def death_packet(store, worker: dict, now: datetime) -> dict:
     if eg is not False:
         steps.append("Telangana ex-gratia: G.O. 205 (16 Sep 2024) sanctioned the Rs 5 lakh ex-gratia; G.O. 216 (Oct 2024) gave the guidelines. Deaths on or after 7 Dec 2023, any cause, in 7 Gulf countries "
                      "(Bahrain, Iraq, Kuwait, Oman, Qatar, Saudi Arabia, UAE). "
-                     "Apply at the District Collector's office with the death certificate, cancelled passport, proof "
-                     "of work abroad and the family's bank details. Check the current rules at the Collectorate.")
+                     "Apply at the District Collector's office within 6 months of the death (or of receiving the "
+                     "body) with the death certificate, cancelled passport, proof of work abroad (work visa or "
+                     "employment contract) and the family's bank details. Check the current rules at the Collectorate."
+                     + (f" This worker's visa is recorded as a {w['visa_type']} visa: without a work visa or contract "
+                        "the claim may be refused, so ask the Collectorate early."
+                        if w.get("visa_type") in ("visit", "tourist") else ""))
     te_steps = [
         f"సాథి కేస్‌వర్కర్ {country} లోని భారత రాయబార కార్యాలయానికి వివరాలు పంపుతారు.",
         "మృతదేహాన్ని ఇంటికి తీసుకురావాలా, అక్కడే అంత్యక్రియలు చేయాలా అనేది కుటుంబమే నిర్ణయిస్తుంది. "
@@ -1328,11 +1338,12 @@ def death_packet(store, worker: dict, now: datetime) -> dict:
         "ఖర్చులు యజమాని భరించాలి. భరించకపోతే, రాయబార కార్యాలయాన్ని ICWF నిధి నుంచి సహాయం అడుగుతాం.",
         "ఈ పత్రాలు దాచుకోండి: మరణ ధ్రువీకరణ పత్రం, రద్దు చేసిన పాస్‌పోర్ట్, ఉద్యోగ పత్రాలు, బ్యాంక్ ఖాతా వివరాలు.",
         "రావాల్సిన జీతం, ఇతర డబ్బుల కోసం రాయబార కార్యాలయం ద్వారా యజమానిని అడుగుతాం.",
+        "యజమాని, రాయబార కార్యాలయం ఖర్చు భరించకపోతే, ప్రవాసీ ప్రజావాణి ద్వారా ముఖ్యమంత్రి సహాయ నిధి నుంచి సహాయం అడుగుతాం.",
         "మృతదేహాన్ని ఇంటికి తీసుకురావడానికి ఎవరూ మిమ్మల్ని డబ్బులు అడగకూడదు. ఎవరైనా అడిగితే కేస్‌వర్కర్‌కి చెప్పండి.",
     ]
     if eg is not False:
         te_steps.append("గల్ఫ్ దేశాల్లో మరణించిన కార్మికుల కుటుంబాలకు తెలంగాణ ప్రభుత్వం ఎక్స్‌గ్రేషియా ఇస్తుంది. "
-                        "జిల్లా కలెక్టర్ కార్యాలయంలో దరఖాస్తు చేయాలి. సాథి కేస్‌వర్కర్ సహాయం చేస్తారు.")
+                        "మరణించిన 6 నెలల లోపు జిల్లా కలెక్టర్ కార్యాలయంలో దరఖాస్తు చేయాలి. సాథి కేస్‌వర్కర్ సహాయం చేస్తారు.")
     english = {
         "title": f"Death of a worker abroad: facts and next steps (Gulf Saathi case {w['case_id']})",
         "facts": facts, "steps": steps,
@@ -1474,6 +1485,7 @@ def case_packet(store, worker: dict, now: datetime) -> str:
         f"  Check against MEA licensed list: {v(w.get('agent_check'))}",
         f"  Verbal promise (not on paper): {promise_said(w) or 'not recorded'}",
         f"  Full written contract received before paying: {v(w.get('contract_before_payment'))}",
+        f"  Penalty in the contract for leaving or cancelling the visa: {v(w.get('exit_penalty'))}",
     ]
     if w.get("amount_paid_total"):
         lines.append(f"  Paid to agent: Rs {fmt_rupees(int(w['amount_paid_total']))} "

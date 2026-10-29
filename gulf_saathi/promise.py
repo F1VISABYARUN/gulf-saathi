@@ -126,6 +126,9 @@ def predeparture_checks(w: dict) -> list[dict]:
             flags.append({"code": "no_pbby",
                           "text": maybe + "no PBBY insurance (compulsory for ECR workers: Rs 10 lakh cover for accidental "
                                           "death or disability, premium Rs 275 for 2 years)"})
+    if w.get("exit_penalty"):
+        flags.append({"code": "exit_penalty",
+                      "text": f"The contract makes the worker pay to leave or cancel the visa: {w['exit_penalty']}"})
     if w.get("contract_before_payment") == "no":
         flags.append({"code": "no_contract_before_paying",
                       "text": "Payment taken before contract shown"})

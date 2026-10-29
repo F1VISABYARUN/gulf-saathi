@@ -166,3 +166,4 @@ alter table workers add column if not exists pbby_nominee text;
 alter table workers add column if not exists home_district text;
 alter table workers add column if not exists home_mandal text;
 alter table workers add column if not exists last_action_at timestamptz; -- last thing a caseworker did on the case
+alter table workers add column if not exists exit_penalty text;      -- penalty to leave or cancel the visa, as written

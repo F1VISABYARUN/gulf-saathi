@@ -989,3 +989,32 @@ def test_home_district_from_the_help_line_and_the_form(store, licensed, placed, 
     assert "Home: Korutla, Jagtial" in packet and "PBBY insurance: yes (nominee: wife)" in packet
     out = cases.report_problem(store, {"caller_phone": "+971501110000", "needs_help": "yes", "home_district": "Nirmal"}, NOW)
     assert store.get("workers", case_id=out["case_id"])["home_district"] == "Nirmal"
+
+
+# --- from the 2026 Prajavani cases (29 Oct) -----------------------------------------------
+
+def test_penalty_to_leave_or_cancel_the_visa_is_a_red_flag(store, licensed, placed):
+    from gulf_saathi.promise import predeparture_checks
+    w = register(store, licensed, exit_penalty="AED 4,100 to cancel the visa")["worker"]
+    assert {"code": "exit_penalty", "text": "The contract makes the worker pay to leave or cancel the visa: "
+            "AED 4,100 to cancel the visa"} in predeparture_checks(w)
+    assert "AED 4,100" in case_packet(store, w, NOW)
+    none = register(store, licensed, worker_phone="9000000041", exit_penalty="no")["worker"]
+    assert none["exit_penalty"] is None
+
+
+def test_someone_using_the_workers_id_or_phone_is_high(store, licensed, placed, texts):
+    w = register(store, licensed)["worker"]
+    out = record_checkin(store, {"case_id": w["case_id"], "call_kind": "weekly",
+                                 "papers_problem": "a colleague took a loan on his phone number"}, NOW)
+    assert out["risk_level"] == "high" and "This is not your wrongdoing" in out["instruction"]
+    body = cases.embassy_alert(store, store.get("workers", id=w["id"]), NOW)["body"]
+    assert "misusing their ID, phone or bank account" in body
+
+
+def test_death_papers_deadline_relief_fund_and_visit_visa_caveat(store, licensed, placed, texts):
+    w = register(store, licensed, visa_type="visit")["worker"]
+    w = cases.report_death(store, w, {"reported_by": "wife"}, NOW)
+    text = json.dumps(cases.death_packet(store, w, NOW), ensure_ascii=False)
+    assert "within 6 months" in text and "Chief Minister's Relief Fund" in text
+    assert "recorded as a visit visa" in text and "6 నెలల లోపు" in text and "ముఖ్యమంత్రి సహాయ నిధి" in text

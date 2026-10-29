@@ -172,7 +172,8 @@ NEW_WORKER_COLUMNS = ("visa_job", "visa_type", "sub_agent_name", "sub_agent_phon
                       "welcome_sms", "welcome_sms_status", "source", "reported_by", "petition_status",
                       "petition_ref", "worker_gender", "death_note", "remains_status", "ex_gratia_status",
                       "promise_words", "contract_before_payment", "promise_by", "promise_date", "call_consent",
-                      "passport_type", "emigration_clearance", "pbby", "pbby_nominee", "home_district", "home_mandal")
+                      "passport_type", "emigration_clearance", "pbby", "pbby_nominee", "home_district", "home_mandal",
+                      "exit_penalty")
 
 
 @app.get("/health/db")

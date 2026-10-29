@@ -321,6 +321,8 @@ FIELDS = [
                            "salary 1,500 riyal, cleaning job, free food"),
                           ("promise_date", "When they said it", "10 Oct 2026"),
                           ("contract_before_payment", "Got the full written contract before paying?", ""),
+                          ("exit_penalty", "Penalty in the contract for leaving or cancelling the visa (amount, or no)",
+                           "AED 4,100"),
                           ("call_consent", "Worker agreed to recorded Saathi calls?", "")]),
     ("Visa papers (type exactly what the visa says)", [("visa_type", "Visa type", ""),
                                                        ("visa_job", "Job written on the visa", "Agricultural worker")]),
@@ -561,7 +563,7 @@ The caller hears the status when they call Saathi again.</p>
   {kv('Paid to agent', fee)}{kv('Money paid to', w.get('payment_to'))}
   {kv('Village sub-agent', ' · '.join(x for x in [w.get('sub_agent_name'), w.get('sub_agent_phone')] if x))}
   {kv('Visa type (papers)', w.get('visa_type'))}{kv('Job on visa (papers)', w.get('visa_job'))}
-  {kv('Verbal promise (not on paper)', promise_said(w))}{kv('Recorded calls', ' · '.join(x for x in [('agreed at registration: ' + w['call_consent']) if w.get('call_consent') else '', ('notice played on a call ' + fmt_ist(w['consent_notice_at'])) if w.get('consent_notice_at') else ''] if x))}{kv('Full contract before paying', w.get('contract_before_payment'))}
+  {kv('Verbal promise (not on paper)', promise_said(w))}{kv('Penalty to leave / cancel visa', w.get('exit_penalty'))}{kv('Recorded calls', ' · '.join(x for x in [('agreed at registration: ' + w['call_consent']) if w.get('call_consent') else '', ('notice played on a call ' + fmt_ist(w['consent_notice_at'])) if w.get('consent_notice_at') else ''] if x))}{kv('Full contract before paying', w.get('contract_before_payment'))}
   {kv('Home', ', '.join(x for x in [w.get('home_mandal'), w.get('home_district')] if x))}
   {kv('Passport type', (w.get('passport_type') or '').upper())}{kv('Emigration clearance (eMigrate)', w.get('emigration_clearance'))}
   {kv('PBBY insurance', ' · '.join(x for x in [w.get('pbby'), ('nominee: ' + w['pbby_nominee']) if w.get('pbby_nominee') else ''] if x))}
