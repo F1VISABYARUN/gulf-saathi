@@ -222,6 +222,10 @@ border-left:4px solid var(--muted);border-radius:10px;padding:8px 12px;font-size
 @media (max-width:820px){.pay{grid-template-columns:1fr}}
 .pay article{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:12px;padding:16px}
 .pay h3{margin:0 0 2px;font-size:18px} .pay .k{font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--accent);text-transform:uppercase;margin-bottom:8px} .pay p{margin:0;color:var(--muted)}
+.vs .today{border-top:4px solid var(--muted)} .heard .with{border-top:4px solid var(--accent)}
+.heard .end{margin:12px 0 0;font-weight:800;font-size:14px} .heard .today .end{color:var(--muted)} .heard .with .end{color:var(--accent)}
+.pills{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.pills li{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:14px}
 footer{padding:24px 0 40px;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
 .btn{min-height:44px;line-height:1.3}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .st.live{background:#0d3b28;color:#8be3b6}
@@ -495,6 +499,32 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
       <div class="in"><h3><span class="mini"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5h17l9 9v13"/><path d="M29 5v9h9"/><path d="M12 5v38h16"/><path d="M18 20h12M18 27h8"/><path d="M38 31l-7 3v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8v-5z"/><path d="M35 39.5l2.2 2.2 4-4.2"/></svg></span>Government</h3>
       <p>An evidence trail for every case, built one call at a time.</p></div></article>
   </div>
+</div></section>
+
+<section id="heard"><div class="wrap">
+  <h2>What we heard at Pravasi Prajavani</h2>
+  <p class="src">On 30 October 2026 we sat in on Pravasi Prajavani, the Gulf workers' grievance desk at Praja Bhavan,
+  Hyderabad. These are our notes, not verified case records.</p>
+  <div class="vs heard">
+    <div class="today"><h3>Today</h3><ul>
+      <li>No simple Telugu phone line the worker knows to call</li>
+      <li>Help starts only when the family finds out and travels to Hyderabad</li>
+      <li>Officials spend weeks collecting the employer, visa, agent and route before the embassy can act</li>
+      <li>Workers can't check what the agent tells them</li></ul>
+      <p class="end">Often weeks to start a case</p></div>
+    <div class="with"><h3>With Saathi</h3><ul>
+      <li>The agent's promise is recorded in Telugu before the worker pays</li>
+      <li>The route, visa, employer, fees and document details are recorded from day one</li>
+      <li>Weekly check-in calls, and a Telugu help line (being opened)</li>
+      <li>The desk gets a ready case file</li></ul>
+      <p class="end">Case file ready from the first call</p></div>
+  </div>
+  <p class="hl" style="margin:16px 0 8px">Cases we heard about</p>
+  <ul class="pills"><li>Route changed without telling the worker</li><li>Told to wait in a third country</li>
+    <li>A recruit reportedly sent to Russia</li></ul>
+  <p class="src" style="margin-top:14px">Officials also asked for regular scam warnings to workers and families. Weekly voice
+  alerts are on our roadmap. Saathi is independent and non-partisan, and being there does not mean any official or
+  department endorses it.</p>
 </div></section>
 
 <section id="who-pays"><div class="wrap">

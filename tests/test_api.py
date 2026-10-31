@@ -453,3 +453,11 @@ def test_dashboard_district_filter_and_overdue_clock(mem):
     assert "OVERDUE · Alert open 9 days · no caseworker action yet" in client.get("/dashboard", auth=AUTH).text
     assert "OVERDUE" in client.get(f"/dashboard/case/{w['case_id']}", auth=AUTH).text
     assert cases.case_clock(w, mem.select("escalations"), api.now())["overdue"]
+
+
+def test_prajavani_notes_section(mem):
+    page = client.get("/").text
+    assert page.index('id="who"') < page.index('id="heard"') < page.index('id="who-pays"')
+    sec = page[page.index('id="heard"'):page.index('id="who-pays"')]
+    assert "not verified case records" in sec and "does not mean any official or" in sec and "reportedly" in sec
+    assert "<img" not in sec
