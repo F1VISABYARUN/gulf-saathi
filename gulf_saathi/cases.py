@@ -192,7 +192,7 @@ def normalize_answers(raw: dict) -> dict:
     """Answers from the record_checkin tool or Bolna's extracted_data, cleaned up."""
     raw = {str(k).lower(): v for k, v in (raw or {}).items()}
     pickup = _PICKUP.get(str(raw.get("pickup_status") or "").strip().lower().replace(" ", "_"))
-    if pickup is None and "picked_up_by_named_employer" in raw:  # field name in Hark's notes
+    if pickup is None and "picked_up_by_named_employer" in raw:  # older field name, still accepted
         named = yes_no(raw["picked_up_by_named_employer"])
         pickup = {True: "employer", False: "other_person"}.get(named)
     if pickup is None and yes_no(raw.get("taken_by_stranger")):
