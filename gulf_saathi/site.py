@@ -34,8 +34,8 @@ WARNING_EN = "This number came up in 2 other Saathi cases. It's not proof, but d
 STATS = [
     ("9.9 million", "Indians live in the six Gulf countries.", "MEA, Dec 2025",
      "https://www.mea.gov.in/population-of-overseas-indians"),
-    ("1.5 million", "(nearly 15 lakh) of them are from Telangana.", "State NRI Advisory Committee, via UNI, Aug 2026",
-     "https://www.uniindia.com/telangana-nri-panel-studies-philippines-migration-policy-for-gulf-workers/south/news/3947967.html"),
+    ("1.5 million", "(nearly 15 lakh) of them are from Telangana.", "The Hindu, Mar 2026",
+     "https://www.thehindu.com/news/national/telangana/telangana-families-worry-about-gulf-migrant-workers-amid-west-asia-tensions/article70692242.ece"),
     ("72%", "of Telangana returnees borrowed money to migrate.", "IOM / CESS survey",
      "https://publications.iom.int/books/international-returnee-migrants-telangana-survey"),
     ("476", "complaints against illegal agents in Telangana, 2021–25: 118 action-taken reports, 0 prosecution sanctions.",
@@ -541,7 +541,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   (Proposed model, not yet validated.)</p>
   <ol class="payers">
     <li><h3>Telangana government</h3><p>About 15 lakh Telangana people work in the Gulf. The state already pays ₹5 lakh
-    ex-gratia per Gulf death and runs Pravasi Prajavani. Saathi gives its desk early warning and a ready case file,
+    ex-gratia per Gulf death (G.O. 205, 16 Sep 2024) and runs Pravasi Prajavani. Saathi gives its desk early warning and a ready case file,
     sorted by district.</p></li>
     <li><h3>Other states</h3><p>Andhra Pradesh's Konaseema district built a migration help desk. In March 2026 the Chief
     Minister reportedly directed that it be scaled statewide. Saathi is the Telugu phone line that desk doesn't have.
@@ -550,8 +550,8 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
     was recorded.</p></li>
   </ol>
   <p class="never-line">Never paid by recruiting agents. Never sells worker data.</p>
-  <p class="src">15 lakh: <a href="https://www.uniindia.com/telangana-nri-panel-studies-philippines-migration-policy-for-gulf-workers/south/news/3947967.html"
-  target="_blank" rel="noopener">State NRI Advisory Committee via UNI, Aug 2026</a>. Konaseema:
+  <p class="src">15 lakh: <a href="https://www.thehindu.com/news/national/telangana/telangana-families-worry-about-gulf-migrant-workers-amid-west-asia-tensions/article70692242.ece"
+  target="_blank" rel="noopener">The Hindu, Mar 2026</a>. Konaseema:
   <a href="https://www.thehansindia.com/andhra-pradesh/naidu-praises-7-dist-collectors-1055738" target="_blank"
   rel="noopener">The Hans India, 12 Mar 2026</a>.</p>
 </div></section>

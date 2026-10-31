@@ -373,7 +373,7 @@ def test_home_explains_the_repeat_agent_check_and_who_pays(mem):
     page = client.get("/").text
     assert page.index('id="how"') < page.index('id="repeat-agent"') < page.index('id="who-pays"') < page.index('id="numbers"')
     assert "Example. Made-up names and number." in page and "98480 XXXXX" in page and "DID NOT PAY" in page
-    assert "Never paid by recruiting agents. Never sells worker data." in page and "G.O." not in page
+    assert "Never paid by recruiting agents. Never sells worker data." in page and "G.O. 205, 16 Sep 2024" in page and "uniindia" not in page
     assert page.index('id="why"') < page.index('id="how"') < page.index('id="watch"')
     # the numbers sit right under the hero, each linked to its source in a new tab
     assert page.index("</header>") < page.index('id="why"') < page.index('id="watch"')
