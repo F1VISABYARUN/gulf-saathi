@@ -19,7 +19,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, field_validator
 
-from . import bolna, cases, dashboard, demo, signals, site, sms
+from . import alerts, bolna, cases, dashboard, demo, signals, site, sms
 from .db import TABLES, MemoryStore, StoreError, SupabaseStore
 from .fees import check_fee as compute_fee
 from .matcher import LicensedList
@@ -172,7 +172,7 @@ NEW_WORKER_COLUMNS = ("visa_job", "visa_type", "sub_agent_name", "sub_agent_phon
                       "welcome_sms", "welcome_sms_status", "source", "reported_by", "petition_status",
                       "petition_ref", "worker_gender", "death_note", "remains_status", "ex_gratia_status",
                       "promise_words", "contract_before_payment", "promise_by", "promise_date", "call_consent",
-                      "passport_type", "emigration_clearance", "pbby", "pbby_nominee", "home_district", "home_mandal",
+                      "passport_type", "emigration_clearance", "pbby", "pbby_nominee", "home_district", "home_mandal", "alerts_opt_in",
                       "exit_penalty")
 
 
@@ -440,6 +440,25 @@ async def api_death_status(case_id: str, request: Request):
 def api_death_clear(case_id: str):
     cases.clear_death(STORE, _worker_or_404(case_id), now())
     return {"ok": True}
+
+
+@app.get("/dashboard/alerts", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
+def dashboard_alerts():
+    workers = STORE.select("workers", order="updated_at")
+    history = STORE.select("scam_alerts", order="created_at")
+    return dashboard.render_alerts(alerts.recipients(workers), alerts.TEMPLATES,
+                                   alerts.suggestions(STORE.select("contact_reports"), now()), history, status())
+
+
+@app.post("/api/alerts", dependencies=[Depends(require_dashboard)])
+async def api_alerts(request: Request):
+    data = await json_object(request)
+    try:
+        row = alerts.send_alert(STORE, STORE.select("workers"), str(data.get("message") or ""),
+                                str(data.get("channel") or "voice"), now())
+    except cases.CaseError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, **{k: row.get(k) for k in ("recipients", "sent", "prepared", "failed")}}
 
 
 @app.post("/api/workers", dependencies=[Depends(require_dashboard)])

@@ -13,9 +13,9 @@ from typing import Any
 
 import httpx
 
-TABLES = ("workers", "calls", "checkins", "escalations", "contact_reports")
+TABLES = ("workers", "calls", "checkins", "escalations", "contact_reports", "scam_alerts")
 # Tables whose primary key the database generates (calls use Bolna's execution id).
-GENERATED_IDS = {"workers", "checkins", "escalations", "contact_reports"}
+GENERATED_IDS = {"workers", "checkins", "escalations", "contact_reports", "scam_alerts"}
 
 
 class StoreError(RuntimeError):

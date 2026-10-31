@@ -108,7 +108,7 @@ def test_health_shows_config_and_db(mem):
     h = client.get("/health").json()
     assert h["storage"] == "memory" and h["dashboard"] is True and h["bolna_checkin_calls"] is False
     assert client.get("/health/db").json() == {"storage": "memory", "ok": True,
-                                                "tables": {t: "ok" for t in ("workers", "calls", "checkins", "escalations", "contact_reports",
+                                                "tables": {t: "ok" for t in ("workers", "calls", "checkins", "escalations", "contact_reports", "scam_alerts",
                                                                               "workers (new columns)")}}
 
 
@@ -461,3 +461,11 @@ def test_prajavani_notes_section(mem):
     sec = page[page.index('id="heard"'):page.index('id="who-pays"')]
     assert "not verified case records" in sec and "does not mean any official or" in sec and "reportedly" in sec
     assert "<img" not in sec
+
+
+def test_weekly_alerts_page(mem):
+    assert client.get("/dashboard/alerts").status_code == 401
+    page = client.get("/dashboard/alerts", auth=AUTH).text
+    assert "Weekly scam alert" in page and "Goes to <b>0</b>" in page
+    r = client.post("/api/alerts", auth=AUTH, json={"message": "గల్ఫ్ సాథి హెచ్చరిక", "channel": "voice"})
+    assert r.status_code == 400 and "nobody" in r.json()["detail"]

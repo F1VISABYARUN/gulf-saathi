@@ -167,3 +167,17 @@ alter table workers add column if not exists home_district text;
 alter table workers add column if not exists home_mandal text;
 alter table workers add column if not exists last_action_at timestamptz; -- last thing a caseworker did on the case
 alter table workers add column if not exists exit_penalty text;      -- penalty to leave or cancel the visa, as written
+
+-- Added 31 Oct 2026: weekly scam alerts to workers and families who opt in.
+alter table workers add column if not exists alerts_opt_in text;          -- yes / no
+create table if not exists scam_alerts (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  message text not null,                 -- the Telugu warning, never naming a person
+  channel text not null,                 -- voice / sms
+  recipients int not null default 0,
+  sent int not null default 0,
+  prepared int not null default 0,       -- SMS not switched on: prepared, not sent
+  failed int not null default 0
+);
+alter table scam_alerts enable row level security;

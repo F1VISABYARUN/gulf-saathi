@@ -403,6 +403,7 @@ def clean_case_fields(data: dict, licensed: LicensedList) -> dict:
         "exit_penalty": None if str(data.get("exit_penalty") or "").strip().lower() in ("", "no", "none", "లేదు")
         else _text(data, "exit_penalty", 120),
         "call_consent": {True: "yes", False: "no"}.get(yes_no(data.get("call_consent"))),
+        "alerts_opt_in": {True: "yes", False: "no"}.get(yes_no(data.get("alerts_opt_in"))),
         "passport_type": passport_type, "emigration_clearance": yes_no_text("emigration_clearance"),
         "pbby": yes_no_text("pbby"), "pbby_nominee": _text(data, "pbby_nominee"),
         "home_district": _text(data, "home_district", 60), "home_mandal": _text(data, "home_mandal", 60),

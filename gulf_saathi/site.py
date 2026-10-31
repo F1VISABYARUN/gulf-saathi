@@ -522,8 +522,8 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <p class="hl" style="margin:16px 0 8px">Cases we heard about</p>
   <ul class="pills"><li>Route changed without telling the worker</li><li>Told to wait in a third country</li>
     <li>A recruit reportedly sent to Russia</li></ul>
-  <p class="src" style="margin-top:14px">Officials also asked for regular scam warnings to workers and families. Weekly voice
-  alerts are on our roadmap. Saathi is independent and non-partisan, and being there does not mean any official or
+  <p class="src" style="margin-top:14px">Officials also asked for regular scam warnings to workers and families. Saathi now
+  sends weekly scam alerts to workers and families who agree: as a voice call today, and by SMS once SMS is switched on. Saathi is independent and non-partisan, and being there does not mean any official or
   department endorses it.</p>
 </div></section>
 

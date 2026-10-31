@@ -1018,3 +1018,38 @@ def test_death_papers_deadline_relief_fund_and_visit_visa_caveat(store, licensed
     text = json.dumps(cases.death_packet(store, w, NOW), ensure_ascii=False)
     assert "within 6 months" in text and "Chief Minister's Relief Fund" in text
     assert "recorded as a visit visa" in text and "6 నెలల లోపు" in text and "ముఖ్యమంత్రి సహాయ నిధి" in text
+
+
+# --- weekly scam alerts (31 Oct) ---------------------------------------------------------
+
+def test_weekly_alert_goes_only_to_people_who_agreed(store, licensed, placed, texts):
+    from gulf_saathi import alerts
+    register(store, licensed, alerts_opt_in="yes")
+    register(store, licensed, worker_phone="9000000051", family_phone="9000000052", alerts_opt_in="no")
+    dead = register(store, licensed, worker_phone="9000000053", family_phone="9000000054", alerts_opt_in="yes")["worker"]
+    cases.report_death(store, dead, {"reported_by": "wife"}, NOW)
+    people = alerts.recipients(store.select("workers"))
+    assert {p["phone"] for p in people} == {"+919876543210", "+919123456780"}  # worker and family, once each
+    row = alerts.send_alert(store, store.select("workers"), alerts.TEMPLATES[0][2], "voice", NOW)
+    assert row["recipients"] == 2 and row["sent"] == 2 and len(placed) >= 2
+    assert placed[-1]["user_data"]["call_kind"] == "alert"
+    sms_row = alerts.send_alert(store, store.select("workers"), alerts.TEMPLATES[1][2], "sms", NOW)
+    assert sms_row["prepared"] + sms_row["sent"] == 2
+
+
+def test_alert_never_names_a_number_and_needs_people(store, licensed, placed):
+    from gulf_saathi import alerts
+    with pytest.raises(CaseError, match="phone number"):
+        alerts.clean_message("ఈ నంబర్ 98480 12345 మోసం")
+    with pytest.raises(CaseError, match="nobody"):
+        alerts.send_alert(store, [], "గల్ఫ్ సాథి హెచ్చరిక", "voice", NOW)
+    with pytest.raises(CaseError, match="300"):
+        alerts.clean_message("అ" * 301)
+
+
+def test_alert_suggestions_from_this_weeks_calls():
+    from gulf_saathi import alerts
+    reports = [{"created_at": NOW.isoformat(), "amount_asked": 150000, "visa_type": "visit"},
+               {"created_at": (NOW - timedelta(days=20)).isoformat(), "visa_type": "visit"}]
+    hints = alerts.suggestions(reports, NOW)
+    assert [h["template"] for h in hints] == ["visit_visa", "fee"] and hints[0]["text"].startswith("1 caller")

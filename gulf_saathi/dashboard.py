@@ -87,7 +87,7 @@ legend {{ font-weight:700; padding:0 6px; }}
 .v-conflict {{ color:#b42318; font-weight:700; }} .v-match {{ color:#067647; }} .v-unknown {{ color:var(--muted); }}
 select {{ width:100%; padding:8px; border:1px solid #d0d5dd; border-radius:8px; font:inherit; background:#fff; }}
 </style></head><body>
-<header><a href="/">Gulf Saathi</a><a href="/dashboard">Cases</a><a href="/dashboard/agents">Agents</a><a href="/demo">Demo story</a><span class="sp"></span><a href="/dashboard/new">+ Register worker</a></header>
+<header><a href="/">Gulf Saathi</a><a href="/dashboard">Cases</a><a href="/dashboard/agents">Agents</a><a href="/dashboard/alerts">Weekly alerts</a><a href="/demo">Demo story</a><span class="sp"></span><a href="/dashboard/new">+ Register worker</a></header>
 <main>{body}</main>
 <script>
 async function post(url, body, btn, okText) {{
@@ -323,7 +323,8 @@ FIELDS = [
                           ("contract_before_payment", "Got the full written contract before paying?", ""),
                           ("exit_penalty", "Penalty in the contract for leaving or cancelling the visa (amount, or no)",
                            "AED 4,100"),
-                          ("call_consent", "Worker agreed to recorded Saathi calls?", "")]),
+                          ("call_consent", "Worker agreed to recorded Saathi calls?", ""),
+                          ("alerts_opt_in", "Worker and family agreed to weekly scam alerts?", "")]),
     ("Visa papers (type exactly what the visa says)", [("visa_type", "Visa type", ""),
                                                        ("visa_job", "Job written on the visa", "Agricultural worker")]),
     ("Emigration papers", [("passport_type", "Passport type (ECR if the worker did not pass 10th)", ""),
@@ -356,7 +357,7 @@ def render_form(values: dict | None = None, case_id: str | None = None) -> str:
     for legend, fields in FIELDS:
         inputs = []
         for name, label, ph in fields:
-            if name in ("visa_type", "worker_gender", "contract_before_payment", "call_consent", "passport_type",
+            if name in ("visa_type", "worker_gender", "contract_before_payment", "call_consent", "alerts_opt_in", "passport_type",
                         "emigration_clearance", "pbby"):
                 current = _form_value(name, values)
                 choices = {"visa_type": VISA_TYPES, "worker_gender": GENDERS, "passport_type": PASSPORT_TYPES}.get(name, ("yes", "no"))
@@ -636,6 +637,29 @@ where they said they were working, and when pay stopped. Give it to the embassy 
 <style>@media print {{ header, .noprint {{ display:none }} .card {{ border:0 }} body {{ background:#fff }} }}
 .petition p, .petition li {{ margin:6px 0 }}</style>"""
     return page(f"Proof of work {w['case_id']}", body)
+
+
+def render_alerts(people: list[dict], templates: list, hints: list[dict], history: list[dict], status: dict) -> str:
+    """Weekly scam alert: pick or write one Telugu warning, send to everyone who opted in."""
+    opts = "".join(f'<option value="{esc(text)}">{esc(label)}</option>' for _key, label, text in templates)
+    hint = "".join(f"<li>{esc(h['text'])}</li>" for h in hints) or "<li class='muted'>No reports from callers this week.</li>"
+    rows = "".join(f"<tr><td class='nowrap'>{esc(fmt_ist(a.get('created_at')))}</td><td>{esc(a.get('channel'))}</td>"
+                   f"<td>{esc(a.get('message'))}</td><td>{esc(a.get('recipients'))}</td><td>{esc(a.get('sent'))} sent · "
+                   f"{esc(a.get('prepared'))} prepared · {esc(a.get('failed'))} failed</td></tr>" for a in history)
+    sms_note = ("SMS is switched on." if status.get("sms") != "demo" else
+                "SMS is not switched on yet: an SMS alert is only prepared, not sent.")
+    return page("Weekly alerts", f"""<h1>Weekly scam alert</h1>
+<p class="muted">One short Telugu warning to every worker and family who agreed to alerts. Warn about a pattern, never a
+person: a message with a phone number is refused.</p>
+<div class="card"><h2>This week, callers reported</h2><ul>{hint}</ul></div>
+<form class="card" onsubmit="return false">
+<label for="tpl">Pick a warning</label><select id="tpl" onchange="msgtext.value=this.value"><option value="">Write my own</option>{opts}</select>
+<label for="msgtext">Alert (Telugu, under 300 characters)</label><textarea id="msgtext" rows="3" maxlength="300"></textarea>
+<label for="chan">Send as</label><select id="chan"><option value="voice">Voice call (Bolna, uses credits)</option><option value="sms">SMS</option></select>
+<p class="muted">Goes to <b>{len(people)}</b> number(s) that opted in. {esc(sms_note)}</p>
+<p><button class="btn" onclick="confirm('Send this alert to {len(people)} number(s)?') && post('/api/alerts', {{message: msgtext.value, channel: chan.value}}, this, 'Sent').then(j => j && location.reload())">Send alert</button></p>
+<div id="msg"></div></form>
+<div class="card"><h2>Sent alerts</h2>{'<div class="wrap"><table><thead><tr><th>When</th><th>How</th><th>Alert</th><th>To</th><th>Result</th></tr></thead><tbody>' + rows + '</tbody></table></div>' if rows else '<p class="muted">None yet.</p>'}</div>""")
 
 
 def render_petition(w: dict, pet: dict) -> str:
