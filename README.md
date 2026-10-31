@@ -1,85 +1,56 @@
-# Gulf Saathi
+# Gulf Saathi · గల్ఫ్ సాథి
 
-A Telugu voice safety line and case system for Telangana's Gulf migrant workers.
-Workers check an agent before paying. Once they fly, Saathi calls them on arrival
-day and every week. When something goes wrong, the family hears about it in Telugu
-and a caseworker gets an English case packet for MADAD, TOMCOM or the embassy.
+A Telugu phone line that walks with Telangana's Gulf workers at every step: it checks the agent and the fee
+before they pay, records what they were promised, calls them on arrival day and every week, and turns trouble
+into a ready case file for the people who can act.
 
-Voice and phone calls run on [Bolna](https://www.bolna.ai). This repo is the server
-behind them, deployed on Vercel with a Supabase database.
+Nearly 15 lakh people from Telangana work in Gulf countries ([The Hindu, Mar 2026](https://www.thehindu.com/news/national/telangana/telangana-families-worry-about-gulf-migrant-workers-amid-west-asia-tensions/article70692242.ece)).
+Between 2021 and 2025 the state logged 476 complaints against illegal agents and 0 prosecution sanctions
+(Lok Sabha USQ 2190, 31 Jul 2026). Today help usually starts after a crisis, from a selfie video.
 
-## How it fits together
+Live at **[gulf-saathi-psi.vercel.app](https://gulf-saathi-psi.vercel.app)**. Built for the Bolna Buildathon 2026.
+
+## How it works
+
+1. **Before paying:** the worker or family calls in Telugu. Saathi checks the agent against the MEA eMigrate
+   licensed list (2,447 agents, 8 Apr 2026) and the fee against the ₹35,400 legal limit.
+2. **Before flying:** the promised job, visa, payments, papers and family contact are recorded, and red flags
+   show at once.
+3. **Arrival day:** Saathi calls: did the registered employer pick you up?
+4. **Every week:** salary, passport, food, safety, and is this the job and city you were promised?
+5. **When something is wrong:** the case is flagged, a Telugu message for the family is ready, and a caseworker
+   gets an English case file for MADAD, the Indian Embassy or Pravasi Prajavani.
+
+## What makes it different
+
+- **Repeat-agent warning:** the same agent number or payment account across cases warns the next family before
+  they pay.
+- **Case file from the first call:** officials don't spend weeks collecting the employer, visa, agent and route.
+- **Proof of work:** a dated record of every call, against a false absconding report.
+- **When a worker dies abroad:** the facts the embassy needs and the family's papers for the state ex-gratia,
+  in Telugu and English.
+- **Weekly scam alerts** to workers and families who sign up.
+- **Family callers:** a mother or wife can raise a case without travelling to Hyderabad.
+
+## Built with
+
+Bolna voice agents (Telugu speech by Sarvam) · Python FastAPI on Vercel · Supabase.
+
+## Status
+
+- Working on real Bolna calls: agent and fee checks, the help line, arrival and weekly check-in calls, the
+  repeat-agent warning.
+- Next: SMS provider, a native Telugu review of all wording, and a family pilot in Jagtial district.
+
+## Run it locally
 
 ```
-Worker's phone ── Bolna voice agent ──▶ /check-agent, /check-fee        (Gulf Saathi agent)
-                                    ──▶ /tools/report-problem            (Gulf Saathi agent, help line)
-                                    ──▶ /tools/record-checkin            (Saathi Check-in agent)
-               Bolna, after each call ──▶ /webhooks/bolna
-Anyone ──────────────── browser ──────▶ /  (home page, "Get a call from Saathi")
-Caseworker ─────────── browser ──────▶ /dashboard, /demo
-Server ─────── Bolna API (POST /call) ──▶ arrival and weekly calls
-All data ─────────────────────────────▶ Supabase
-```
-
-| Piece | What it does |
-|---|---|
-| Agent check (`matcher.py`) | Matches a spoken agency, owner, district or licence number, in Telugu or English, against 2,447 licensed agents (MEA eMigrate list, 8 Apr 2026). Answers `confirmed_in_list`, `needs_confirmation`, `not_found` or `need_more_info`. Never endorses an agent. |
-| Fee check (`fees.py`) | Adds every payment to the agent and compares with Rs 30,000 + 18% GST = Rs 35,400. |
-| Worker case (`cases.py`) | Pre-departure trail: employer, sponsor, destination, salary, agent, payments, family. Case ID like `GS-7K3P9Q`. |
-| Calls (`cases.py`, `bolna.py`) | Books the arrival-day call, then a weekly call. A missed call is retried (3 hours for arrival, 24 hours for weekly). "Completed" counts as missed unless the worker actually spoke. |
-| Risk and alerts (`cases.py`, `sms.py`) | CRITICAL: wrong person or nobody at the airport, threats, not allowed out, asked for help, danger code phrase. HIGH: passport taken, 2+ months unpaid, 2 missed calls in a row. MEDIUM: 1 month unpaid, food or room problems, 1 missed call. HIGH and CRITICAL text the family in Telugu, once per open alert. |
-| Promise vs reality (`promise.py`) | Before flying: agent not in list, fee over the limit, visit or tourist visa, visa job different from the promised job. After arrival: the work and city the worker describes vs what was promised. Fixed word lists decide "same kind of work"; the AI only writes down what was said. |
-| Saathi Intelligence (`signals.py`) | The same sub-agent phone, payment account, sponsor ID or employer phone in 2+ cases (strong), or the same employer name in the same country (weak): "seen in N cases, needs human review", with the agent districts involved. Person names are never matched. **Live on the call** (`/check-contact`): before paying, a worker can check an agent's phone or UPI ID and hears only a count ("came up in 3 cases, 2 reported serious problems"), never names; demo cases never feed it. A link is a lead for investigators, not a finding of fraud. |
-| Help line (`cases.report_problem`) | A worker abroad calls the Gulf Saathi number with a problem: finds or opens their case, keeps trace details (name, home district, agent, nearby place) and applies the same rules and alerts. Safety net: after the call, Bolna's `help_check` extraction opens or updates the case even if the live voice AI never called the tool. |
-| Agent numbers heard on calls (`signals.record_contact`) | Every agent phone or payment account a worker or family tells Saathi is saved with what the agent asked for, so patterns grow from every call, not only registered cases. Counted once per caller. Saathi reads the number back digit by digit before checking. Who owns a number can only be found by the telecom company or police. |
-| Family callers and Pravasi Prajavani (`cases.report_problem`, `prajavani_petition`) | A mother or wife can call about someone abroad: the case is opened with them as the family contact. Each case has a printable Telugu + English Pravasi Prajavani petition and a status (prepared / submitted / acknowledged / closed) that callers hear when they call again, so families don't have to travel to Hyderabad. A person hands it in; Saathi does not submit it. |
-| Women going for housework (`promise.py`) | A woman going as a housemaid on a visit or tourist visa is stopped before she flies (the route MEA has warned agents use to get past emigration checks). Also flags: under 30 (with an ECR passport India gives no emigration clearance for Gulf jobs) and "only a state government agency may send her". Abroad, one missed call is HIGH for her, not MEDIUM, and "moved or sold to another house or employer" is HIGH for anyone. Rules from MEA guidelines; check them before relying on them. |
-| When a worker dies abroad (`cases.report_death`, `death_packet`) | A family caller says the worker died, or a caseworker records it: Saathi stops calling the number, opens a CRITICAL alert with a ready message for the embassy (next of kin, employer, sponsor), and never tells the family by SMS. Printable Telugu + English papers: the facts the embassy needs, the steps (NOC is the embassy's own form; ICWF if the employer won't pay; Telangana's Rs 5 lakh ex-gratia (G.O. 205 of 16 Sep 2024 sanctioned it; G.O. 216 of Oct 2024 gave the guidelines)), and status tracking. The case list search answers "whose family is this?" for an embassy or volunteer. |
-| Salary vs promise, papers problems, proof of work (`cases.py`, `promise.py`) | The weekly call asks how much salary came: under 90% of the contract is HIGH. If a worker says visit visa, expired visa, no iqama or an absconding case, Saathi first says it is not the police and never gives their details to police there; the embassy message names the agent as the wrongdoer and asks for help returning (Emergency Certificate). A printable "Proof of work" lists every dated call: where they were, what work, pay, passport, and when pay stopped: evidence against a false absconding report. |
-| Emigration papers, routes, case clock, home district | Registration asks for ECR/ECNR passport, eMigrate clearance and PBBY insurance (with nominee); an ECR worker with no clearance for a job in an ECR country is a "do not travel" flag, and no PBBY is a red flag. Workers who passed 10th (ECNR) are never flagged for these. Jobs in Russia, Ukraine, Myanmar, Cambodia or Laos are flagged (government warnings about army "helper" and scam call-centre jobs). Each open alert has a clock: "Alert open 12 days · last caseworker action 9 days ago", red after 7 days without action, overdue cases first; families calling again hear how long their case has been open. Worker's home district and mandal, with a district filter for district migration desks. |
-| Weekly scam alerts (`alerts.py`) | Dashboard → Weekly alerts: pick or write one Telugu warning (visit-visa jobs, fees over ₹35,400, unlicensed agents, ID/SIM misuse, Russia and South-East Asia jobs, contract before paying) and send it to every worker and family who agreed at registration, as a Bolna voice call or by SMS once SMS is on. Suggestions come from what callers reported that week. A message with a phone number is refused, so alerts warn about patterns, never a person. Asked for by officials at Pravasi Prajavani, Oct 2026. |
-| Family welcome SMS | One Telugu SMS to the family at registration, with the case number. |
-| Case packet (`cases.py`) | English summary with the whole timeline, recordings and the latest transcript, for a person to file. |
-| Dashboard (`dashboard.py`) | Password-protected case list with risk badges, case page with timeline, promise-vs-reality table, "Call now", packet download, "Mark resolved". |
-| Website (`site.py`, `demo.py`) | Public home page with totals only; "Get a call from Saathi" (needs `GS_DEMO_CODE`); a password-protected demo story that creates made-up cases marked DEMO, with no real call or SMS. |
-
-## Setup
-
-1. **Supabase:** SQL Editor → paste [`supabase/schema.sql`](supabase/schema.sql) → Run.
-2. **Bolna and Vercel:** follow [`docs/BOLNA_SETUP.md`](docs/BOLNA_SETUP.md).
-3. **Check:** `/health` and `/health/db` show `"ok": true`, and `/dashboard` opens after the password.
-
-## Run locally
-
-```bash
 pip install -r requirements-dev.txt
-python -m pytest                                   # all tests
+python -m pytest
 GS_DASHBOARD_PASSWORD=test uvicorn gulf_saathi.api:app --port 8000
 ```
 
-Without Supabase settings the server keeps data in memory. Without Bolna settings
-"Call now" says Bolna isn't configured. Without Plivo the family SMS is shown on the
-dashboard but not sent.
+Database setup: run `supabase/schema.sql` in the Supabase SQL editor. Without Supabase settings the server keeps
+data in memory.
 
-Try the agent and fee checks from the command line:
-
-```bash
-python -m gulf_saathi.matcher --owner "Seedi Kavitha"
-python -m gulf_saathi.matcher "చెల్లా మల్లేశం జగిత్యాల్"
-```
-
-## Data
-
-`data/licensed_agents.csv` comes from the MEA / eMigrate active recruiting-agent list
-(as on 08-04-2026). Regenerate it from the PDF with `scripts/agents_pdf_to_csv.py`.
-
-## Not done, or not verified
-
-- **Policy figures:** the Rs 35,400 fee cap is Rs 30,000 + 18% GST (Emigration (Amendment) Rules 2017, MEA advisories); older pages still show the 2009 Rs 20,000 rule. PBBY is checked against MEA's PBBY page (Rs 10 lakh for accidental death or disability, premium Rs 275 for 2 years or Rs 375 for 3, compulsory for ECR workers going to ECR countries). Ex-gratia: G.O. 205 (16 Sep 2024) and G.O. 216 (Oct 2024), from The Hindu, 20 Nov 2024.
-- **Bolna call API:** placing calls (`POST /call`) is written from Hark's notes on Bolna's docs and hasn't been tried against the live API yet.
-- **Family SMS:** demo mode until Plivo and DLT registration are set up.
-- **Filing:** MADAD has no public API that we know of. The case packet is filed by a person.
-- **Privacy:** the database holds workers' and families' phone numbers and call recordings. Get consent at registration and keep the dashboard password and Supabase secret key private.
-- **Demo calls:** a Bolna trial account may only call numbers verified in that account. Calls to Gulf numbers are untested.
-- **Job matching:** the word lists in `promise.py` cover common jobs only. Unrecognised work never raises a flag, so some mismatches will be missed.
-- **Language:** the Telugu wording (prompts, SMS) is machine-drafted and needs a native speaker's review.
+`data/licensed_agents.csv` comes from the MEA eMigrate active recruiting-agent list (8 Apr 2026).
