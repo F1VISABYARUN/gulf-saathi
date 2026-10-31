@@ -199,7 +199,7 @@ def test_home_page_is_public_and_shows_totals_only(mem):
         assert f"/{img}" in page
     assert "Lok Sabha USQ 2190, 31 Jul 2026, Annex I" in page and "118 action-taken reports" in page
     assert "3,647 Indian women were sent home from Oman" in page
-    assert "Rs " not in page and "₹35,400" in page and "Demo dashboard" in page
+    assert "Rs " not in page and "₹35,400" in page and "Caseworker view" in page
     assert "Secret Name" not in page and "9876543210" not in page
     words = re.sub(r'href="[^"]*"', "", page).lower()  # source URLs are not our wording
     for banned in ("fraud", "genuine", "government-ready", "rescue", "safe", "trusted"):
@@ -374,7 +374,7 @@ def test_home_explains_the_repeat_agent_check_and_who_pays(mem):
     page = client.get("/").text
     assert page.index('id="how"') < page.index('id="repeat-agent"') < page.index('id="who-pays"') < page.index('id="numbers"')
     assert "Example. Made-up names and number." in page and "98480 XXXXX" in page and "DID NOT PAY" in page
-    assert "Proposed model, not yet in place." in page and "Where it goes next" in page
+    assert "Proposed model, not yet in place." in page
     # the numbers sit right under the hero, each linked to its source in a new tab
     assert page.index("</header>") < page.index('id="why"') < page.index('id="watch"')
     strip = page[page.index('id="why"'):page.index('id="watch"')]
@@ -414,7 +414,7 @@ def test_real_call_player_and_honest_call_counter(mem, monkeypatch):
     page = client.get("/").text
     hear = page[page.index('id="hear"'):page.index('id="story"')]
     assert 'src="/gs_call_help_line.mp3"' in hear and "hidden=true" in hear  # hidden until the file is added
-    assert "నా పాస్‌పోర్ట్ పోయింది" in hear and "my passport was gone" in hear and "before one line was softened" in hear
+    assert "నా పాస్‌పోర్ట్ పోయింది" in hear and "my passport was gone" in hear and "one line was softened" in hear
     # Answered calls only, never demo cases; the team's own phones never count as outside callers.
     w = mem.insert("workers", {"case_id": "GS-AAAAAA", "worker_name": "A", "worker_phone": "+919876543210", "is_demo": False})
     d = mem.insert("workers", {"case_id": "GS-BBBBBB", "worker_name": "D", "worker_phone": "+919000000001", "is_demo": True})

@@ -16,7 +16,7 @@ STEPS = [
      "Records the promised job, visa and payments. Flags a visit visa or a different job at once.", "testing"),
     ("Arrival day", "చేరిన రోజు", "Calls on landing: did the registered employer pick you up?", "testing"),
     ("Every week", "ప్రతి వారం",
-     "Salary, passport, food, threats, same job and city? Two missed calls raise an alert.", "testing"),
+     "Salary, passport, food, threats, same job and city? Two missed calls in a row raise an alert (one, for a woman in housework).", "testing"),
     ("When something is wrong", "సమస్య వస్తే",
      "Caseworker dashboard, English complaint-ready packet, and a family SMS (sending not switched on yet).", "testing"),
 ]
@@ -46,7 +46,6 @@ STATS = [
 # matched to the call's own log and the pauses in the audio. The clip stops before two script glitches later on.
 CALL_CLIP = [
     (0.2, "Caller", "అక్కడ పోయిన తర్వాత నా పాస్‌పోర్ట్ పోయింది.", "After I went there, my passport was gone."),
-    (5.5, "Caller", "…", "(talks about the sponsor who took him; partly unclear)"),
     (8.3, "Caller", "ఇప్పుడు నేను ఇండియాకి రావాలంటే ఏం చేయాలి?", "What do I do to get back to India?"),
     (12.2, "Saathi", "సరే, నోట్ చేస్తున్నాను.", "OK, I'm noting it down."),
     (19.4, "Saathi", "మీరు ఒంటరి కాదు. మీ కేసు అత్యవసరంగా నమోదు అయింది; సాథి బృందం మీరు చెప్పిన విషయాలతో భారత రాయబార "
@@ -56,21 +55,6 @@ CALL_CLIP = [
      "If you can, stay where other people are. Keep your phone hidden and charged."),
     (35.0, "Saathi", "దగ్గర కనిపించే భవనం, షాప్, మసీదు లేదా రోడ్డు పేరు ఏమిటి? మీ కేసు నంబర్ జీ ఎస్, డబ్ల్యూ 9 హెచ్ డబ్ల్యూ ఎస్ వై.",
      "What building, shop, mosque or road can you see? Your case number is G S, W 9 H W S Y."),
-]
-
-WEDGES = [
-    ("Now", "Telangana to the Gulf: check before paying, then calls on arrival day and every week."),
-    ("Next", "Every Indian worker going abroad: more states, routes and languages, same rules."),
-    ("Later", "A voice record of any promise someone can't read: jobs, loans, welfare schemes."),
-]
-
-PAYERS = [
-    ("State governments", "First customer",
-     "Telangana pays ₹5 lakh per Gulf death (G.O. 205). Saathi gives a live district view and early warning, before it "
-     "becomes a death. AP and Kerala next."),
-    ("Licensed agents", "Opt-in",
-     "They pay to have their workers checked on weekly. Saathi reports how the workers are doing and never vouches for an agent."),
-    ("Partners", "Later", "Fair loans, insurance and remittances for monitored workers."),
 ]
 
 STYLE = """
@@ -144,7 +128,6 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .shotbox{position:relative;max-height:320px;overflow:hidden;border-radius:12px;border:1px solid var(--line);margin:20px 0 8px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
 .shotbox:after{content:"";position:absolute;left:0;right:0;bottom:0;height:36px;background:linear-gradient(rgba(255,255,255,0),#fff)}
 .shotbox img{width:100%}
-@media (max-width:640px){.shotwrap{display:none}}
 .tag{display:inline-block;background:#fef0c7;color:#93370d;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;letter-spacing:.04em}
 .callbox{background:var(--deep);color:#fff;border-radius:16px;padding:22px}
 .callbox h2{color:#fff} .callbox p{color:#d6dde4}
@@ -161,6 +144,11 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .label{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--muted);border:1px dashed var(--muted);border-radius:6px;padding:2px 8px;margin:0 0 10px}
 .hear{max-width:560px;margin:4px 0 14px} .hl{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
 details.more{margin-top:22px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .bubble{background:#2b2214;border-color:#7a5a20;color:#f2ece3}
+:root:not([data-theme="light"]) .bubble .te{color:#f6e3bf} :root:not([data-theme="light"]) .bubble .en{color:#d9c7a3}
+:root:not([data-theme="light"]) .player audio{filter:invert(.9) hue-rotate(180deg)}
+:root:not([data-theme="light"]) .callbox{border:1px solid #3a4652;background:#1a2129}
+:root:not([data-theme="light"]) .shotbox{opacity:.92;border-color:#3a332b}}
 #why{padding:28px 0}
 .traction{margin:14px 0 0;font-size:16px}
 .player{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;max-width:820px}
@@ -220,7 +208,9 @@ border-left:4px solid var(--muted);border-radius:10px;padding:8px 12px;font-size
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .stats .num b{font-size:clamp(28px,2.6vw,36px);white-space:nowrap}
 .big-label{font-size:14px;padding:4px 10px;border-width:2px}
-@media (max-width:900px){.stats{grid-template-columns:1fr 1fr}} @media (max-width:520px){.stats{grid-template-columns:1fr}}
+@media (max-width:900px){.stats{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.stats{gap:10px}.stats .num{padding:12px}.stats .num b{font-size:24px}.stats .num p{font-size:14px;margin-bottom:6px}.stats .src{font-size:11px}}
+#call .callbox{max-width:1080px}
 .pay{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px}
 @media (max-width:820px){.pay{grid-template-columns:1fr}}
 .pay article{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:12px;padding:16px}
@@ -292,10 +282,8 @@ def _page(title: str, body: str, description: str = "") -> str:
 <div class="wrap"><nav><b>Gulf Saathi · గల్ఫ్ సాథి</b><span class="sp"></span>
 <a href="/#how">How it works</a><a href="/#call">Get a call</a><a href="/demo">Demo story</a><a href="/dashboard">Caseworker login</a></nav></div>
 {body}
-<footer><div class="wrap">Gulf Saathi is a hackathon prototype for the Bolna Buildathon, not a government service.
-It never files a complaint by itself: it prepares a complaint-ready packet that a person takes to MADAD, the Indian Embassy or the police.
-It never vouches for an agent: it only says whether the agent is in the government licensed list. Inspired by Aadujeevitham (The Goat Life). Photos are AI-generated illustrations.<br>
-<b>Voice by Bolna · Built for the Bolna Buildathon 2026</b></div></footer>
+<footer><div class="wrap">Hackathon prototype for the Bolna Buildathon 2026, not a government service. Saathi never files
+complaints or vouches for agents; a person decides. Photos are AI-generated illustrations.</div></footer>
 </body></html>"""
 
 
@@ -310,7 +298,6 @@ def render_home(counts: dict, demo_calls_on: bool) -> str:
                     for n, text, src, url in STATS)
     clip = "".join(f'<li data-t="{t}"><b>{esc(who)}</b><span class="te" lang="te">{esc(te)}</span>'
                    f'<span class="en">{esc(en)}</span></li>' for t, who, te, en in CALL_CLIP)
-    wedges = "".join(f'<li><b>{esc(k)}:</b> {esc(v)}</li>' for k, v in WEDGES)
     calls = counts.get("calls") or {}
     if calls.get("outside_team") == 0:
         traction = (f'Live system: <b>{esc(calls["answered"])}</b> calls answered so far, all from the team\'s test phone. '
@@ -322,14 +309,6 @@ def render_home(counts: dict, demo_calls_on: bool) -> str:
         traction = f'Live system: <b>{esc(calls.get("answered", 0))}</b> calls answered so far (includes the team\'s test calls).'
     else:
         traction = ""
-    payers = "".join(f'<article><div class="k">{i}. {esc(k)}</div><h3>{esc(who)}</h3><p>{esc(text)}</p></article>'
-                     for i, (who, k, text) in enumerate(PAYERS, 1))
-    demo_note = (f'<p class="honest"><span class="tag">INCLUDES DEMO DATA</span> {esc(counts["demo"])} of these cases are made-up '
-                 "demo cases.</p>" if counts.get("demo") else
-                 '<p class="honest">No real worker data is shown here, only totals.</p>')
-    tiles = "".join(f'<div class="tile"><b>{esc(counts.get(k, 0))}</b><span>{esc(label)}</span></div>' for k, label in (
-        ("registered", "Cases"), ("red_flags", "Pre-departure red flags"), ("abroad", "Abroad, getting calls"),
-        ("at_risk", "At risk now (HIGH or CRITICAL)"), ("signals", "Repeated agent phones / accounts across cases")))
     call_form = ("""<form id="cf" onsubmit="return false">
   <label for="phone">Your phone number</label><input id="phone" name="phone" inputmode="tel" placeholder="98765 43210" required>
   <label for="code">Demo code (from the Gulf Saathi team)</label><input id="code" name="code" autocomplete="off" required>
@@ -355,8 +334,8 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <h1>A trapped worker's only evidence is a selfie video. Saathi records the evidence before the trap.</h1>
   <p class="te">మీ గల్ఫ్ ప్రయాణంలో ప్రతి అడుగులో తోడుగా సాథి.</p>
   <p>A Telugu phone call that checks the agent, the fee and the visa before he pays, then calls him on arrival day and
-  every week, and alerts his family when something goes wrong.</p>
-  <a class="btn" href="#call">Get a call from Saathi</a> <a class="btn ghost" href="#watch">Watch the demo</a><br>
+  each week, and flags trouble to a caseworker.</p>
+  <a class="btn" href="#watch">Watch the demo</a> <a class="btn ghost" href="#hear">Hear a real call</a><br>
   <span class="badge">Voice by Bolna · Telugu speech by Sarvam · Prototype</span>
 </div></div></header>
 
@@ -367,7 +346,6 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   target="_blank" rel="noopener">Rajya Sabha Q. 2319, Mar 2026</a>
   (also reported by <a href="https://timesofindia.indiatimes.com/city/chandigarh/over-10k-women-rescued-from-7-gulf-countries-in-5-yrs-rs-told/articleshow/129519566.cms"
   target="_blank" rel="noopener">Times of India, 13 Mar 2026</a>)</p>
-  {f'<p class="traction">{traction}</p>' if traction else ''}
 </div></section>
 
 <section id="watch"><div class="wrap video">
@@ -381,14 +359,14 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 
 <section id="hear"><div class="wrap">
   <h2>Hear a real call</h2>
-  <p class="lede">A worker in Dubai says his passport is gone. Saathi notes it, registers the case as urgent and reads out
+  <p class="lede">A test call: a worker in Dubai says his passport is gone. Saathi notes it, registers the case as urgent and reads out
   the case number. Tap a line to jump to it.</p>
   <div class="player"><audio id="callaudio" controls preload="metadata">
     <source src="/gs_call_help_line.mp3" type="audio/mpeg" onerror="document.getElementById('hear').hidden=true"></audio>
   <ol class="caps" id="caps">{clip}</ol></div>
-  <p class="src">Real Bolna call, 21 Oct 2026; the caller is a team member on a test phone. 42 seconds from the middle of the
-  call. Recorded before one line was softened: Saathi now says a caseworker will act on it, not that the team is
-  alerting the embassy.</p>
+  <p class="src">Real Bolna call, 21 Oct 2026, 42 seconds; the caller is a team member. Since then one line was softened:
+  Saathi now says a caseworker will act on it.</p>
+  {f'<p class="src">{traction}</p>' if traction else ''}
 </div></section>
 <script>
 (() => {{
@@ -415,9 +393,9 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
         <li>The family learns from a video, too late</li></ul></div>
       <div class="with"><h3>With Saathi</h3><ul>
         <li>Wrong visa flagged before he flies</li><li>Arrival call: wrong pickup = CRITICAL</li>
-        <li>Weekly calls catch "herding goats" = HIGH</li></ul></div>
+        <li>"Herding goats" is not the promised job = HIGH</li></ul></div>
     </div>
-    <p><a href="/demo">Run this story on the demo →</a></p>
+    <p><a href="/demo">Run this story on the demo →</a> <span class="src">(team login)</span></p>
   </div>
 </div></section>
 
@@ -437,7 +415,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <div class="netbox" id="case-network">{case_network()}
   <p class="src" style="margin:12px 0 0">Saathi links cases only by exact phone numbers or payment accounts. A link is a lead
   for a caseworker to review, not proof against anyone.</p></div>
-  <div class="hear"><div class="hl">What caller 5 hears, live</div>{bubble}</div>
+  <div class="hear"><div class="hl">What caller 5 hears (roughly)</div>{bubble}</div>
   <p class="honest" style="margin-top:10px">Callers hear only a count, never names. Proven on a real Bolna call; the
   multi-caller flow is tested in code.</p>
 </div></section>
@@ -447,7 +425,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <div class="who">
     <article><img src="/gs_family_sms.webp" alt="A mother at home reading a message on her phone" loading="lazy">
       <div class="in"><p class="cap" style="margin:0 0 8px">{AI_PHOTO}</p><h3>Family</h3>
-      <p>Hears in Telugu when something is wrong, not months later.</p></div></article>
+      <p>Will get a Telugu SMS when something is wrong (drafted now, not yet sent).</p></div></article>
     <article><img src="/gs_caseworker.webp" alt="A caseworker with a headset at a laptop" loading="lazy">
       <div class="in"><p class="cap" style="margin:0 0 8px">{AI_PHOTO}</p><h3>Volunteers and caseworkers</h3>
       <p>A ready case: who, where, which agent, what was promised.</p></div></article>
@@ -459,31 +437,24 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 
 <section id="who-pays"><div class="wrap">
   <h2>Who pays</h2>
-  <p class="lede">State governments first: Telangana already pays ₹5 lakh per Gulf death (G.O. 205). Saathi gives it a live
-  district view and early warning. <span class="label big-label" style="margin:0 0 0 6px">Proposed model, not yet in place.</span></p>
-  <details class="more"><summary>Show the model and what comes next</summary>
-  <div class="pay" style="margin-top:14px">{payers}</div>
-  <h3 style="margin:22px 0 8px;font-size:18px">Where it goes next <span class="label" style="margin:0 0 0 6px">Roadmap</span></h3>
-  <ul class="wedges">{wedges}</ul>
-  </details>
+  <p class="lede"><span class="label big-label" style="margin:0 6px 0 0">Proposed model, not yet in place.</span>
+  Telangana already pays ₹5 lakh per Gulf death (G.O. 205); Saathi gives it early warning, with cases sorted by
+  district. Next: other states, then every Indian worker going abroad.</p>
 </div></section>
 
 <section id="numbers"><div class="wrap">
-  <h2>Demo dashboard</h2>
-  <div class="tiles">{tiles}</div>
-  {demo_note}
+  <h2>Caseworker view</h2>
   <div class="shotwrap"><div class="shotbox"><img src="/gs_dashboard.webp" alt="The caseworker dashboard showing a made-up demo case marked CRITICAL, with its red flags" loading="lazy"></div>
-  <p class="cap">Screenshot of the caseworker view with made-up demo cases.</p></div>
-  <p style="margin-top:14px"><a class="btn ghost" href="/dashboard">Open caseworker view</a></p>
+  <p class="cap">Screenshot with a made-up demo case.</p></div>
+  <p style="margin-top:14px"><a class="btn ghost" href="/dashboard">Open caseworker view</a> <span class="src">(team login)</span></p>
 </div></section>
 
 <section id="call"><div class="wrap callbox">
   <h2>Get a call from Saathi</h2>
   <p>Saathi will call your phone in Telugu. Ask it to check an agent's name or a fee. Indian numbers only for now.</p>
   {call_form}
-  <p class="honest" style="color:#b9c4cf">Say "తెలుగు" when Saathi answers. Calls are recorded to help your case; agent numbers
-  you mention warn other callers as a count, never with your name. Trial account: may only call verified numbers; Gulf
-  numbers not tested yet.</p>
+  <p class="honest" style="color:#b9c4cf">Needs a demo code from the team; or hear a real call above. Say "తెలుగు" when
+  Saathi answers. Calls are recorded. Trial account: Indian, verified numbers only.</p>
 </div></section>
 """, "Gulf Saathi: a Telugu voice line that checks agents, fees, visas, and calls workers on arrival day and every week.")
 
