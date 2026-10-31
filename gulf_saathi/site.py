@@ -175,7 +175,8 @@ details.more .arch{margin-top:14px}
 .cn-in{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .cn-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);
 border-left:4px solid var(--muted);border-radius:10px;padding:8px 12px;font-size:14px}
-.cn-row span{font-size:12px;color:var(--muted);text-align:right}
+.cn-row span{font-size:12px;color:var(--muted);text-align:right;min-width:0}
+.cn-row b{white-space:nowrap;flex:0 0 auto}
 .cn-row.bad{border-left-color:var(--alert)} .cn-row.bad span{color:var(--alert);font-weight:800;letter-spacing:.04em}
 .cn-arrow{height:2px;background:var(--muted);position:relative;margin:0 6px;opacity:.7}
 .cn-arrow:after{content:"";position:absolute;right:-2px;top:-5px;border:6px solid transparent;border-right:0;border-left:8px solid var(--muted)}
@@ -207,11 +208,13 @@ border-left:4px solid var(--muted);border-radius:10px;padding:8px 12px;font-size
 .looplabel{text-align:center;margin:6px 0 14px;font-size:14px;font-weight:600;color:var(--accent)}
 .roadmap{border-top:2px dashed var(--line);padding-top:10px;margin:0;color:var(--muted);font-size:14px}
 @media (max-width:900px){.stages{grid-template-columns:1fr;gap:26px}
-.stage:not(:last-child):after{content:"↓";right:auto;left:12px;top:auto;bottom:-25px}
+.stage:not(:last-child):after{content:"↓";right:auto;left:12px;top:auto;bottom:-23px;line-height:1;font-size:18px}
 .loop{display:none}.looplabel{text-align:left;border:2px dashed var(--accent);border-radius:10px;padding:8px 10px;margin-top:16px}}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .stats .num b{font-size:clamp(28px,2.6vw,36px);white-space:nowrap}
-.big-label{font-size:14px;padding:4px 10px;border-width:2px;margin:0 8px 6px 0;vertical-align:1px}
+.big-label{display:inline-block;font-size:14px;padding:4px 10px;border-width:2px;margin:0 8px 10px 0;vertical-align:1px}
+#why a,.stats .src a,.more-link{display:inline-block;padding:10px 0;margin:-10px 0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .timeline li:before{background:var(--accent);color:#16130f}}
 @media (max-width:900px){.stats{grid-template-columns:1fr 1fr}}
 @media (max-width:520px){.stats{gap:10px}.stats .num{padding:12px}.stats .num b{font-size:24px}.stats .num p{font-size:14px;margin-bottom:6px}.stats .src{font-size:12px;line-height:1.45}}
 #call .callbox{max-width:none}
@@ -260,7 +263,8 @@ h2{font-size:23px;margin-bottom:8px}
 .bubble{padding:12px 12px 12px 40px}
 .bubble .te{line-height:1.65}
 .shotbox{max-height:260px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
-.shotbox img{width:200%;max-width:none}
+.shotbox img{width:280%;max-width:none}
+.shotbox{box-shadow:inset -24px 0 16px -16px rgba(0,0,0,.25),0 10px 30px rgba(0,0,0,.12)}
 .shotbox:after{display:none}
 .callbox{padding:20px 16px}
 .callbox input{max-width:none;font-size:16px}
@@ -448,7 +452,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
         <li>Wrong visa flagged before he flies</li><li>Arrival call: wrong pickup = CRITICAL</li>
         <li>"Herding goats" is not the promised job = HIGH</li></ul></div>
     </div>
-    <p><a href="/demo">Run this story on the demo →</a> <span class="src">(team login)</span></p>
+    <p><a class="more-link" href="/demo">Run this story on the demo →</a> <span class="src">(team login)</span></p>
   </div>
 </div></section>
 
