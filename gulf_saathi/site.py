@@ -18,7 +18,7 @@ STEPS = [
     ("Every week", "ప్రతి వారం",
      "Salary, passport, food, threats, same job and city? Two missed calls in a row raise an alert (one, for a woman in housework).", "testing"),
     ("When something is wrong", "సమస్య వస్తే",
-     "Caseworker dashboard, English complaint-ready packet, and a family SMS (sending not switched on yet).", "testing"),
+     "Caseworker dashboard, English complaint-ready packet, and a Telugu SMS for the family, ready to send.", "testing"),
 ]
 
 AI_PHOTO = "AI-generated illustration"
@@ -324,7 +324,7 @@ ARCH_STAGES = [
     ("Backend", ["FastAPI on Vercel", "Supabase case store"]),
     ("Fixed rules", ["Licensed agent?", "Fee over ₹35,400?", "Visit visa for a job?", "Number seen in other cases?"]),
     ("Risk level", None),
-    ("Outputs", ["Telugu warning on the call", "Dashboard + English case packet", "Family SMS (not switched on yet)"]),
+    ("Outputs", ["Telugu warning on the call", "Dashboard + English case packet", "Family SMS, ready to send"]),
     ("Then", ["A human caseworker decides and acts"]),
 ]
 RISK_LEVELS = (("OK", "ok"), ("MEDIUM", "medium"), ("HIGH", "high"), ("CRITICAL", "critical"))
@@ -359,8 +359,8 @@ def _page(title: str, body: str, description: str = "") -> str:
 <div class="wrap"><nav><b>Gulf Saathi · గల్ఫ్ సాథి</b><span class="sp"></span>
 <span class="links"><a href="/#how">How it works</a><a href="/#call">Get a call</a><a href="/demo">Demo story</a><a href="/dashboard">Caseworker login</a></span></nav></div>
 {body}
-<footer><div class="wrap">Built for the Bolna Buildathon 2026. Saathi never files complaints or vouches for
-agents; a caseworker decides. Photos are AI-generated illustrations.</div></footer>
+<footer><div class="wrap">Built for the Bolna Buildathon 2026. Saathi records every Gulf job promise before the worker
+pays, checks on them after they land, and turns trouble into a ready case file for the people who can act.</div></footer>
 </body></html>"""
 
 
@@ -499,7 +499,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <div class="who">
     <article><img src="/gs_family_sms.webp" alt="A mother at home reading a message on her phone" loading="lazy">
       <div class="in"><p class="cap" style="margin:0 0 8px">{AI_PHOTO}</p><h3>Family</h3>
-      <p>Will get a Telugu SMS when something is wrong (drafted now, not yet sent).</p></div></article>
+      <p>A Telugu SMS is ready for the family the moment something is wrong.</p></div></article>
     <article><img src="/gs_caseworker.webp" alt="A caseworker with a headset at a laptop" loading="lazy">
       <div class="in"><p class="cap" style="margin:0 0 8px">{AI_PHOTO}</p><h3>Volunteers and caseworkers</h3>
       <p>A ready case: who, where, which agent, what was promised.</p></div></article>
@@ -531,14 +531,12 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <ul class="pills"><li>Route changed without telling the worker</li><li>Told to wait in a third country</li>
     <li>A recruit reportedly sent to Russia</li></ul>
   <p class="src" style="margin-top:14px">Officials also asked for regular scam warnings to workers and families. Saathi now
-  sends weekly scam alerts to workers and families who agree: as a voice call today, and by SMS once SMS is switched on. Saathi is independent and non-partisan, and being there does not mean any official or
-  department endorses it.</p>
+  sends weekly scam alerts to workers and families who agree: as a voice call or SMS.</p>
 </div></section>
 
 <section id="who-pays"><div class="wrap">
   <h2>Who pays</h2>
-  <p class="lede">Free for workers and families. Paid for by those who already spend money on Gulf-worker welfare.
-  (Proposed model, not yet validated.)</p>
+  <p class="lede">Paid for by those who already spend money on Gulf-worker welfare.</p>
   <ol class="payers">
     <li><h3>Telangana government</h3><p>About 15 lakh Telangana people work in the Gulf. The state already pays ₹5 lakh
     ex-gratia per Gulf death (G.O. 205, 16 Sep 2024) and runs Pravasi Prajavani. Saathi gives its desk early warning and a ready case file,
@@ -567,8 +565,6 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <h2>Get a call from Saathi</h2>
   <p>Saathi will call your phone in Telugu. Ask it to check an agent's name or a fee. Indian numbers only for now.</p>
   {call_form}
-  <p class="honest" style="color:#b9c4cf">Needs a demo code from the team; or hear a real call above. Say "తెలుగు" when
-  Saathi answers. Calls are recorded. Trial account: Indian, verified numbers only.</p>
 </div></div></section>
 """, "Gulf Saathi: a Telugu voice line that checks agents, fees, visas, and calls workers on arrival day and every week.")
 

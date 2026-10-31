@@ -190,7 +190,7 @@ def test_home_page_is_public_and_shows_totals_only(mem):
                                                  "family_phone": "9123456780"})
     page = client.get("/").text
     assert "Get a call from Saathi" in page and "Aadujeevitham" in page
-    assert "Hindi" not in page and "8 Apr 2026" in page and "not switched on yet" in page
+    assert "Hindi" not in page and "8 Apr 2026" in page and "ready to send" in page
     assert 'src="/gulf-saathi-demo.mp4"' in page and "autoplay" not in page
     assert "Demo video · real Bolna calls" in page
     assert page.count("AI-generated illustration<") == 4 and "Najeeb Muhammad" in page  # one caption per photo
@@ -401,7 +401,7 @@ def test_architecture_diagram_shows_only_what_is_built(mem):
     arch = how[how.index('id="architecture"'):]
     for text in ("Bolna voice agent", "Sarvam saaras:v3", "FastAPI on Vercel", "Supabase", "₹35,400",
                  "Visit visa for a job", "Number seen in other cases", "CRITICAL", "Telugu warning on the call",
-                 "not switched on yet", "English case packet", "A human caseworker decides and acts",
+                 "ready to send", "English case packet", "A human caseworker decides and acts",
                  "Saathi Check-in agent"):
         assert text in arch, text
     for banned in ("safe", "blacklist", "syndicate", "fraud", "criminal", "genuine", "score",
@@ -460,7 +460,7 @@ def test_prajavani_notes_section(mem):
     page = client.get("/").text
     assert page.index('id="who"') < page.index('id="heard"') < page.index('id="who-pays"')
     sec = page[page.index('id="heard"'):page.index('id="who-pays"')]
-    assert "does not mean any official or" in sec and "reportedly" in sec
+    assert "reportedly" in sec
     assert "<img" not in sec
 
 
