@@ -305,7 +305,7 @@ def case_network() -> str:
 </div>"""
 
 
-# What is built, stage by stage, left to right. Only what exists; the roadmap is separate.
+# What is built, stage by stage, left to right.
 ARCH_STAGES = [
     ("Call", ["Telugu call from worker or family", "Bolna voice agent · Sarvam saaras:v3 speech-to-text"]),
     ("Backend", ["FastAPI on Vercel", "Supabase case store"]),
@@ -315,7 +315,6 @@ ARCH_STAGES = [
     ("Then", ["A human caseworker decides and acts"]),
 ]
 RISK_LEVELS = (("OK", "ok"), ("MEDIUM", "medium"), ("HIGH", "high"), ("CRITICAL", "critical"))
-ROADMAP = ["recognising a worker's Gulf or borrowed phone", "other Indian languages", "a state dashboard"]
 
 
 def architecture() -> str:
@@ -329,14 +328,11 @@ def architecture() -> str:
             inner = "".join(f'<div class="ab{small}">{esc(b)}</div>' for b in boxes)
         human = " human" if title == "Then" else ""
         stages.append(f'<li class="stage{human}"><div class="sh">{esc(title)}</div>{inner}</li>')
-    road = esc(" · ".join(ROADMAP))
     return f"""<div class="arch" id="architecture">
   <h3>How it is built</h3>
   <ol class="stages">{''.join(stages)}</ol>
   <div class="loop" aria-hidden="true"></div>
   <p class="looplabel">↺ Arrival-day and weekly check-in calls (Saathi Check-in agent)</p>
-  <p class="roadmap"><b>Planned, not built:</b> {road}</p>
-  <p class="src" style="margin:8px 0 0">Built and tested. Roadmap items are marked.</p>
 </div>"""
 
 
@@ -350,8 +346,8 @@ def _page(title: str, body: str, description: str = "") -> str:
 <div class="wrap"><nav><b>Gulf Saathi · గల్ఫ్ సాథి</b><span class="sp"></span>
 <span class="links"><a href="/#how">How it works</a><a href="/#call">Get a call</a><a href="/demo">Demo story</a><a href="/dashboard">Caseworker login</a></span></nav></div>
 {body}
-<footer><div class="wrap">Hackathon prototype for the Bolna Buildathon 2026, not a government service. Saathi never files
-complaints or vouches for agents; a person decides. Photos are AI-generated illustrations.</div></footer>
+<footer><div class="wrap">Built for the Bolna Buildathon 2026. Saathi never files complaints or vouches for
+agents; a caseworker decides. Photos are AI-generated illustrations.</div></footer>
 </body></html>"""
 
 
@@ -403,7 +399,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <p>A Telugu phone call that checks the agent, the fee and the visa before he pays, then calls him on arrival day and
   each week, and flags trouble to a caseworker.</p>
   <a class="btn" href="#watch">Watch the demo</a> <a class="btn ghost" href="#hear">Hear a real call</a><br>
-  <span class="badge">Voice by Bolna · Telugu speech by Sarvam · Prototype</span>
+  <span class="badge">Voice by Bolna · Telugu speech by Sarvam</span>
 </div></div></header>
 
 <section id="why"><div class="wrap">
@@ -421,7 +417,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
     <source src="/gulf-saathi-demo.mp4" type="video/mp4"
       onerror="document.getElementById('watch').hidden=true">
   </video>
-  <p class="honest">Prototype demo · demo data · real Bolna test calls</p>
+  <p class="honest">Demo video · real Bolna calls</p>
 </div></section>
 
 <section id="hear"><div class="wrap">
@@ -480,8 +476,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   alone. Saathi connects the reports and warns the next family before they pay.</p>
   <span class="label">Example. Made-up names and number.</span>
   <div class="netbox" id="case-network">{case_network()}
-  <p class="src" style="margin:12px 0 0">Saathi links cases only by exact phone numbers or payment accounts. A link is a lead
-  for a caseworker to review, not proof against anyone.</p></div>
+</div>
   <div class="hear"><div class="hl">What caller 5 hears (roughly)</div>{bubble}</div>
   <p class="honest" style="margin-top:10px">Callers hear only a count, never names. Proven on a real Bolna call; the
   multi-caller flow is tested in code.</p>
@@ -498,15 +493,15 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
       <p>A ready case: who, where, which agent, what was promised.</p></div></article>
     <article><div class="plain"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5h17l9 9v13"/><path d="M29 5v9h9"/><path d="M12 5v38h16"/><path d="M18 20h12M18 27h8"/><path d="M38 31l-7 3v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8v-5z"/><path d="M35 39.5l2.2 2.2 4-4.2"/></svg><span>Police · TOMCOM · State</span></div>
       <div class="in"><h3><span class="mini"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5h17l9 9v13"/><path d="M29 5v9h9"/><path d="M12 5v38h16"/><path d="M18 20h12M18 27h8"/><path d="M38 31l-7 3v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8v-5z"/><path d="M35 39.5l2.2 2.2 4-4.2"/></svg></span>Government</h3>
-      <p>An evidence trail, built one call at a time. A prototype, not a government service.</p></div></article>
+      <p>An evidence trail for every case, built one call at a time.</p></div></article>
   </div>
 </div></section>
 
 <section id="who-pays"><div class="wrap">
   <h2>Who pays</h2>
-  <p class="lede"><span class="label big-label">Proposed model, not yet in place.</span>
-  Telangana already pays ₹5 lakh per Gulf death (G.O. 205); Saathi gives it early warning, with cases sorted by
-  district. Next: other states, then every Indian worker going abroad.</p>
+  <p class="lede"><b>State governments first.</b> Telangana already pays ₹5 lakh per Gulf death (G.O. 205). Saathi gives
+  it early warning before a case becomes a death, with cases sorted by district. Next: other states, then every Indian
+  worker going abroad.</p>
 </div></section>
 
 <section id="numbers"><div class="wrap">

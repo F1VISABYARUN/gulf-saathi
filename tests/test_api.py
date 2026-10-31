@@ -192,7 +192,7 @@ def test_home_page_is_public_and_shows_totals_only(mem):
     assert "Get a call from Saathi" in page and "Aadujeevitham" in page
     assert "Hindi" not in page and "8 Apr 2026" in page and "not switched on yet" in page
     assert 'src="/gulf-saathi-demo.mp4"' in page and "autoplay" not in page
-    assert "Prototype demo · demo data · real Bolna test calls" in page
+    assert "Demo video · real Bolna calls" in page
     assert page.count("AI-generated illustration<") == 4 and "Najeeb Muhammad" in page  # one caption per photo
     for img in ("gs_hero_airport.webp", "gs_desert_goats.webp", "gs_family_sms.webp", "gs_caseworker.webp", "gs_dashboard.webp"):
         assert f"/{img}" in page
@@ -373,7 +373,7 @@ def test_home_explains_the_repeat_agent_check_and_who_pays(mem):
     page = client.get("/").text
     assert page.index('id="how"') < page.index('id="repeat-agent"') < page.index('id="who-pays"') < page.index('id="numbers"')
     assert "Example. Made-up names and number." in page and "98480 XXXXX" in page and "DID NOT PAY" in page
-    assert "Proposed model, not yet in place." in page
+    assert "State governments first." in page
     # the numbers sit right under the hero, each linked to its source in a new tab
     assert page.index("</header>") < page.index('id="why"') < page.index('id="watch"')
     strip = page[page.index('id="why"'):page.index('id="watch"')]
@@ -388,7 +388,7 @@ def test_home_has_the_case_network_diagram(mem):
     assert 'class="cn"' in diagram
     for text in ("Same number", "Worker 1 · Jagtial", "CRITICAL", "Worker 2 · Nizamabad", "HIGH", "Callers 3 &amp; 4",
                  "Phone 98480 XXXXX", "UPI ****@ybl", "Caller 5 · warned before paying", "DID NOT PAY",
-                 "links cases only by exact phone numbers or payment accounts"):
+                 ):
         assert text in diagram
     for banned in ("fraud", "safe", "criminal", "genuine", "employer", "agent name", "promise"):
         assert banned not in diagram.lower()
@@ -401,7 +401,7 @@ def test_architecture_diagram_shows_only_what_is_built(mem):
     for text in ("Bolna voice agent", "Sarvam saaras:v3", "FastAPI on Vercel", "Supabase", "₹35,400",
                  "Visit visa for a job", "Number seen in other cases", "CRITICAL", "Telugu warning on the call",
                  "not switched on yet", "English case packet", "A human caseworker decides and acts",
-                 "Saathi Check-in agent", "Planned, not built", "Built and tested. Roadmap items are marked."):
+                 "Saathi Check-in agent"):
         assert text in arch, text
     for banned in ("safe", "blacklist", "syndicate", "fraud", "criminal", "genuine", "score",
                    "tomcom", "police", "embassy", "embassies"):
