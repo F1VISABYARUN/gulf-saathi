@@ -42,16 +42,18 @@ STATS = [
      "Lok Sabha USQ 2190, 31 Jul 2026, Annex I", "https://sansad.in/getFile/lsapps/loksabhaquestions/annex/188/AU2190_NjP8nJ.pdf"),
 ]
 
-# Real Bolna test call 2d3958cc (21 Oct 2026): 27.5-46.8 s and 57.0-70.0 s of the recording (the old
-# "team is alerting the embassy" line is cut). Times are seconds into the clip,
+# Real Bolna test call 2d3958cc (21 Oct 2026), clip 27.5-70.0 s of the recording. Times are seconds into the clip,
 # matched to the call's own log and the pauses in the audio. The clip stops before two script glitches later on.
 CALL_CLIP = [
     (0.2, "Caller", "అక్కడ పోయిన తర్వాత నా పాస్‌పోర్ట్ పోయింది.", "After I went there, my passport was gone."),
     (8.3, "Caller", "ఇప్పుడు నేను ఇండియాకి రావాలంటే ఏం చేయాలి?", "What do I do to get back to India?"),
     (12.2, "Saathi", "సరే, నోట్ చేస్తున్నాను.", "OK, I'm noting it down."),
-    (19.4, "Saathi", "వీలైతే ఇతరులు ఉన్న చోట ఉండండి, ఫోన్‌ను దాచుకుని ఛార్జ్‌లో ఉంచండి.",
+    (19.4, "Saathi", "మీరు ఒంటరి కాదు. మీ కేసు అత్యవసరంగా నమోదు అయింది; సాథి బృందం మీరు చెప్పిన విషయాలతో భారత రాయబార "
+     "కార్యాలయాన్ని అప్రమత్తం చేస్తోంది.", "You are not alone. Your case is registered as urgent; the Saathi team is "
+     "alerting the Indian Embassy with what you told us."),
+    (29.6, "Saathi", "వీలైతే ఇతరులు ఉన్న చోట ఉండండి, ఫోన్‌ను దాచుకుని ఛార్జ్‌లో ఉంచండి.",
      "If you can, stay where other people are. Keep your phone hidden and charged."),
-    (23.0, "Saathi", "దగ్గర కనిపించే భవనం, షాప్, మసీదు లేదా రోడ్డు పేరు ఏమిటి? మీ కేసు నంబర్ జీ ఎస్, డబ్ల్యూ 9 హెచ్ డబ్ల్యూ ఎస్ వై.",
+    (35.0, "Saathi", "దగ్గర కనిపించే భవనం, షాప్, మసీదు లేదా రోడ్డు పేరు ఏమిటి? మీ కేసు నంబర్ జీ ఎస్, డబ్ల్యూ 9 హెచ్ డబ్ల్యూ ఎస్ వై.",
      "What building, shop, mosque or road can you see? Your case number is G S, W 9 H W S Y."),
 ]
 
@@ -446,8 +448,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <div class="player"><audio id="callaudio" controls preload="metadata">
     <source src="/gs_call_help_line.mp3" type="audio/mpeg" onerror="document.getElementById('hear').hidden=true"></audio>
   <ol class="caps" id="caps">{clip}</ol></div>
-  <p class="src">Real Bolna call, 21 Oct 2026; the caller is a team member. Shortened to 32 seconds: one older line
-  is cut, because Saathi now says a caseworker will act on the case.</p>
+  <p class="src">Real Bolna call, 21 Oct 2026, 42 seconds; the caller is a team member.</p>
   {f'<p class="src">{traction}</p>' if traction else ''}
 </div></section>
 <script>

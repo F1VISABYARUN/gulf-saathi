@@ -397,7 +397,7 @@ def test_home_has_the_case_network_diagram(mem):
 
 def test_architecture_diagram_shows_only_what_is_built(mem):
     page = client.get("/").text
-    how = page[page.index('id="how"'):page.index('id="repeat-agent"')]
+    how = page[page.index('id="how"'):page.index('id="watch"')]
     arch = how[how.index('id="architecture"'):]
     for text in ("Bolna voice agent", "Sarvam saaras:v3", "FastAPI on Vercel", "Supabase", "₹35,400",
                  "Visit visa for a job", "Number seen in other cases", "CRITICAL", "Telugu warning on the call",
@@ -414,7 +414,7 @@ def test_real_call_player_and_honest_call_counter(mem, monkeypatch):
     page = client.get("/").text
     hear = page[page.index('id="hear"'):page.index('id="story"')]
     assert 'src="/gs_call_help_line.mp3"' in hear and "hidden=true" in hear  # hidden until the file is added
-    assert "నా పాస్‌పోర్ట్ పోయింది" in hear and "my passport was gone" in hear and "one older line" in hear and "alerting the Indian Embassy" not in hear
+    assert "నా పాస్‌పోర్ట్ పోయింది" in hear and "my passport was gone" in hear and "the caller is a team member" in hear and "alerting the Indian Embassy" in hear
     # Answered calls only, never demo cases; the team's own phones never count as outside callers.
     w = mem.insert("workers", {"case_id": "GS-AAAAAA", "worker_name": "A", "worker_phone": "+919876543210", "is_demo": False})
     d = mem.insert("workers", {"case_id": "GS-BBBBBB", "worker_name": "D", "worker_phone": "+919000000001", "is_demo": True})
