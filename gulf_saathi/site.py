@@ -65,10 +65,13 @@ STYLE = """
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Telugu","Nirmala UI",sans-serif}
 a{color:var(--accent)} img{max-width:100%;display:block}
+html{-webkit-text-size-adjust:100%}
+[lang="te"],.te,.t{font-family:"Noto Sans Telugu","Nirmala UI",system-ui,sans-serif;line-height:1.65}
 .wrap{max-width:1080px;margin:0 auto;padding:0 16px}
-nav{display:flex;gap:16px;align-items:center;padding:14px 0;flex-wrap:wrap}
-nav b{font-size:18px;letter-spacing:.01em} nav .sp{flex:1} nav a{text-decoration:none;font-weight:600}
-.hero{padding:40px 0 32px}
+nav{display:flex;gap:4px 16px;align-items:center;padding:8px 0;flex-wrap:wrap}
+nav .links{display:flex;gap:16px;align-items:center}
+nav b{font-size:18px;letter-spacing:.01em} nav .sp{flex:1} nav a{text-decoration:none;font-weight:600;display:inline-flex;align-items:center;min-height:44px;white-space:nowrap}
+.hero{padding:40px 16px 32px}
 .hero h1{font-size:clamp(30px,6vw,52px);line-height:1.1;margin:0 0 12px;letter-spacing:-.02em}
 .hero .te{font-size:clamp(20px,3.5vw,28px);color:var(--accent);font-weight:700;margin:0 0 16px}
 .hero p{font-size:18px;max-width:640px;color:var(--muted);margin:0 0 20px}
@@ -113,7 +116,7 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .timeline h3{margin:0;font-size:17px} .timeline .t{color:var(--accent);font-weight:700;font-size:15px} .timeline p{margin:8px 0 14px;color:var(--muted);font-size:15px}
 @media (max-width:900px){.timeline{grid-template-columns:1fr;border-left:3px solid var(--line);margin-left:12px;padding-left:20px}
 .timeline li{padding-top:14px}.timeline li:before{left:-35px;top:14px}}
-.st{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.02em;border-radius:6px;padding:3px 7px;white-space:nowrap}
+.st{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.02em;border-radius:6px;padding:3px 7px;white-space:nowrap}
 .st.live{background:#d1fadf;color:#05603a} .st.testing{background:#fef0c7;color:#93370d}
 .who{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
 .who article{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
@@ -134,14 +137,15 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .callbox label{display:block;font-weight:600;margin:10px 0 4px;font-size:14px}
 .callbox input{width:100%;max-width:360px;padding:11px 12px;border-radius:10px;border:1px solid #4b5a68;background:#0f151b;color:#fff;font:inherit}
 #msg{margin-top:12px;font-weight:700;min-height:1.6em}
+#msg:empty{margin:0;min-height:0}
 .honest{font-size:14px;color:var(--muted)} .honest li{margin-bottom:4px}
 .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
 .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
-.step b{display:block;margin-bottom:4px}
-.video{max-width:960px;margin:0 auto}
+.step>b:first-child{display:block;margin-bottom:4px}
+.video{max-width:1080px;margin:0 auto}
 .video video{display:block;width:100%;aspect-ratio:16/9;background:#000;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
 .video p{text-align:center;margin:10px 0 0}
-.label{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--muted);border:1px dashed var(--muted);border-radius:6px;padding:2px 8px;margin:0 0 10px}
+.label{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--muted);border:1px dashed var(--muted);border-radius:6px;padding:2px 8px;margin:0 0 10px;white-space:nowrap;line-height:1.5}
 .hear{max-width:560px;margin:4px 0 14px} .hl{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
 details.more{margin-top:22px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .bubble{background:#2b2214;border-color:#7a5a20;color:#f2ece3}
@@ -178,11 +182,11 @@ border-left:4px solid var(--muted);border-radius:10px;padding:8px 12px;font-size
 .cn-hub,.cn-out{border-radius:14px;padding:14px 16px;text-align:center}
 .cn-hub{border:2px solid #d9a54a;background:rgba(217,165,74,.12)}
 .cn-out{border:2px solid var(--ok);background:rgba(6,118,71,.08)}
-.cn .k{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.cn .k{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .cn-hub .id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:15px;font-weight:700;margin:2px 0}
 .cn-hub .cnt{margin-top:8px;font-size:13px;color:var(--muted)}
 .cn-out b{display:block;font-size:15px;margin-bottom:8px}
-.cn-out .pill{display:inline-block;background:var(--ok);color:#fff;font-size:11px;font-weight:800;letter-spacing:.05em;border-radius:6px;padding:3px 8px}
+.cn-out .pill{display:inline-block;background:var(--ok);color:#fff;font-size:12px;font-weight:800;letter-spacing:.05em;border-radius:6px;padding:3px 8px}
 @media (max-width:820px){.cn{grid-template-columns:1fr;gap:0}
 .cn-arrow{width:2px;height:22px;margin:6px auto}
 .cn-arrow:after{right:-5px;top:auto;bottom:-2px;border:6px solid transparent;border-bottom:0;border-top:8px solid var(--muted)}}
@@ -201,21 +205,70 @@ border-left:4px solid var(--muted);border-radius:10px;padding:8px 12px;font-size
 .loop{position:relative;height:24px;margin:10px 23% 0 7%;border:2px dashed var(--accent);border-top:0;border-radius:0 0 14px 14px}
 .loop:before{content:"▲";position:absolute;left:-8px;top:-12px;font-size:13px;color:var(--accent)}
 .looplabel{text-align:center;margin:6px 0 14px;font-size:14px;font-weight:600;color:var(--accent)}
-.roadmap{border-top:2px dashed var(--line);padding-top:10px;margin:0;color:var(--muted);font-size:14px;opacity:.75}
+.roadmap{border-top:2px dashed var(--line);padding-top:10px;margin:0;color:var(--muted);font-size:14px}
 @media (max-width:900px){.stages{grid-template-columns:1fr;gap:26px}
 .stage:not(:last-child):after{content:"↓";right:auto;left:12px;top:auto;bottom:-25px}
 .loop{display:none}.looplabel{text-align:left;border:2px dashed var(--accent);border-radius:10px;padding:8px 10px;margin-top:16px}}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .stats .num b{font-size:clamp(28px,2.6vw,36px);white-space:nowrap}
-.big-label{font-size:14px;padding:4px 10px;border-width:2px}
+.big-label{font-size:14px;padding:4px 10px;border-width:2px;margin:0 8px 6px 0;vertical-align:1px}
 @media (max-width:900px){.stats{grid-template-columns:1fr 1fr}}
-@media (max-width:520px){.stats{gap:10px}.stats .num{padding:12px}.stats .num b{font-size:24px}.stats .num p{font-size:14px;margin-bottom:6px}.stats .src{font-size:11px}}
-#call .callbox{max-width:1080px}
+@media (max-width:520px){.stats{gap:10px}.stats .num{padding:12px}.stats .num b{font-size:24px}.stats .num p{font-size:14px;margin-bottom:6px}.stats .src{font-size:12px;line-height:1.45}}
+#call .callbox{max-width:none}
 .pay{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px}
 @media (max-width:820px){.pay{grid-template-columns:1fr}}
 .pay article{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:12px;padding:16px}
 .pay h3{margin:0 0 2px;font-size:18px} .pay .k{font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--accent);text-transform:uppercase;margin-bottom:8px} .pay p{margin:0;color:var(--muted)}
 footer{padding:24px 0 40px;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
+.btn{min-height:44px;line-height:1.3}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .st.live{background:#0d3b28;color:#8be3b6}
+:root:not([data-theme="light"]) .cn-out .pill{color:#0b1f15}
+:root:not([data-theme="light"]) .st.testing,:root:not([data-theme="light"]) .tag{background:#45300b;color:#f8cf86}}
+/* Phones */
+@media (max-width:640px){
+body{font-size:16px;line-height:1.55}
+nav{padding:6px 0 0}
+nav b{flex:0 0 100%;font-size:17px;padding-top:4px}
+nav .sp{display:none}
+nav .links{flex:0 0 100%;flex-wrap:wrap;gap:0 4px;justify-content:space-between}
+nav a{font-size:clamp(12.5px,3.45vw,14.5px);min-height:40px}
+section{padding:32px 0}
+#why{padding:20px 0 28px}
+h2{font-size:23px;margin-bottom:8px}
+.lede{margin-bottom:18px}
+.hero{padding:24px 16px 24px}.hero h1{font-size:30px}.hero .te{font-size:20px}.hero p{font-size:16px}
+.big>img{aspect-ratio:16/10;object-position:60% 35%}
+.big .wrap{padding-top:16px;padding-bottom:28px}
+.big h1{font-size:28px;line-height:1.15;margin-bottom:10px}
+.big .te{font-size:18px;margin-bottom:10px}
+.big p{font-size:16px;margin-bottom:18px}
+.big .btn,.hero .btn{padding:11px 16px;font-size:15.5px;margin:0 6px 8px 0}
+.badge{font-size:12px;margin-top:8px;line-height:1.45;border-radius:12px}
+.cap{font-size:12px}
+.stats .num b{font-size:24px}
+.video video{border-radius:12px}
+.player{padding:10px 10px 6px}
+.caps li{grid-template-columns:52px 1fr;gap:2px 8px;padding:8px 6px}
+.caps li b{font-size:12.5px;padding-top:2px}
+.story{gap:14px}
+.vs{gap:12px;margin:14px 0}
+.who{gap:14px}
+.who img{aspect-ratio:16/9}
+.timeline p{font-size:15px}
+.netbox{padding:12px}
+.cn-row{padding:8px 10px}
+.bubble{padding:12px 12px 12px 40px}
+.bubble .te{line-height:1.65}
+.shotbox{max-height:260px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+.shotbox img{width:200%;max-width:none}
+.shotbox:after{display:none}
+.callbox{padding:20px 16px}
+.callbox input{max-width:none;font-size:16px}
+.pay{gap:12px}
+footer{padding:20px 0 32px;font-size:14px}
+.steps{gap:10px}
+}
+@media (min-width:641px) and (max-width:900px){section{padding:40px 0}}
 """
 
 
@@ -280,7 +333,7 @@ def _page(title: str, body: str, description: str = "") -> str:
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@400;700&display=swap" rel="stylesheet">
 <style>{STYLE}</style></head><body>
 <div class="wrap"><nav><b>Gulf Saathi · గల్ఫ్ సాథి</b><span class="sp"></span>
-<a href="/#how">How it works</a><a href="/#call">Get a call</a><a href="/demo">Demo story</a><a href="/dashboard">Caseworker login</a></nav></div>
+<span class="links"><a href="/#how">How it works</a><a href="/#call">Get a call</a><a href="/demo">Demo story</a><a href="/dashboard">Caseworker login</a></span></nav></div>
 {body}
 <footer><div class="wrap">Hackathon prototype for the Bolna Buildathon 2026, not a government service. Saathi never files
 complaints or vouches for agents; a person decides. Photos are AI-generated illustrations.</div></footer>
@@ -437,7 +490,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 
 <section id="who-pays"><div class="wrap">
   <h2>Who pays</h2>
-  <p class="lede"><span class="label big-label" style="margin:0 6px 0 0">Proposed model, not yet in place.</span>
+  <p class="lede"><span class="label big-label">Proposed model, not yet in place.</span>
   Telangana already pays ₹5 lakh per Gulf death (G.O. 205); Saathi gives it early warning, with cases sorted by
   district. Next: other states, then every Indian worker going abroad.</p>
 </div></section>
@@ -449,13 +502,13 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <p style="margin-top:14px"><a class="btn ghost" href="/dashboard">Open caseworker view</a> <span class="src">(team login)</span></p>
 </div></section>
 
-<section id="call"><div class="wrap callbox">
+<section id="call"><div class="wrap"><div class="callbox">
   <h2>Get a call from Saathi</h2>
   <p>Saathi will call your phone in Telugu. Ask it to check an agent's name or a fee. Indian numbers only for now.</p>
   {call_form}
   <p class="honest" style="color:#b9c4cf">Needs a demo code from the team; or hear a real call above. Say "తెలుగు" when
   Saathi answers. Calls are recorded. Trial account: Indian, verified numbers only.</p>
-</div></section>
+</div></div></section>
 """, "Gulf Saathi: a Telugu voice line that checks agents, fees, visas, and calls workers on arrival day and every week.")
 
 
