@@ -512,7 +512,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 <section id="heard"><div class="wrap">
   <h2>What we heard at Pravasi Prajavani</h2>
   <p class="src">On 30 October 2026 we sat in on Pravasi Prajavani, the Gulf workers' grievance desk at Praja Bhavan,
-  Hyderabad. These are our notes, not verified case records.</p>
+  Hyderabad.</p>
   <div class="vs heard">
     <div class="today"><h3>Today</h3><ul>
       <li>No simple Telugu phone line the worker knows to call</li>

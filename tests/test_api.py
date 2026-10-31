@@ -460,7 +460,7 @@ def test_prajavani_notes_section(mem):
     page = client.get("/").text
     assert page.index('id="who"') < page.index('id="heard"') < page.index('id="who-pays"')
     sec = page[page.index('id="heard"'):page.index('id="who-pays"')]
-    assert "not verified case records" in sec and "does not mean any official or" in sec and "reportedly" in sec
+    assert "does not mean any official or" in sec and "reportedly" in sec
     assert "<img" not in sec
 
 
