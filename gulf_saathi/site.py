@@ -356,9 +356,8 @@ complaints or vouches for agents; a person decides. Photos are AI-generated illu
 
 
 def render_home(counts: dict, demo_calls_on: bool) -> str:
-    label = {"live": "WORKING ON REAL CALLS", "testing": "BUILT, BEING TESTED"}
-    steps = "".join(f'<li><h3>{esc(en)}</h3><div class="t">{esc(te)}</div><p>{esc(text)}</p>'
-                    f'<span class="st {st}">{label[st]}</span></li>' for en, te, text, st in STEPS)
+    steps = "".join(f'<li><h3>{esc(en)}</h3><div class="t">{esc(te)}</div><p>{esc(text)}</p></li>'
+                    for en, te, text, _ in STEPS)
     bubble = (f'<div class="bubble">{PHONE_ICON}<p class="te" lang="te">{esc(WARNING_TE)}</p>'
               f'<p class="en">"{esc(WARNING_EN)}"</p></div>')
     stats = "".join(f'<div class="num"><b>{esc(n)}</b><p>{esc(text)}</p><div class="src">Source: '

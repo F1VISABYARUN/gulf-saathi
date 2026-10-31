@@ -191,7 +191,6 @@ def test_home_page_is_public_and_shows_totals_only(mem):
     page = client.get("/").text
     assert "Get a call from Saathi" in page and "Aadujeevitham" in page
     assert "Hindi" not in page and "8 Apr 2026" in page and "not switched on yet" in page
-    assert page.count("BUILT, BEING TESTED") == 4  # only "before paying" is marked as working on real calls
     assert 'src="/gulf-saathi-demo.mp4"' in page and "autoplay" not in page
     assert "Prototype demo · demo data · real Bolna test calls" in page
     assert page.count("AI-generated illustration<") == 4 and "Najeeb Muhammad" in page  # one caption per photo
