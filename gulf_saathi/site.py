@@ -269,6 +269,17 @@ h2{font-size:23px;margin-bottom:8px}
 .callbox{padding:20px 16px}
 .callbox input{max-width:none;font-size:16px}
 .pay{gap:12px}
+@media (min-width:901px){.timeline{grid-template-columns:repeat(5,minmax(0,1fr))} .timeline .st{white-space:normal}}
+@media (min-width:641px){.who{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:1000px){.who .plain + .in{padding-top:39px}}
+.steps{grid-template-columns:repeat(4,minmax(0,1fr))} .steps .step:last-child{grid-column:span 2}
+@media (max-width:1000px){.steps{grid-template-columns:1fr 1fr}.steps .step:last-child{grid-column:1/-1}}
+@media (max-width:640px){.steps{grid-template-columns:1fr}}
+@media (max-width:900px){.badge{border-radius:12px;line-height:1.45}
+.stages{gap:34px}.stage:not(:last-child):after{bottom:-31px}}
+.big-label{display:table;margin:0 0 10px}
+.ab.small{font-size:14px;padding:8px 10px}
+.player{max-width:none}
 footer{padding:20px 0 32px;font-size:14px}
 .steps{gap:10px}
 }
