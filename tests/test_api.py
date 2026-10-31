@@ -373,7 +373,8 @@ def test_home_explains_the_repeat_agent_check_and_who_pays(mem):
     page = client.get("/").text
     assert page.index('id="how"') < page.index('id="repeat-agent"') < page.index('id="who-pays"') < page.index('id="numbers"')
     assert "Example. Made-up names and number." in page and "98480 XXXXX" in page and "DID NOT PAY" in page
-    assert "State governments first." in page
+    assert "Never paid by recruiting agents. Never sells worker data." in page and "G.O." not in page
+    assert page.index('id="why"') < page.index('id="how"') < page.index('id="watch"')
     # the numbers sit right under the hero, each linked to its source in a new tab
     assert page.index("</header>") < page.index('id="why"') < page.index('id="watch"')
     strip = page[page.index('id="why"'):page.index('id="watch"')]
@@ -413,7 +414,7 @@ def test_real_call_player_and_honest_call_counter(mem, monkeypatch):
     page = client.get("/").text
     hear = page[page.index('id="hear"'):page.index('id="story"')]
     assert 'src="/gs_call_help_line.mp3"' in hear and "hidden=true" in hear  # hidden until the file is added
-    assert "నా పాస్‌పోర్ట్ పోయింది" in hear and "my passport was gone" in hear and "one line was softened" in hear
+    assert "నా పాస్‌పోర్ట్ పోయింది" in hear and "my passport was gone" in hear and "one older line" in hear and "alerting the Indian Embassy" not in hear
     # Answered calls only, never demo cases; the team's own phones never count as outside callers.
     w = mem.insert("workers", {"case_id": "GS-AAAAAA", "worker_name": "A", "worker_phone": "+919876543210", "is_demo": False})
     d = mem.insert("workers", {"case_id": "GS-BBBBBB", "worker_name": "D", "worker_phone": "+919000000001", "is_demo": True})

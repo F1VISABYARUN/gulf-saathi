@@ -42,18 +42,16 @@ STATS = [
      "Lok Sabha USQ 2190, 31 Jul 2026, Annex I", "https://sansad.in/getFile/lsapps/loksabhaquestions/annex/188/AU2190_NjP8nJ.pdf"),
 ]
 
-# Real Bolna test call 2d3958cc (21 Oct 2026), clip 27.5-70.0 s of the recording. Times are seconds into the clip,
+# Real Bolna test call 2d3958cc (21 Oct 2026): 27.5-46.8 s and 57.0-70.0 s of the recording (the old
+# "team is alerting the embassy" line is cut). Times are seconds into the clip,
 # matched to the call's own log and the pauses in the audio. The clip stops before two script glitches later on.
 CALL_CLIP = [
     (0.2, "Caller", "అక్కడ పోయిన తర్వాత నా పాస్‌పోర్ట్ పోయింది.", "After I went there, my passport was gone."),
     (8.3, "Caller", "ఇప్పుడు నేను ఇండియాకి రావాలంటే ఏం చేయాలి?", "What do I do to get back to India?"),
     (12.2, "Saathi", "సరే, నోట్ చేస్తున్నాను.", "OK, I'm noting it down."),
-    (19.4, "Saathi", "మీరు ఒంటరి కాదు. మీ కేసు అత్యవసరంగా నమోదు అయింది; సాథి బృందం మీరు చెప్పిన విషయాలతో భారత రాయబార "
-     "కార్యాలయాన్ని అప్రమత్తం చేస్తోంది.", "You are not alone. Your case is registered as urgent; the Saathi team is "
-     "alerting the Indian Embassy with what you told us."),
-    (29.6, "Saathi", "వీలైతే ఇతరులు ఉన్న చోట ఉండండి, ఫోన్‌ను దాచుకుని ఛార్జ్‌లో ఉంచండి.",
+    (19.4, "Saathi", "వీలైతే ఇతరులు ఉన్న చోట ఉండండి, ఫోన్‌ను దాచుకుని ఛార్జ్‌లో ఉంచండి.",
      "If you can, stay where other people are. Keep your phone hidden and charged."),
-    (35.0, "Saathi", "దగ్గర కనిపించే భవనం, షాప్, మసీదు లేదా రోడ్డు పేరు ఏమిటి? మీ కేసు నంబర్ జీ ఎస్, డబ్ల్యూ 9 హెచ్ డబ్ల్యూ ఎస్ వై.",
+    (23.0, "Saathi", "దగ్గర కనిపించే భవనం, షాప్, మసీదు లేదా రోడ్డు పేరు ఏమిటి? మీ కేసు నంబర్ జీ ఎస్, డబ్ల్యూ 9 హెచ్ డబ్ల్యూ ఎస్ వై.",
      "What building, shop, mosque or road can you see? Your case number is G S, W 9 H W S Y."),
 ]
 
@@ -226,6 +224,15 @@ border-left:4px solid var(--muted);border-radius:10px;padding:8px 12px;font-size
 .heard .end{margin:12px 0 0;font-weight:800;font-size:14px} .heard .today .end{color:var(--muted)} .heard .with .end{color:var(--accent)}
 .pills{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
 .pills li{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:14px}
+.payers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;list-style:none;padding:0;margin:18px 0 0;counter-reset:p}
+.payers li{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:46px 16px 16px}
+.payers li:before{counter-increment:p;content:counter(p);position:absolute;top:12px;left:16px;width:26px;height:26px;border-radius:50%;
+background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+.payers h3{margin:0 0 6px;font-size:18px} .payers p{margin:0;color:var(--muted);font-size:15px}
+@media (max-width:820px){.payers{grid-template-columns:1fr}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .payers li:before{background:var(--accent);color:#16130f}}
+.never-line{margin:18px 0 6px;font-weight:800;color:var(--accent)}
+h1,h2,h3,nav b{font-family:"Anek Telugu",system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Telugu",sans-serif}
 footer{padding:24px 0 40px;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
 .btn{min-height:44px;line-height:1.3}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .st.live{background:#0d3b28;color:#8be3b6}
@@ -345,7 +352,7 @@ def _page(title: str, body: str, description: str = "") -> str:
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)}</title><meta name="description" content="{esc(description)}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anek+Telugu:wght@600;700&family=Noto+Sans+Telugu:wght@400;700&display=swap" rel="stylesheet">
 <style>{STYLE}</style></head><body>
 <div class="wrap"><nav><b>Gulf Saathi · గల్ఫ్ సాథి</b><span class="sp"></span>
 <span class="links"><a href="/#how">How it works</a><a href="/#call">Get a call</a><a href="/demo">Demo story</a><a href="/dashboard">Caseworker login</a></span></nav></div>
@@ -415,6 +422,14 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   target="_blank" rel="noopener">Times of India, 13 Mar 2026</a>)</p>
 </div></section>
 
+<section id="how"><div class="wrap">
+  <h2>How it works</h2>
+  <p class="lede">One phone number, in Telugu, at every step of the journey. No app, no reading needed.</p>
+  <ol class="timeline">{steps}</ol>
+  <p class="honest" style="margin-top:18px">The AI only writes down what was said. Fixed rules decide the risk level.</p>
+  <details class="more"><summary>Show how it is built</summary>{architecture()}</details>
+</div></section>
+
 <section id="watch"><div class="wrap video">
   <h2>Watch the demo</h2>
   <video controls playsinline preload="metadata" poster="/gulf-saathi-poster.jpg">
@@ -431,8 +446,8 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <div class="player"><audio id="callaudio" controls preload="metadata">
     <source src="/gs_call_help_line.mp3" type="audio/mpeg" onerror="document.getElementById('hear').hidden=true"></audio>
   <ol class="caps" id="caps">{clip}</ol></div>
-  <p class="src">Real Bolna call, 21 Oct 2026, 42 seconds; the caller is a team member. Since then one line was softened:
-  Saathi now says a caseworker will act on it.</p>
+  <p class="src">Real Bolna call, 21 Oct 2026; the caller is a team member. Shortened to 32 seconds: one older line
+  is cut, because Saathi now says a caseworker will act on the case.</p>
   {f'<p class="src">{traction}</p>' if traction else ''}
 </div></section>
 <script>
@@ -464,14 +479,6 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
     </div>
     <p><a class="more-link" href="/demo">Run this story on the demo →</a> <span class="src">(team login)</span></p>
   </div>
-</div></section>
-
-<section id="how"><div class="wrap">
-  <h2>How it works</h2>
-  <p class="lede">One phone number, in Telugu, at every step of the journey. No app, no reading needed.</p>
-  <ol class="timeline">{steps}</ol>
-  <p class="honest" style="margin-top:18px">The AI only writes down what was said. Fixed rules decide the risk level.</p>
-  <details class="more"><summary>Show how it is built</summary>{architecture()}</details>
 </div></section>
 
 <section id="repeat-agent"><div class="wrap">
@@ -529,9 +536,23 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 
 <section id="who-pays"><div class="wrap">
   <h2>Who pays</h2>
-  <p class="lede"><b>State governments first.</b> Telangana already pays ₹5 lakh per Gulf death (G.O. 205). Saathi gives
-  it early warning before a case becomes a death, with cases sorted by district. Next: other states, then every Indian
-  worker going abroad.</p>
+  <p class="lede">Free for workers and families. Paid for by those who already spend money on Gulf-worker welfare.
+  (Proposed model, not yet validated.)</p>
+  <ol class="payers">
+    <li><h3>Telangana government</h3><p>About 15 lakh Telangana people work in the Gulf. The state already pays ₹5 lakh
+    ex-gratia per Gulf death and runs Pravasi Prajavani. Saathi gives its desk early warning and a ready case file,
+    sorted by district.</p></li>
+    <li><h3>Other states</h3><p>Andhra Pradesh's Konaseema district built a migration help desk. In March 2026 the Chief
+    Minister reportedly directed that it be scaled statewide. Saathi is the Telugu phone line that desk doesn't have.
+    Next: Kerala, Uttar Pradesh, Bihar.</p></li>
+    <li><h3>Gulf employers</h3><p>Companies that must prove fair recruitment can show every promise their workers heard
+    was recorded.</p></li>
+  </ol>
+  <p class="never-line">Never paid by recruiting agents. Never sells worker data.</p>
+  <p class="src">15 lakh: <a href="https://www.uniindia.com/telangana-nri-panel-studies-philippines-migration-policy-for-gulf-workers/south/news/3947967.html"
+  target="_blank" rel="noopener">State NRI Advisory Committee via UNI, Aug 2026</a>. Konaseema:
+  <a href="https://www.thehansindia.com/andhra-pradesh/naidu-praises-7-dist-collectors-1055738" target="_blank"
+  rel="noopener">The Hans India, 12 Mar 2026</a>.</p>
 </div></section>
 
 <section id="numbers"><div class="wrap">
