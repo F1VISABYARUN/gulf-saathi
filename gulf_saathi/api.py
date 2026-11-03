@@ -8,7 +8,10 @@ Without SUPABASE_URL / SUPABASE_SERVICE_KEY it keeps data in memory only.
 from __future__ import annotations
 
 import base64
+import hashlib
+import hmac
 import json
+import urllib.parse
 import logging
 import os
 import secrets
@@ -16,7 +19,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, field_validator
 
 from . import alerts, bolna, cases, dashboard, demo, signals, site, sms
@@ -55,22 +58,69 @@ def require_bolna_token(token: str = "") -> None:
         raise HTTPException(401, "bad token")
 
 
-def require_dashboard(request: Request) -> None:
-    """Browser password prompt. The dashboard shows workers' and families' personal data."""
+COOKIE = "gs_team"
+
+
+def _team_password() -> str:
     # Spaces or a line break copied along with a value pasted into Vercel would
     # otherwise make the right password fail.
-    expected = os.getenv("GS_DASHBOARD_PASSWORD", "").strip()
+    return os.getenv("GS_DASHBOARD_PASSWORD", "").strip()
+
+
+def _cookie_value(password: str) -> str:
+    """What the login cookie holds: a keyed hash of the password, never the password.
+    Changing the password in Vercel logs everyone out."""
+    return hmac.new(password.encode(), b"gulf-saathi team login", hashlib.sha256).hexdigest()
+
+
+def is_team(request: Request) -> bool:
+    """Logged in through the form (cookie) or a password sent with Basic auth (curl)."""
+    expected = _team_password()
     if not expected:
-        raise HTTPException(503, "Dashboard is off: set GS_DASHBOARD_PASSWORD in Vercel and redeploy.")
+        return False
+    if secrets.compare_digest(request.cookies.get(COOKIE, "").encode(), _cookie_value(expected).encode()):
+        return True
     auth = request.headers.get("authorization", "")
     if auth.lower().startswith("basic "):
         try:
             given = base64.b64decode(auth[6:]).decode("utf-8").split(":", 1)[1].strip()
         except Exception:
             given = ""
-        if secrets.compare_digest(given.encode(), expected.encode()):
-            return
-    raise HTTPException(401, "Password needed", headers={"WWW-Authenticate": 'Basic realm="Gulf Saathi"'})
+        return secrets.compare_digest(given.encode(), expected.encode())
+    return False
+
+
+def _wants_html(request: Request) -> bool:
+    return request.method == "GET" and "text/html" in request.headers.get("accept", "")
+
+
+class LoginNeeded(Exception):
+    def __init__(self, request: Request, off: bool = False):
+        self.request, self.off = request, off
+
+
+@app.exception_handler(LoginNeeded)
+def _login_needed(request: Request, exc: LoginNeeded):
+    if exc.off:
+        return JSONResponse({"detail": "Dashboard is off: set GS_DASHBOARD_PASSWORD in Vercel and redeploy."}, 503)
+    if _wants_html(request):
+        # A login form, not the browser's password pop-up or raw JSON.
+        return HTMLResponse(site.render_login(_safe_next(request.url.path)), 401)
+    return JSONResponse({"detail": "Team login needed"}, 401)
+
+
+def require_dashboard(request: Request) -> None:
+    """The team pages show workers' and families' personal data."""
+    if not _team_password():
+        raise LoginNeeded(request, off=True)
+    if not is_team(request):
+        raise LoginNeeded(request)
+
+
+def _safe_next(path: str) -> str:
+    """Only our own pages, so the login can't send someone to another site."""
+    path = str(path or "")
+    return path if path.startswith("/") and not path.startswith("//") and "\\" not in path else "/dashboard"
 
 
 def status() -> dict:
@@ -89,7 +139,7 @@ async def json_object(request: Request) -> dict:
 
 # --- public website ---------------------------------------------------------------
 
-@app.get("/", response_class=HTMLResponse)
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 def home():
     """Public home page. Shows totals only, never a name or number."""
     try:
@@ -136,18 +186,51 @@ async def api_demo_call(request: Request):
     return {"ok": True, "execution_id": res["execution_id"]}
 
 
-@app.get("/demo", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
+@app.api_route("/demo", methods=["GET", "HEAD"], response_class=HTMLResponse)
 def demo_page():
+    """Open to everyone: judges and visitors run the made-up story without a password."""
     return site.render_demo()
 
 
-@app.post("/api/demo/run", dependencies=[Depends(require_dashboard)])
+@app.post("/api/demo/run")
 def api_demo_run():
-    """Creates made-up demo cases (is_demo). No real call or SMS."""
+    """Creates made-up demo cases (is_demo). No real call or SMS. Open to everyone, so
+    a story made in the last hour is shown again instead of making new cases each click."""
     try:
-        return demo.run_demo(STORE, licensed, now())
+        recent = demo.recent_story(STORE.select("workers"), now())
+        return recent or demo.run_demo(STORE, licensed, now())
     except StoreError as e:
         raise HTTPException(503, f"Could not save the demo cases. Has supabase/schema.sql been run again? {e}")
+
+
+# --- team login -----------------------------------------------------------------
+
+@app.api_route("/login", methods=["GET", "HEAD"], response_class=HTMLResponse)
+def login_page(next: str = "/dashboard"):
+    return site.render_login(_safe_next(next))
+
+
+@app.post("/login")
+async def login(request: Request):
+    form = urllib.parse.parse_qs((await request.body()).decode("utf-8", "replace"))
+    given = (form.get("password") or [""])[0].strip()
+    target = _safe_next((form.get("next") or ["/dashboard"])[0])
+    expected = _team_password()
+    if not expected:
+        raise LoginNeeded(request, off=True)
+    if not secrets.compare_digest(given.encode(), expected.encode()):
+        return HTMLResponse(site.render_login(target, error="Wrong password."), 401)
+    resp = RedirectResponse(target, 303)
+    resp.set_cookie(COOKIE, _cookie_value(expected), max_age=7 * 24 * 3600, httponly=True,
+                    secure=request.url.scheme == "https", samesite="lax")
+    return resp
+
+
+@app.get("/logout")
+def logout():
+    resp = RedirectResponse("/", 303)
+    resp.delete_cookie(COOKIE)
+    return resp
 
 
 # --- health -------------------------------------------------------------------
@@ -344,6 +427,17 @@ def _worker_or_404(case_id: str) -> dict:
     return w
 
 
+def _viewable(case_id: str, request: Request) -> tuple[dict, bool]:
+    """A made-up demo case is open to everyone (read only); a real case needs the team
+    login. Returns (worker, public)."""
+    if is_team(request):
+        return _worker_or_404(case_id), False
+    w = STORE.get("workers", case_id=case_id.strip().upper())
+    if not (w and w.get("is_demo")):
+        require_dashboard(request)  # no hint whether a real case exists
+    return w, True
+
+
 @app.get("/dashboard", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
 def dashboard_list(q: str = "", district: str = ""):
     workers = STORE.select("workers", order="updated_at")
@@ -365,12 +459,16 @@ def dashboard_new():
     return dashboard.render_new()
 
 
-@app.get("/dashboard/case/{case_id}", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
-def dashboard_case(case_id: str):
-    w = _worker_or_404(case_id)
-    sig = signals.signals_for_case(w, STORE.select("workers", order="updated_at"))
+@app.get("/dashboard/case/{case_id}", response_class=HTMLResponse)
+def dashboard_case(case_id: str, request: Request):
+    w, public = _viewable(case_id, request)
+    workers = STORE.select("workers", order="updated_at")
+    if public:  # links to other demo cases only, never a real one
+        workers = [x for x in workers if x.get("is_demo")]
+    sig = signals.signals_for_case(w, workers)
     clock = cases.case_clock(w, STORE.select("escalations", {"worker_id": w["id"], "status": "open"}), now())
-    return dashboard.render_case(w, cases.timeline(STORE, w), status(), sig, cases.embassy_alert(STORE, w, now()), clock)
+    return dashboard.render_case(w, cases.timeline(STORE, w), status(), sig, cases.embassy_alert(STORE, w, now()),
+                                 clock, public=public)
 
 
 @app.get("/dashboard/case/{case_id}/edit", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
@@ -379,17 +477,17 @@ def dashboard_edit(case_id: str):
     return dashboard.render_form(w, w["case_id"])
 
 
-@app.get("/dashboard/case/{case_id}/packet.txt", dependencies=[Depends(require_dashboard)])
-def dashboard_packet(case_id: str):
-    w = _worker_or_404(case_id)
+@app.get("/dashboard/case/{case_id}/packet.txt")
+def dashboard_packet(case_id: str, request: Request):
+    w, _ = _viewable(case_id, request)
     return PlainTextResponse(cases.case_packet(STORE, w, now()),
                              headers={"Content-Disposition": f'attachment; filename="{w["case_id"]}-case-packet.txt"'})
 
 
-@app.get("/dashboard/case/{case_id}/petition", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
-def dashboard_petition(case_id: str):
-    w = _worker_or_404(case_id)
-    return dashboard.render_petition(w, cases.prajavani_petition(STORE, w, now()))
+@app.get("/dashboard/case/{case_id}/petition", response_class=HTMLResponse)
+def dashboard_petition(case_id: str, request: Request):
+    w, public = _viewable(case_id, request)
+    return dashboard.render_petition(w, cases.prajavani_petition(STORE, w, now()), public=public)
 
 
 @app.post("/api/cases/{case_id}/petition", dependencies=[Depends(require_dashboard)])
@@ -403,18 +501,18 @@ async def api_petition(case_id: str, request: Request):
     return {"ok": True, "petition_status": w["petition_status"]}
 
 
-@app.get("/dashboard/case/{case_id}/proof-of-work", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
-def dashboard_proof_of_work(case_id: str):
-    w = _worker_or_404(case_id)
-    return dashboard.render_proof_of_work(w, cases.proof_of_work(STORE, w, now()))
+@app.get("/dashboard/case/{case_id}/proof-of-work", response_class=HTMLResponse)
+def dashboard_proof_of_work(case_id: str, request: Request):
+    w, public = _viewable(case_id, request)
+    return dashboard.render_proof_of_work(w, cases.proof_of_work(STORE, w, now()), public=public)
 
 
-@app.get("/dashboard/case/{case_id}/death", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
-def dashboard_death(case_id: str):
-    w = _worker_or_404(case_id)
+@app.get("/dashboard/case/{case_id}/death", response_class=HTMLResponse)
+def dashboard_death(case_id: str, request: Request):
+    w, public = _viewable(case_id, request)
     if not w.get("death_reported_at"):
         raise HTTPException(404, "no death reported for this case")
-    return dashboard.render_death_packet(w, cases.death_packet(STORE, w, now()))
+    return dashboard.render_death_packet(w, cases.death_packet(STORE, w, now()), public=public)
 
 
 @app.post("/api/cases/{case_id}/death", dependencies=[Depends(require_dashboard)])

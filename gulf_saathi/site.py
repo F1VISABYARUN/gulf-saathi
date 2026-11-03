@@ -357,7 +357,7 @@ def _page(title: str, body: str, description: str = "") -> str:
 <link href="https://fonts.googleapis.com/css2?family=Anek+Telugu:wght@600;700&family=Noto+Sans+Telugu:wght@400;700&display=swap" rel="stylesheet">
 <style>{STYLE}</style></head><body>
 <div class="wrap"><nav><b>Gulf Saathi · గల్ఫ్ సాథి</b><span class="sp"></span>
-<span class="links"><a href="/#how">How it works</a><a href="/#call">Get a call</a><a href="/demo">Demo story</a><a href="/dashboard">Caseworker login</a></span></nav></div>
+<span class="links"><a href="/#how">How it works</a><a href="/#call">Get a call</a><a href="/demo">Demo story</a><a href="/login">Team login</a></span></nav></div>
 {body}
 <footer><div class="wrap">Built for the Bolna Buildathon 2026. Saathi records every Gulf job promise before the worker
 pays, checks on them after they land, and turns trouble into a ready case file for the people who can act.</div></footer>
@@ -478,7 +478,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
         <li>Wrong visa flagged before he flies</li><li>Arrival call: wrong pickup = CRITICAL</li>
         <li>"Herding goats" is not the promised job = HIGH</li></ul></div>
     </div>
-    <p><a class="more-link" href="/demo">Run this story on the demo →</a> <span class="src">(team login)</span></p>
+    <p><a class="more-link" href="/demo">Run this story on the demo →</a> <span class="src">(no password)</span></p>
   </div>
 </div></section>
 
@@ -558,7 +558,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <h2>Caseworker view</h2>
   <div class="shotwrap"><div class="shotbox"><img src="/gs_dashboard.webp" alt="The caseworker dashboard showing a made-up demo case marked CRITICAL, with its red flags" loading="lazy"></div>
   <p class="cap">Screenshot with a made-up demo case.</p></div>
-  <p style="margin-top:14px"><a class="btn ghost" href="/dashboard">Open caseworker view</a> <span class="src">(team login)</span></p>
+  <p style="margin-top:14px"><a class="btn ghost" href="/demo">Open the demo (no password)</a> <a class="btn ghost" href="/login">Team login</a></p>
 </div></section>
 
 <section id="call"><div class="wrap"><div class="callbox">
@@ -569,44 +569,136 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 """, "Gulf Saathi: a Telugu voice line that checks agents, fees, visas, and calls workers on arrival day and every week.")
 
 
+# The demo story as data: the three made-up people (see demo.py) and what happens, step by step.
+DEMO_PEOPLE = [
+    {"key": "yadaiah", "name": "Yadaiah", "te": "యాదయ్య", "who": "Going to Riyadh, Saudi Arabia",
+     "facts": [("Promised", "Cleaner"), ("Visa says", "Agricultural worker"), ("Paid", "₹90,000 in two parts")],
+     "caught": ["Agent not in the licensed list", "Paid over the ₹35,400 limit", "Visa job ≠ promised job",
+                "Arrival call: herding goats in Al Kharj, passport taken → CRITICAL"]},
+    {"key": "ramesh", "name": "Ramesh", "te": "రమేష్", "who": "Going to Dammam, Saudi Arabia",
+     "facts": [("Promised", "Driver"), ("Visa", "Visit visa"), ("Paid", "₹90,000 in two parts")],
+     "caught": ["Visit visa for a job", "Same village agent phone and UPI ID as Yadaiah: seen in 2 cases"]},
+    {"key": "saraswathi", "name": "Saraswathi, 27", "te": "సరస్వతి", "who": "Going to Muscat, Oman",
+     "facts": [("Promised", "Housemaid"), ("Visa", "Tourist visa"), ("Paid", "₹80,000")],
+     "caught": ["Tourist visa for housework", "Paid over the ₹35,400 limit", "Stopped before she flies"]},
+]
+
+DEMO_STEPS = [
+    ("Registered before flying", "Yadaiah's promised job, visa and payments are recorded."),
+    ("Red flags at once", "Unlicensed agent, ₹90,000 paid, visa job is not the promised job: "
+     "\"do not pay more or travel until this is sorted out\"."),
+    ("Family SMS", "One Telugu SMS for his wife with the case number (shown, not sent)."),
+    ("Arrival-day call", "A stranger picked him up. He is herding goats in Al Kharj and his passport was taken. "
+     "Fixed rules mark it CRITICAL."),
+    ("Case file", "A Telugu alert for the family and an English case packet for MADAD or the embassy."),
+    ("Seen in 2 cases", "Ramesh paid the same village agent's phone and UPI ID. Shown as \"needs human review\", "
+     "not as fraud."),
+    ("A woman sent for housework", "Saraswathi is going to Muscat as a housemaid on a tourist visa. "
+     "Flagged before she flies."),
+]
+
+DEMO_LOOK = [
+    ("Promise vs reality", "what was promised next to what the worker says now"),
+    ("Download English case packet", "the file a caseworker sends to MADAD or the embassy"),
+    ("Proof of work", "a dated record of every call, against a false absconding report"),
+    ("Seen in other cases", "the repeat-agent warning, on Yadaiah's and Ramesh's pages"),
+]
+
+DEMO_STYLE = """
+.demo-note{display:inline-block;background:#fef0c7;color:#93370d;border-radius:999px;padding:4px 12px;font-weight:700;font-size:13px}
+.people{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.person{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column}
+.person h3{margin:0;font-size:19px} .person .te{margin:0 0 2px} .person .who{color:var(--muted);margin:0 0 12px;font-size:14px}
+.person dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0 0 12px;font-size:14.5px}
+.person dt{color:var(--muted)} .person dd{margin:0;font-weight:700}
+.person ul{margin:0 0 14px;padding-left:18px;font-size:14.5px} .person li{margin:3px 0}
+.person .catch{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#b42318;font-weight:700;margin:0 0 4px}
+.person .btn{margin:auto 0 0;text-align:center}
+.person .btn[aria-disabled=true]{opacity:.45;pointer-events:none}
+.tl{list-style:none;margin:0;padding:0;counter-reset:s;max-width:760px}
+.tl li{counter-increment:s;position:relative;padding:0 0 18px 48px}
+.tl li:before{content:counter(s);position:absolute;left:0;top:0;width:32px;height:32px;border-radius:50%;background:var(--accent);
+  color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:700}
+.tl li:not(:last-child):after{content:"";position:absolute;left:15px;top:34px;bottom:2px;width:2px;background:var(--line)}
+.tl b{display:block}
+.look{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:760px;padding:0;list-style:none}
+.look li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14.5px}
+@media (max-width:900px){.people{grid-template-columns:1fr}.look{grid-template-columns:1fr}}
+"""
+
+
 def render_demo() -> str:
-    return _page("Gulf Saathi demo story", """
+    people = "".join(f"""<article class="person">
+  <h3>{esc(p["name"])} <span class="demo-note" style="font-size:11px;padding:1px 8px">DEMO</span></h3>
+  <p class="te">{esc(p["te"])}</p><p class="who">{esc(p["who"])}</p>
+  <dl>{"".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in p["facts"])}</dl>
+  <p class="catch">What Saathi catches</p>
+  <ul>{"".join(f"<li>{esc(c)}</li>" for c in p["caught"])}</ul>
+  <a class="btn ghost" id="open-{esc(p["key"])}" href="#" aria-disabled="true">Run the story first</a>
+</article>""" for p in DEMO_PEOPLE)
+    steps = "".join(f"<li><b>{esc(t)}</b>{esc(d)}</li>" for t, d in DEMO_STEPS)
+    look = "".join(f"<li><b>{esc(t)}</b>: {esc(d)}</li>" for t, d in DEMO_LOOK)
+    keys = [p["key"] for p in DEMO_PEOPLE]
+    return _page("Gulf Saathi demo story", f"""<style>{DEMO_STYLE}</style>
 <div class="wrap hero">
   <h1>The demo story</h1>
   <p class="te">యాదయ్య కథ</p>
-  <p>This creates three made-up demo cases and walks through what Saathi catches. They are marked DEMO everywhere.
-  No real call and no real SMS is made for them.</p>
-  <button class="btn" id="run">Run the story</button> <a class="btn ghost" href="/dashboard">Open the dashboard</a>
+  <p>Three made-up workers, from the first call to the case file. No password needed.</p>
+  <p><span class="demo-note">Example. Made-up names and numbers. No real call or SMS is made.</span></p>
+  <p style="margin-top:14px"><button class="btn" id="run">Run the story</button></p>
   <div id="msg" aria-live="polite"></div>
 </div>
-<section><div class="wrap"><div class="steps" id="steps">
-  <div class="step"><b>1. Registered before flying</b>Yadaiah was promised a <b>cleaner</b> job in Riyadh. He paid the agent Rs 90,000 in two parts.</div>
-  <div class="step"><b>2. Red flags at once</b>The agent is not found in the licensed list. Rs 90,000 is over the Rs 35,400 limit.
-    The visa says <b>agricultural worker</b>, not cleaner: "do not pay more or travel until this is sorted out".</div>
-  <div class="step"><b>3. Family SMS</b>One Telugu SMS for his wife with the case number (shown, not sent).</div>
-  <div class="step"><b>4. Arrival-day call</b>A stranger picked him up. He says he is <b>herding goats</b> in Al Kharj, and his passport was taken.
-    Fixed rules mark it CRITICAL.</div>
-  <div class="step"><b>5. Family alert and packet</b>A Telugu alert SMS (shown, not sent) and an English complaint-ready packet.</div>
-  <div class="step"><b>6. Seen in 2 cases</b>Ramesh paid the same village agent's phone and UPI ID, and has a visit visa.
-    Shown as "seen in 2 cases, needs human review", not as fraud.</div>
-  <div class="step"><b>7. A woman sent for housework</b>Saraswathi, 27, is going to Muscat as a <b>housemaid</b> on a
-    <b>tourist visa</b>: the route used to get past emigration checks. Stopped before she flies.</div>
-</div></div></section>
+<section><div class="wrap">
+  <h2>The three workers</h2>
+  <div class="people">{people}</div>
+</div></section>
+<section><div class="wrap">
+  <h2>What happens, step by step</h2>
+  <ol class="tl">{steps}</ol>
+</div></section>
+<section><div class="wrap">
+  <h2>What to look at on each case page</h2>
+  <ul class="look">{look}</ul>
+</div></section>
 <script>
-document.getElementById('run').addEventListener('click', async (e) => {
+document.getElementById('run').addEventListener('click', async (e) => {{
   const msg = document.getElementById('msg'); e.target.disabled = true; msg.textContent = 'Creating the demo cases…';
-  try {
-    const r = await fetch('/api/demo/run', {method:'POST'});
-    const j = await r.json().catch(() => ({}));
+  try {{
+    const r = await fetch('/api/demo/run', {{method:'POST'}});
+    const j = await r.json().catch(() => ({{}}));
     if (!r.ok) throw new Error(j.detail || r.status);
-    msg.innerHTML = '';
-    const add = (text, href) => { const a = document.createElement('a'); a.href = href; a.textContent = text;
-      a.className = 'btn ghost'; a.style.margin = '12px 8px 0 0'; msg.appendChild(a); };
-    add('Yadaiah\\'s case ' + j.yadaiah, '/dashboard/case/' + j.yadaiah);
-    add('Ramesh\\'s case ' + j.ramesh, '/dashboard/case/' + j.ramesh);
-    add('Saraswathi\\'s case ' + j.saraswathi, '/dashboard/case/' + j.saraswathi);
-    add('Agents and repeated signals', '/dashboard/agents');
-  } catch (err) { msg.textContent = 'Failed: ' + err.message; e.target.disabled = false; }
-});
+    for (const k of {keys!r}) {{
+      const a = document.getElementById('open-' + k);
+      a.href = '/dashboard/case/' + j[k]; a.textContent = 'Open case ' + j[k]; a.className = 'btn';
+      a.removeAttribute('aria-disabled');
+    }}
+    msg.textContent = 'Ready. Open any case below.';
+    e.target.textContent = 'Story ready';
+    document.querySelector('.people').scrollIntoView({{behavior:'smooth'}});
+  }} catch (err) {{ msg.textContent = 'Failed: ' + err.message; e.target.disabled = false; }}
+}});
 </script>
-""", "Run the Yadaiah demo story on Gulf Saathi.")
+""", "Run the Yadaiah demo story on Gulf Saathi. No password needed.")
+
+
+def render_login(next_path: str = "/dashboard", error: str = "") -> str:
+    """Team login. Real cases hold phone numbers, so they stay behind a password;
+    the demo story is open to everyone."""
+    err = f'<p role="alert" style="color:#fda29b;font-weight:700">{esc(error)}</p>' if error else ""
+    return _page("Gulf Saathi team login", f"""
+<div class="wrap hero">
+  <h1>See the demo</h1>
+  <p>No password needed. Three made-up cases show what Saathi catches, from the first call to the case file.</p>
+  <p><a class="btn" href="/demo">Open the demo (no password)</a></p>
+</div>
+<section><div class="wrap"><div class="callbox" style="max-width:480px">
+  <h2>Team login</h2>
+  <p>For Gulf Saathi caseworkers. Real cases hold workers' and families' phone numbers.</p>
+  <form method="post" action="/login">
+    <input type="hidden" name="next" value="{esc(next_path)}">
+    <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+    {err}
+    <p style="margin-top:14px"><button class="btn" type="submit">Log in</button></p>
+  </form>
+</div></div></section>
+""", "Gulf Saathi: open the demo without a password, or log in as the team.")

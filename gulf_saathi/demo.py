@@ -10,9 +10,9 @@ a tourist visa.
 from __future__ import annotations
 
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from .cases import record_checkin, register_worker
+from .cases import parse_ts, record_checkin, register_worker
 from .matcher import LicensedList
 
 DEMO_NOTE = "DEMO CASE: made-up person for the demo story. No real call or SMS was made."
@@ -65,3 +65,25 @@ def run_demo(store, licensed: LicensedList, now: datetime) -> dict:
     }, now)
     return {"yadaiah": yadaiah["case_id"], "ramesh": ramesh["case_id"], "saraswathi": saraswathi["case_id"],
             "arrival": arrival}
+
+
+REUSE_FOR = timedelta(hours=1)
+
+
+def recent_story(workers: list[dict], now: datetime) -> dict | None:
+    """The demo page is public: if a story was made in the last hour, show it again
+    instead of filling the database with new made-up cases on every click."""
+    latest: dict[str, dict] = {}
+    for w in workers:
+        if not w.get("is_demo"):
+            continue
+        made = parse_ts(w.get("created_at"))
+        if not made or now - made > REUSE_FOR:
+            continue
+        key = str(w.get("worker_name") or "").split(" (demo)")[0].lower()
+        if key in ("yadaiah", "ramesh", "saraswathi") and (
+                key not in latest or made > parse_ts(latest[key].get("created_at"))):
+            latest[key] = w
+    if len(latest) < 3:
+        return None
+    return {k: latest[k]["case_id"] for k in ("yadaiah", "ramesh", "saraswathi")} | {"reused": True}

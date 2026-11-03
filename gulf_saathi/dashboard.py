@@ -39,8 +39,19 @@ def badge(level: str) -> str:
     return f'<span class="badge" style="background:{BADGE.get(level, "#475467")}">{esc(level.upper())}</span>'
 
 
-def page(title: str, body: str, refresh: int | None = None) -> str:
+TEAM_NAV = ('<a href="/dashboard">Cases</a><a href="/dashboard/agents">Agents</a><a href="/dashboard/alerts">Weekly alerts</a>'
+            '<a href="/demo">Demo story</a><span class="sp"></span><a href="/dashboard/new">+ Register worker</a><a href="/logout">Log out</a>')
+PUBLIC_NAV = '<a href="/demo">Demo story</a><span class="sp"></span><a href="/login">Team login</a>'
+PUBLIC_NOTE = ('<p class="sms info">Demo view, open to everyone. This is a made-up case. '
+               'Buttons that change a case or place a call need the team login.</p>')
+
+
+def page(title: str, body: str, refresh: int | None = None, public: bool = False) -> str:
+    """public: a demo case shown without the team login (other nav, a note on top)."""
     meta = f'<meta http-equiv="refresh" content="{refresh}">' if refresh else ""
+    nav = PUBLIC_NAV if public else TEAM_NAV
+    if public:
+        body = PUBLIC_NOTE + body
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 {meta}<title>{esc(title)} · Gulf Saathi</title>
@@ -87,7 +98,7 @@ legend {{ font-weight:700; padding:0 6px; }}
 .v-conflict {{ color:#b42318; font-weight:700; }} .v-match {{ color:#067647; }} .v-unknown {{ color:var(--muted); }}
 select {{ width:100%; padding:8px; border:1px solid #d0d5dd; border-radius:8px; font:inherit; background:#fff; }}
 </style></head><body>
-<header><a href="/">Gulf Saathi</a><a href="/dashboard">Cases</a><a href="/dashboard/agents">Agents</a><a href="/dashboard/alerts">Weekly alerts</a><a href="/demo">Demo story</a><span class="sp"></span><a href="/dashboard/new">+ Register worker</a></header>
+<header><a href="/">Gulf Saathi</a>{nav}</header>
 <main>{body}</main>
 <script>
 async function post(url, body, btn, okText) {{
@@ -414,7 +425,7 @@ def _answers_table(answers: dict) -> str:
 
 
 def render_case(w: dict, events: list[dict], status: dict, signals: list[dict] | None = None,
-                alert: dict | None = None, clock: dict | None = None) -> str:
+                alert: dict | None = None, clock: dict | None = None, public: bool = False) -> str:
     kv = lambda label, value: f'<div class="kv"><b>{esc(label)}</b>{esc(value) if value not in (None, "") else "<span class=muted>—</span>"}</div>'
     reasons = "".join(f"<li>{esc(reason_text(r))}</li>" for r in (w.get("risk_reasons") or []))
     fee = ""
@@ -532,7 +543,7 @@ place: d_place.value, when: d_when.value, notes: d_notes.value}}, this, 'Recorde
     <button class="btn" {calls_disabled} onclick="post('/api/cases/{case_id}/call', {{kind:'briefing'}}, this, 'Briefing call requested')">Call now: pre-departure briefing</button>
     <a class="btn secondary" href="/dashboard/case/{case_id}/packet.txt">Download English case packet</a>
     <a class="btn secondary" href="/dashboard/case/{case_id}/proof-of-work" target="_blank">Proof of work</a>
-    <a class="btn secondary" href="/dashboard/case/{case_id}/edit">Edit details</a>
+    {'' if public else f'<a class="btn secondary" href="/dashboard/case/{case_id}/edit">Edit details</a>'}
   </p><div id="msg"></div>
   <div class="muted">Status: {esc(w.get('status'))} · Last contact: {esc(fmt_ist(w.get('last_contact_at')))} ·
   Missed in a row: {esc(w.get('missed_checkins') or 0)} · Next call: {esc(fmt_ist(w.get('next_call_at')))} · {briefing} · refreshes every 20 seconds</div>
@@ -575,7 +586,7 @@ The caller hears the status when they call Saathi again.</p>
 <script>
 // Refresh every 20 seconds, but never while someone is typing or reading an opened section.
 setInterval(() => {{ if (!document.querySelector('details[open], input:focus, textarea:focus, select:focus')) location.reload(); }}, 20000);
-</script>""")
+</script>""", public=public)
 
 
 
@@ -597,7 +608,7 @@ result, but cannot stop it ringing. Help the family with the steps in the suppor
 </form></div>"""
 
 
-def render_death_packet(w: dict, pkt: dict) -> str:
+def render_death_packet(w: dict, pkt: dict, public: bool = False) -> str:
     """Printable papers for a family after a death: Telugu steps first, then the English facts."""
     te, en = pkt["telugu"], pkt["english"]
     li = lambda xs: "".join(f"<li>{esc(x)}</li>" for x in xs)
@@ -616,10 +627,10 @@ first. Saathi does not make the NOC or consent form: the embassy gives its own, 
 </div>
 <style>@media print {{ header, .noprint {{ display:none }} .card {{ border:0 }} body {{ background:#fff }} }}
 .petition p, .petition li {{ margin:6px 0 }}</style>"""
-    return page(f"Family support {w['case_id']}", body)
+    return page(f"Family support {w['case_id']}", body, public=public)
 
 
-def render_proof_of_work(w: dict, rec: dict) -> str:
+def render_proof_of_work(w: dict, rec: dict, public: bool = False) -> str:
     """Printable dated record: the worker's defence against a false absconding report."""
     li = lambda xs: "".join(f"<li>{esc(x)}</li>" for x in xs)
     rows = "".join(f"<tr><td class='nowrap'>{esc(r['when'])}</td><td>{esc(r['kind'])}</td><td>{esc(r['where'])}</td>"
@@ -636,7 +647,7 @@ where they said they were working, and when pay stopped. Give it to the embassy 
 <p class="muted">{esc(rec['note'])}</p></div>
 <style>@media print {{ header, .noprint {{ display:none }} .card {{ border:0 }} body {{ background:#fff }} }}
 .petition p, .petition li {{ margin:6px 0 }}</style>"""
-    return page(f"Proof of work {w['case_id']}", body)
+    return page(f"Proof of work {w['case_id']}", body, public=public)
 
 
 def render_alerts(people: list[dict], templates: list, hints: list[dict], history: list[dict], status: dict) -> str:
@@ -662,7 +673,7 @@ person: a message with a phone number is refused.</p>
 <div class="card"><h2>Sent alerts</h2>{'<div class="wrap"><table><thead><tr><th>When</th><th>How</th><th>Alert</th><th>To</th><th>Result</th></tr></thead><tbody>' + rows + '</tbody></table></div>' if rows else '<p class="muted">None yet.</p>'}</div>""")
 
 
-def render_petition(w: dict, pet: dict) -> str:
+def render_petition(w: dict, pet: dict, public: bool = False) -> str:
     """Printable Pravasi Prajavani petition, Telugu first, then English."""
     te, en = pet["telugu"], pet["english"]
     li = lambda xs: "".join(f"<li>{esc(x)}</li>" for x in xs)
@@ -686,4 +697,4 @@ Check every fact with the family before signing.</p>
 </div>
 <style>@media print {{ header, .noprint {{ display:none }} .card {{ border:0 }} body {{ background:#fff }} }}
 .petition p, .petition li {{ margin:6px 0 }}</style>"""
-    return page(f"Petition {w['case_id']}", body)
+    return page(f"Petition {w['case_id']}", body, public=public)

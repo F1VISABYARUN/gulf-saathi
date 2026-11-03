@@ -52,7 +52,9 @@ def mem(monkeypatch):
 
 def test_dashboard_needs_password(mem, monkeypatch):
     assert client.get("/dashboard").status_code == 401
-    assert client.get("/dashboard").headers["www-authenticate"].startswith("Basic")
+    form = client.get("/dashboard", headers={"Accept": "text/html"})
+    assert form.status_code == 401 and "Team login" in form.text and "Open the demo (no password)" in form.text
+    assert "www-authenticate" not in form.headers  # our form, not the browser's pop-up
     assert client.get("/dashboard", auth=("x", "wrong")).status_code == 401
     assert client.get("/dashboard", auth=AUTH).status_code == 200
     assert client.post("/api/workers", json={}).status_code == 401
@@ -224,8 +226,6 @@ def test_demo_call_needs_the_code(mem, monkeypatch):
 
 
 def test_demo_story_pages(mem):
-    assert client.get("/demo").status_code == 401
-    assert client.post("/api/demo/run").status_code == 401
     out = client.post("/api/demo/run", auth=AUTH).json()
     case = client.get(f"/dashboard/case/{out['yadaiah']}", auth=AUTH).text
     assert "DEMO" in case and "Promise vs reality" in case and "herding goats" in case
@@ -470,3 +470,67 @@ def test_weekly_alerts_page(mem):
     assert "Weekly scam alert" in page and "Goes to <b>0</b>" in page
     r = client.post("/api/alerts", auth=AUTH, json={"message": "గల్ఫ్ సాథి హెచ్చరిక", "channel": "voice"})
     assert r.status_code == 400 and "nobody" in r.json()["detail"]
+
+
+def test_demo_is_public_without_password(mem):
+    assert client.get("/demo").status_code == 200
+    out = client.post("/api/demo/run").json()
+    case = client.get(f"/dashboard/case/{out['yadaiah']}", headers={"Accept": "text/html"})
+    assert case.status_code == 200 and "DEMO" in case.text and "herding goats" in case.text
+    assert "Demo view, open to everyone" in case.text and "/dashboard/new" not in case.text
+    for sub in ("packet.txt", "proof-of-work", "petition"):
+        assert client.get(f"/dashboard/case/{out['yadaiah']}/{sub}").status_code == 200
+    # Changing a demo case, and every team list, still needs the login.
+    assert client.post(f"/api/cases/{out['yadaiah']}", json={}).status_code == 401
+    for path in ("/dashboard", "/dashboard/agents", "/dashboard/alerts", "/dashboard/new",
+                 f"/dashboard/case/{out['yadaiah']}/edit"):
+        assert client.get(path).status_code == 401, path
+
+
+def test_real_case_stays_private(mem):
+    real = client.post("/api/workers", auth=AUTH, json={"worker_name": "Real", "worker_phone": "+919812345678", "family_phone": "+919812345679"}).json()
+    cid = real["case_id"]
+    for sub in ("", "/packet.txt", "/proof-of-work", "/petition"):
+        r = client.get(f"/dashboard/case/{cid}{sub}")
+        assert r.status_code == 401 and "+919812345678" not in r.text, sub
+    # A missing case looks the same as a private one: no hint which case numbers exist.
+    assert client.get("/dashboard/case/GS-NOPE").status_code == 401
+    assert client.get(f"/dashboard/case/{cid}", auth=AUTH).status_code == 200
+
+
+def test_public_demo_case_never_links_a_real_case(mem):
+    out = client.post("/api/demo/run").json()
+    yad = api.STORE.get("workers", case_id=out["yadaiah"])
+    real = client.post("/api/workers", auth=AUTH, json={
+        "worker_name": "Real", "worker_phone": "+919812345678", "family_phone": "+919812345679", "sub_agent_phone": yad["sub_agent_phone"]}).json()
+    assert real["case_id"] not in client.get(f"/dashboard/case/{out['yadaiah']}").text
+    assert real["case_id"] in client.get(f"/dashboard/case/{out['yadaiah']}", auth=AUTH).text
+
+
+def test_public_demo_reuses_a_recent_story(mem):
+    first = client.post("/api/demo/run").json()
+    again = client.post("/api/demo/run").json()
+    assert again["yadaiah"] == first["yadaiah"] and again["reused"]
+    assert sum(1 for w in api.STORE.select("workers") if w.get("is_demo")) == 3
+
+
+def test_login_form_sets_a_cookie(mem):
+    c = TestClient(api.app)
+    bad = c.post("/login", data={"password": "nope", "next": "/dashboard"}, follow_redirects=False)
+    assert bad.status_code == 401 and "Wrong password" in bad.text
+    ok = c.post("/login", data={"password": "pw-123", "next": "/dashboard/agents"}, follow_redirects=False)
+    assert ok.status_code == 303 and ok.headers["location"] == "/dashboard/agents"
+    assert "pw-123" not in ok.headers["set-cookie"]
+    assert c.get("/dashboard").status_code == 200
+    c.get("/logout")
+    assert c.get("/dashboard").status_code == 401
+
+
+def test_login_never_sends_you_to_another_site(mem):
+    r = client.post("/login", data={"password": "pw-123", "next": "//evil.example"}, follow_redirects=False)
+    assert r.headers["location"] == "/dashboard"
+
+
+def test_curl_head_on_public_pages(mem):
+    for path in ("/", "/demo", "/login"):
+        assert client.head(path).status_code == 200, path
