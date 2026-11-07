@@ -24,22 +24,16 @@ STEPS = [
      "Caseworker dashboard, English complaint-ready packet, and a Telugu SMS for the family, ready to send.", "testing"),
 ]
 
-# How it started: label, Telugu label, text, Telugu text, state ("done" or "next").
+# How it started: label, text, state ("done" or "next").
 STARTED = [
-    ("Listened", "విన్నాం",
+    ("Listened",
      "Sat at Pravasi Prajavani, Praja Bhavan, Hyderabad, and heard real cases from Gulf workers' families: "
-     "wrong jobs, unpaid wages, and months of waiting for papers.",
-     "హైదరాబాద్ ప్రజా భవన్‌లోని ప్రవాసీ ప్రజావాణిలో గల్ఫ్ కార్మికుల కుటుంబాల అసలు కేసులు విన్నాం: "
-     "తప్పు ఉద్యోగాలు, ఇవ్వని జీతాలు, కాగితాల కోసం నెలల తరబడి ఎదురుచూపు.", "done"),
-    ("Built", "తయారు చేశాం",
-     "Weekly Telugu check-in calls, agent and fee checks before departure, and ready case files for officials.",
-     "ప్రతి వారం తెలుగులో చెక్-ఇన్ కాల్స్, బయలుదేరే ముందు ఏజెంట్, ఫీజు చెక్, అధికారుల కోసం సిద్ధమైన కేసు ఫైళ్లు.", "done"),
-    ("Demoed", "చూపించాం",
-     "Showed it to the Pravasi Prajavani team, Nov 2026.",
-     "నవంబర్ 2026లో ప్రవాసీ ప్రజావాణి బృందానికి చూపించాం.", "done"),
-    ("Next: pilot", "తర్వాత: పైలట్",
-     "We were told we can start a pilot with Gulf worker families in Telangana, starting with Jagtial.",
-     "జగిత్యాల నుంచి మొదలుపెట్టి, తెలంగాణలోని గల్ఫ్ కార్మికుల కుటుంబాలతో పైలట్ మొదలుపెట్టవచ్చని చెప్పారు.", "next"),
+     "wrong jobs, unpaid wages, and months of waiting for papers.", "done"),
+    ("Built",
+     "Weekly Telugu check-in calls, agent and fee checks before departure, and ready case files for officials.", "done"),
+    ("Demoed", "Showed it to the Pravasi Prajavani team, Nov 2026.", "done"),
+    ("Next: pilot",
+     "We were told we can start a pilot with Gulf worker families in Telangana, starting with Jagtial.", "next"),
 ]
 
 
@@ -172,7 +166,7 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
 .step>b:first-child{display:block;margin-bottom:4px}
 #started{padding:28px 0}
-#started h2{margin-bottom:4px}
+#started h2{margin-bottom:16px}
 #started .tl{list-style:none;margin:0 0 12px;padding:0 0 8px;display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
 #started .tl li{position:relative;flex:0 0 76%;max-width:300px;scroll-snap-align:start;padding-top:40px}
 #started .tl li:before{content:"✓";position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;background:var(--ok);color:#fff;
@@ -419,11 +413,10 @@ def render_home(counts: dict, demo_calls_on: bool) -> str:
                    f'<span class="en">{esc(en)}</span></li>' for t, who, te, en in CALL_CLIP)
     started = "".join(
         f'<li class="{state}"><b>{esc(label)}</b><span class="tag">{"Done" if state == "done" else "Next"}</span>'
-        f'<div class="t" lang="te">{esc(te_label)}</div><p>{esc(text)}</p><p class="te" lang="te">{esc(te_text)}</p></li>'
-        for label, te_label, text, te_text, state in STARTED)
+        f'<p>{esc(text)}</p></li>'
+        for label, text, state in STARTED)
     link = pilot_link()
-    pilot_btn = (f'<p><a class="btn" href="{esc(link)}" target="_blank" rel="noopener">Join the pilot</a> '
-                 f'<span class="te" lang="te">పైలట్‌లో చేరండి</span></p>') if link else ""
+    pilot_btn = (f'<p><a class="btn" href="{esc(link)}" target="_blank" rel="noopener">Join the pilot</a></p>') if link else ""
     calls = counts.get("calls") or {}
     if calls.get("outside_team") == 0:
         traction = (f'Live system: <b>{esc(calls["answered"])}</b> calls answered so far, all from the team\'s test phone. '
@@ -493,7 +486,6 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 
 <section id="started"><div class="wrap">
   <h2>How Gulf Saathi started</h2>
-  <p class="te" lang="te" style="color:var(--accent);font-weight:700;margin:0 0 20px">గల్ఫ్ సాథి ఎలా మొదలైంది</p>
   <ol class="tl" id="tl" aria-label="How it started, swipe sideways">{started}</ol>
   {pilot_btn}
 </div></section>

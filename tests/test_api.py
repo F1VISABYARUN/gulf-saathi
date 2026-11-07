@@ -546,7 +546,8 @@ def test_home_started_timeline(mem, monkeypatch):
     labels = ["Listened", "Built", "Demoed", "Next: pilot"]
     assert [sec.index(f"<b>{x}</b>") for x in labels] == sorted(sec.index(f"<b>{x}</b>") for x in labels)
     assert sec.count('class="done"') == 3 and sec.count('class="next"') == 1
-    assert "starting with Jagtial" in sec and "గల్ఫ్ సాథి ఎలా మొదలైంది" in page
+    assert "starting with Jagtial" in sec
+    assert 'lang="te"' not in sec  # English only
     words = sec.lower()
     for banned in ("approved", "government pilot", "committee", "panel", "fraud", "genuine", "rescue", "safe", "trusted"):
         assert banned not in words, banned
