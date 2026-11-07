@@ -5,6 +5,9 @@ database still goes through esc(). Images are served by Vercel from public/.
 """
 from __future__ import annotations
 
+import os
+import re
+
 from .dashboard import esc
 
 # The journey, one step per call. "live" = working on real calls; "testing" = built, being tested.
@@ -20,6 +23,32 @@ STEPS = [
     ("When something is wrong", "సమస్య వస్తే",
      "Caseworker dashboard, English complaint-ready packet, and a Telugu SMS for the family, ready to send.", "testing"),
 ]
+
+# How it started: label, Telugu label, text, Telugu text, state ("done" or "next").
+STARTED = [
+    ("Listened", "విన్నాం",
+     "Sat at Pravasi Prajavani, Praja Bhavan, Hyderabad, and heard real cases from Gulf workers' families: "
+     "wrong jobs, unpaid wages, and months of waiting for papers.",
+     "హైదరాబాద్ ప్రజా భవన్‌లోని ప్రవాసీ ప్రజావాణిలో గల్ఫ్ కార్మికుల కుటుంబాల అసలు కేసులు విన్నాం: "
+     "తప్పు ఉద్యోగాలు, ఇవ్వని జీతాలు, కాగితాల కోసం నెలల తరబడి ఎదురుచూపు.", "done"),
+    ("Built", "తయారు చేశాం",
+     "Weekly Telugu check-in calls, agent and fee checks before departure, and ready case files for officials.",
+     "ప్రతి వారం తెలుగులో చెక్-ఇన్ కాల్స్, బయలుదేరే ముందు ఏజెంట్, ఫీజు చెక్, అధికారుల కోసం సిద్ధమైన కేసు ఫైళ్లు.", "done"),
+    ("Demoed", "చూపించాం",
+     "Showed it to the Pravasi Prajavani team, Nov 2026.",
+     "నవంబర్ 2026లో ప్రవాసీ ప్రజావాణి బృందానికి చూపించాం.", "done"),
+    ("Next: pilot", "తర్వాత: పైలట్",
+     "We were told we can start a pilot with Gulf worker families in Telangana, starting with Jagtial.",
+     "జగిత్యాల నుంచి మొదలుపెట్టి, తెలంగాణలోని గల్ఫ్ కార్మికుల కుటుంబాలతో పైలట్ మొదలుపెట్టవచ్చని చెప్పారు.", "next"),
+]
+
+
+def pilot_link() -> str:
+    """WhatsApp link for "Join the pilot", from GS_PILOT_WHATSAPP (digits only, with country code).
+    Empty until it is set in Vercel, so the page never shows a dead button."""
+    digits = re.sub(r"[\s+()-]", "", os.getenv("GS_PILOT_WHATSAPP", ""))
+    return f"https://wa.me/{digits}" if re.fullmatch(r"\d{10,15}", digits) else ""
+
 
 AI_PHOTO = "AI-generated illustration"
 
@@ -142,6 +171,21 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
 .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
 .step>b:first-child{display:block;margin-bottom:4px}
+#started .tl{list-style:none;margin:0 0 20px;padding:0;max-width:760px}
+#started .tl li{position:relative;padding:0 0 22px 46px}
+#started .tl li:before{content:"✓";position:absolute;left:0;top:2px;width:30px;height:30px;border-radius:50%;
+  background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
+#started .tl li.next:before{content:"";background:var(--card);border:3px solid var(--accent)}
+#started .tl li:not(:last-child):after{content:"";position:absolute;left:14px;top:34px;bottom:2px;width:2px;background:var(--line);transition:background .5s}
+#started .tl li.in:not(:last-child):after,#started .tl:not(.anim) li:not(:last-child):after{background:var(--ok)}
+#started .tl b{font-size:18px} #started .tl .t{color:var(--accent);font-weight:700;margin:0 0 2px}
+#started .tl p{margin:2px 0 0} #started .tl .te{color:var(--muted);font-size:15.5px}
+#started .tag{display:inline-block;margin-left:8px;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;letter-spacing:.03em;
+  background:var(--sand);color:var(--ok);vertical-align:middle}
+#started li.next .tag{background:var(--accent);color:var(--accent-ink)}
+#started .tl.anim li{opacity:0;transform:translateY(14px);transition:opacity .5s,transform .5s}
+#started .tl.anim li.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){#started .tl.anim li{transition:none}}
 .video{max-width:1080px;margin:0 auto}
 .video video{display:block;width:100%;aspect-ratio:16/9;background:#000;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
 .video p{text-align:center;margin:10px 0 0}
@@ -374,6 +418,13 @@ def render_home(counts: dict, demo_calls_on: bool) -> str:
                     for n, text, src, url in STATS)
     clip = "".join(f'<li data-t="{t}"><b>{esc(who)}</b><span class="te" lang="te">{esc(te)}</span>'
                    f'<span class="en">{esc(en)}</span></li>' for t, who, te, en in CALL_CLIP)
+    started = "".join(
+        f'<li class="{state}"><b>{esc(label)}</b><span class="tag">{"Done" if state == "done" else "Next"}</span>'
+        f'<div class="t" lang="te">{esc(te_label)}</div><p>{esc(text)}</p><p class="te" lang="te">{esc(te_text)}</p></li>'
+        for label, te_label, text, te_text, state in STARTED)
+    link = pilot_link()
+    pilot_btn = (f'<p><a class="btn" href="{esc(link)}" target="_blank" rel="noopener">Join the pilot</a> '
+                 f'<span class="te" lang="te">పైలట్‌లో చేరండి</span></p>') if link else ""
     calls = counts.get("calls") or {}
     if calls.get("outside_team") == 0:
         traction = (f'Live system: <b>{esc(calls["answered"])}</b> calls answered so far, all from the team\'s test phone. '
@@ -461,6 +512,23 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
     items.forEach(li => li.classList.toggle('on', li === cur));
   }});
   items.forEach(li => li.addEventListener('click', () => {{ a.currentTime = +li.dataset.t; a.play(); }}));
+}})();
+</script>
+
+<section id="started"><div class="wrap">
+  <h2>How Gulf Saathi started</h2>
+  <p class="te" lang="te" style="color:var(--accent);font-weight:700;margin:0 0 20px">గల్ఫ్ సాథి ఎలా మొదలైంది</p>
+  <ol class="tl" id="tl">{started}</ol>
+  {pilot_btn}
+</div></section>
+<script>
+(() => {{
+  const tl = document.getElementById('tl'); if (!tl || !('IntersectionObserver' in window)) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  tl.classList.add('anim');
+  const io = new IntersectionObserver(es => es.forEach(e => {{ if (e.isIntersecting) {{ e.target.classList.add('in'); io.unobserve(e.target); }} }}),
+    {{threshold: 0.35}});
+  tl.querySelectorAll('li').forEach(li => io.observe(li));
 }})();
 </script>
 

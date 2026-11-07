@@ -534,3 +534,28 @@ def test_login_never_sends_you_to_another_site(mem):
 def test_curl_head_on_public_pages(mem):
     for path in ("/", "/demo", "/login"):
         assert client.head(path).status_code == 200, path
+
+
+def test_home_started_timeline(mem, monkeypatch):
+    monkeypatch.delenv("GS_PILOT_WHATSAPP", raising=False)
+    page = client.get("/").text
+    a, b = page.index('id="hear"'), page.index('id="story"')
+    sec = page[page.index('id="started"'):]
+    sec = sec[:sec.index("</section>")]
+    assert a < page.index('id="started"') < b
+    labels = ["Listened", "Built", "Demoed", "Next: pilot"]
+    assert [sec.index(f"<b>{x}</b>") for x in labels] == sorted(sec.index(f"<b>{x}</b>") for x in labels)
+    assert sec.count('class="done"') == 3 and sec.count('class="next"') == 1
+    assert "starting with Jagtial" in sec and "గల్ఫ్ సాథి ఎలా మొదలైంది" in page
+    words = sec.lower()
+    for banned in ("approved", "government pilot", "committee", "panel", "fraud", "genuine", "rescue", "safe", "trusted"):
+        assert banned not in words, banned
+    assert "Join the pilot" not in page  # no dead button until a number is set
+
+
+def test_join_the_pilot_button_needs_a_number(mem, monkeypatch):
+    monkeypatch.setenv("GS_PILOT_WHATSAPP", "+91 98765 43210")
+    assert 'href="https://wa.me/919876543210"' in client.get("/").text
+    monkeypatch.setenv("GS_PILOT_WHATSAPP", "javascript:alert(1)")
+    page = client.get("/").text
+    assert "Join the pilot" not in page and "javascript:alert" not in page
