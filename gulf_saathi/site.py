@@ -171,21 +171,20 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
 .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
 .step>b:first-child{display:block;margin-bottom:4px}
-#started .tl{list-style:none;margin:0 0 20px;padding:0;max-width:760px}
-#started .tl li{position:relative;padding:0 0 22px 46px}
-#started .tl li:before{content:"✓";position:absolute;left:0;top:2px;width:30px;height:30px;border-radius:50%;
-  background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
+#started{padding:28px 0}
+#started h2{margin-bottom:4px}
+#started .tl{list-style:none;margin:0 0 12px;padding:0 0 8px;display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+#started .tl li{position:relative;flex:0 0 76%;max-width:300px;scroll-snap-align:start;padding-top:40px}
+#started .tl li:before{content:"✓";position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;background:var(--ok);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px}
 #started .tl li.next:before{content:"";background:var(--card);border:3px solid var(--accent)}
-#started .tl li:not(:last-child):after{content:"";position:absolute;left:14px;top:34px;bottom:2px;width:2px;background:var(--line);transition:background .5s}
-#started .tl li.in:not(:last-child):after,#started .tl:not(.anim) li:not(:last-child):after{background:var(--ok)}
-#started .tl b{font-size:18px} #started .tl .t{color:var(--accent);font-weight:700;margin:0 0 2px}
-#started .tl p{margin:2px 0 0} #started .tl .te{color:var(--muted);font-size:15.5px}
-#started .tag{display:inline-block;margin-left:8px;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;letter-spacing:.03em;
+#started .tl li:not(:last-child):after{content:"";position:absolute;left:34px;right:-14px;top:13px;height:2px;background:var(--ok)}
+#started .tl b{font-size:17px} #started .tl .t{color:var(--accent);font-weight:700;font-size:15px;margin:0}
+#started .tl p{margin:3px 0 0;font-size:15px;line-height:1.5} #started .tl .te{color:var(--muted);font-size:14px}
+#started .tag{display:inline-block;margin-left:6px;border-radius:999px;padding:0 8px;font-size:11px;font-weight:700;letter-spacing:.03em;
   background:var(--sand);color:var(--ok);vertical-align:middle}
 #started li.next .tag{background:var(--accent);color:var(--accent-ink)}
-#started .tl.anim li{opacity:0;transform:translateY(14px);transition:opacity .5s,transform .5s}
-#started .tl.anim li.in{opacity:1;transform:none}
-@media (prefers-reduced-motion:reduce){#started .tl.anim li{transition:none}}
+@media (min-width:900px){#started .tl{overflow:visible}#started .tl li{flex:1 1 0;max-width:none}}
 .video{max-width:1080px;margin:0 auto}
 .video video{display:block;width:100%;aspect-ratio:16/9;background:#000;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
 .video p{text-align:center;margin:10px 0 0}
@@ -492,6 +491,13 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <p class="honest">Demo video · real Bolna calls</p>
 </div></section>
 
+<section id="started"><div class="wrap">
+  <h2>How Gulf Saathi started</h2>
+  <p class="te" lang="te" style="color:var(--accent);font-weight:700;margin:0 0 20px">గల్ఫ్ సాథి ఎలా మొదలైంది</p>
+  <ol class="tl" id="tl" aria-label="How it started, swipe sideways">{started}</ol>
+  {pilot_btn}
+</div></section>
+
 <section id="hear"><div class="wrap">
   <h2>Hear a real call</h2>
   <p class="lede">A test call: a worker in Dubai says his passport is gone. Saathi notes it, registers the case as urgent and reads out
@@ -512,23 +518,6 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
     items.forEach(li => li.classList.toggle('on', li === cur));
   }});
   items.forEach(li => li.addEventListener('click', () => {{ a.currentTime = +li.dataset.t; a.play(); }}));
-}})();
-</script>
-
-<section id="started"><div class="wrap">
-  <h2>How Gulf Saathi started</h2>
-  <p class="te" lang="te" style="color:var(--accent);font-weight:700;margin:0 0 20px">గల్ఫ్ సాథి ఎలా మొదలైంది</p>
-  <ol class="tl" id="tl">{started}</ol>
-  {pilot_btn}
-</div></section>
-<script>
-(() => {{
-  const tl = document.getElementById('tl'); if (!tl || !('IntersectionObserver' in window)) return;
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  tl.classList.add('anim');
-  const io = new IntersectionObserver(es => es.forEach(e => {{ if (e.isIntersecting) {{ e.target.classList.add('in'); io.unobserve(e.target); }} }}),
-    {{threshold: 0.35}});
-  tl.querySelectorAll('li').forEach(li => io.observe(li));
 }})();
 </script>
 

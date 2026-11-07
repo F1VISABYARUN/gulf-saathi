@@ -539,7 +539,7 @@ def test_curl_head_on_public_pages(mem):
 def test_home_started_timeline(mem, monkeypatch):
     monkeypatch.delenv("GS_PILOT_WHATSAPP", raising=False)
     page = client.get("/").text
-    a, b = page.index('id="hear"'), page.index('id="story"')
+    a, b = page.index('id="watch"'), page.index('id="hear"')
     sec = page[page.index('id="started"'):]
     sec = sec[:sec.index("</section>")]
     assert a < page.index('id="started"') < b
