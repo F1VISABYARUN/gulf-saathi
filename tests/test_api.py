@@ -560,3 +560,19 @@ def test_join_the_pilot_button_needs_a_number(mem, monkeypatch):
     monkeypatch.setenv("GS_PILOT_WHATSAPP", "javascript:alert(1)")
     page = client.get("/").text
     assert "Join the pilot" not in page and "javascript:alert" not in page
+
+
+def test_started_section_has_the_prajavani_photo(mem, monkeypatch):
+    import os
+    monkeypatch.delenv("GS_PILOT_WHATSAPP", raising=False)
+    page = client.get("/").text
+    sec = page[page.index('id="started"'):]
+    sec = sec[:sec.index("</section>")]
+    assert 'src="/gs_prajavani.webp"' in sec and 'alt="A family meeting the Pravasi Prajavani desk' in sec
+    assert "Pravasi Prajavani, Praja Bhavan, Hyderabad." in sec and "AI-generated" not in sec
+    assert "Pilot area: Jagtial district, Telangana. For families of Gulf workers." in sec
+    words = sec.lower()
+    for banned in ("approved", "government pilot", "committee", "panel", "free"):
+        assert banned not in words, banned
+    f = os.path.join(os.path.dirname(__file__), "..", "public", "gs_prajavani.webp")
+    assert os.path.getsize(f) < 250_000

@@ -167,6 +167,10 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .step>b:first-child{display:block;margin-bottom:4px}
 #started{padding:28px 0}
 #started h2{margin-bottom:16px}
+#started figure{margin:0 0 20px;max-width:760px}
+#started figure img{width:100%;height:auto;border-radius:12px;border:1px solid var(--line)}
+#started figcaption{font-size:13px;color:var(--muted);margin-top:6px}
+#started .area{margin:4px 0 12px;color:var(--muted)}
 #started .tl{list-style:none;margin:0 0 12px;padding:0 0 8px;display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
 #started .tl li{position:relative;flex:0 0 76%;max-width:300px;scroll-snap-align:start;padding-top:40px}
 #started .tl li:before{content:"✓";position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;background:var(--ok);color:#fff;
@@ -486,7 +490,10 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 
 <section id="started"><div class="wrap">
   <h2>How Gulf Saathi started</h2>
+  <figure><img src="/gs_prajavani.webp" alt="A family meeting the Pravasi Prajavani desk at Praja Bhavan, Hyderabad"
+    width="1600" height="714" loading="lazy"><figcaption>Pravasi Prajavani, Praja Bhavan, Hyderabad.</figcaption></figure>
   <ol class="tl" id="tl" aria-label="How it started, swipe sideways">{started}</ol>
+  <p class="area">Pilot area: Jagtial district, Telangana. For families of Gulf workers.</p>
   {pilot_btn}
 </div></section>
 
