@@ -568,11 +568,13 @@ def test_started_section_has_the_prajavani_photo(mem, monkeypatch):
     page = client.get("/").text
     sec = page[page.index('id="started"'):]
     sec = sec[:sec.index("</section>")]
-    assert 'src="/gs_prajavani.webp"' in sec and 'alt="A family meeting the Pravasi Prajavani desk' in sec
+    assert 'src="/gs_prajavani_blur.webp"' in sec and 'alt="A hall at Praja Bhavan, Hyderabad' in sec
+    assert "gs_prajavani.webp" not in page  # the unblurred photo is gone
     assert "Pravasi Prajavani, Praja Bhavan, Hyderabad." in sec and "AI-generated" not in sec
     assert "Pilot area: Jagtial district, Telangana. For families of Gulf workers." in sec
     words = sec.lower()
     for banned in ("approved", "government pilot", "committee", "panel", "free"):
         assert banned not in words, banned
-    f = os.path.join(os.path.dirname(__file__), "..", "public", "gs_prajavani.webp")
-    assert os.path.getsize(f) < 250_000
+    pub = os.path.join(os.path.dirname(__file__), "..", "public")
+    assert os.path.getsize(os.path.join(pub, "gs_prajavani_blur.webp")) < 250_000
+    assert not os.path.exists(os.path.join(pub, "gs_prajavani.webp"))

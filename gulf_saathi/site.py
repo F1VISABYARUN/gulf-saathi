@@ -490,7 +490,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 
 <section id="started"><div class="wrap">
   <h2>How Gulf Saathi started</h2>
-  <figure><img src="/gs_prajavani.webp" alt="A family meeting the Pravasi Prajavani desk at Praja Bhavan, Hyderabad"
+  <figure><img src="/gs_prajavani_blur.webp" alt="A hall at Praja Bhavan, Hyderabad, where Pravasi Prajavani meets families"
     width="1600" height="714" loading="lazy"><figcaption>Pravasi Prajavani, Praja Bhavan, Hyderabad.</figcaption></figure>
   <ol class="tl" id="tl" aria-label="How it started, swipe sideways">{started}</ol>
   <p class="area">Pilot area: Jagtial district, Telangana. For families of Gulf workers.</p>
