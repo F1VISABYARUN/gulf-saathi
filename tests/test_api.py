@@ -588,3 +588,15 @@ def test_started_section_links_the_public_post(mem):
     words = sec.lower()
     for banned in ("praised", "approved", "endorsed", "vinod", "reddy"):
         assert banned not in words, banned
+
+
+def test_started_section_has_three_photos(mem):
+    import os
+    page = client.get("/").text
+    sec = page[page.index('id="started"'):]
+    sec = sec[:sec.index("</section>")]
+    for img in ("gs_prajavani.webp", "gs_pitch.webp", "gs_pitch_wide.webp"):
+        assert f'src="/{img}"' in sec
+        assert os.path.getsize(os.path.join(os.path.dirname(__file__), "..", "public", img)) < 250_000
+    assert sec.count("<img") == 3 == sec.count('alt="')
+    assert "At Pravasi Prajavani, Praja Bhavan, Nov 2026." in sec

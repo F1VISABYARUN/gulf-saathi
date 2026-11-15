@@ -170,7 +170,7 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 #started{padding:28px 0}
 #started h2{margin-bottom:16px}
 #started .pics{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 20px}
-#started figure{margin:0}
+#started figure{margin:0} #started figure.wide{margin:0 0 20px}
 #started figcaption a{display:inline-block;padding:6px 0}
 @media (max-width:700px){#started .pics{grid-template-columns:1fr}}
 #started figure img{width:100%;height:auto;border-radius:12px;border:1px solid var(--line)}
@@ -499,10 +499,13 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <figure><img src="/gs_prajavani.webp" alt="A family meeting the Pravasi Prajavani desk at Praja Bhavan, Hyderabad"
     width="1600" height="714" loading="lazy"><figcaption>Pravasi Prajavani, Praja Bhavan, Hyderabad.</figcaption></figure>
   <figure><a href="{PITCH_POST}" target="_blank" rel="noopener"><img src="/gs_pitch.webp"
-    alt="The founder of Gulf Saathi explaining it on video at Praja Bhavan" width="960" height="428" loading="lazy"></a>
+    alt="The founder of Gulf Saathi explaining it on video at Praja Bhavan" width="1280" height="571" loading="lazy"></a>
     <figcaption>Explaining Gulf Saathi at Praja Bhavan, from a public Facebook post, Nov 2026.
     <a href="{PITCH_POST}" target="_blank" rel="noopener">Watch the post</a></figcaption></figure>
   </div>
+  <figure class="wide"><img src="/gs_pitch_wide.webp"
+    alt="Left: the founder of Gulf Saathi explaining it. Right: the Pravasi Prajavani desk."
+    width="1600" height="448" loading="lazy"><figcaption>At Pravasi Prajavani, Praja Bhavan, Nov 2026.</figcaption></figure>
   <ol class="tl" id="tl" aria-label="How it started, swipe sideways">{started}</ol>
   <p class="area">Pilot area: Jagtial district, Telangana. For families of Gulf workers.</p>
   {pilot_btn}
