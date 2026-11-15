@@ -577,3 +577,14 @@ def test_started_section_has_the_prajavani_photo(mem, monkeypatch):
     f = os.path.join(os.path.dirname(__file__), "..", "public", "gs_prajavani.webp")
     assert os.path.getsize(f) < 250_000
     assert not os.path.exists(os.path.join(os.path.dirname(f), "gs_prajavani_blur.webp"))
+
+
+def test_started_section_links_the_public_post(mem):
+    page = client.get("/").text
+    sec = page[page.index('id="started"'):]
+    sec = sec[:sec.index("</section>")]
+    assert 'src="/gs_pitch.webp"' in sec and "https://www.facebook.com/share/v/1bkhsPZopf/" in sec
+    assert "from a public Facebook post, Nov 2026" in sec
+    words = sec.lower()
+    for banned in ("praised", "approved", "endorsed", "vinod", "reddy"):
+        assert banned not in words, banned

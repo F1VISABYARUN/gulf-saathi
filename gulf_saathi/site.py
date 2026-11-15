@@ -44,6 +44,8 @@ def pilot_link() -> str:
     return f"https://wa.me/{digits}" if re.fullmatch(r"\d{10,15}", digits) else ""
 
 
+PITCH_POST = "https://www.facebook.com/share/v/1bkhsPZopf/"  # public post about the pitch, Nov 2026
+
 AI_PHOTO = "AI-generated illustration"
 
 PHONE_ICON = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" '
@@ -167,7 +169,10 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .step>b:first-child{display:block;margin-bottom:4px}
 #started{padding:28px 0}
 #started h2{margin-bottom:16px}
-#started figure{margin:0 0 20px;max-width:760px}
+#started .pics{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 20px}
+#started figure{margin:0}
+#started figcaption a{display:inline-block;padding:6px 0}
+@media (max-width:700px){#started .pics{grid-template-columns:1fr}}
 #started figure img{width:100%;height:auto;border-radius:12px;border:1px solid var(--line)}
 #started figcaption{font-size:13px;color:var(--muted);margin-top:6px}
 #started .area{margin:4px 0 12px;color:var(--muted)}
@@ -490,8 +495,14 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 
 <section id="started"><div class="wrap">
   <h2>How Gulf Saathi started</h2>
+  <div class="pics">
   <figure><img src="/gs_prajavani.webp" alt="A family meeting the Pravasi Prajavani desk at Praja Bhavan, Hyderabad"
     width="1600" height="714" loading="lazy"><figcaption>Pravasi Prajavani, Praja Bhavan, Hyderabad.</figcaption></figure>
+  <figure><a href="{PITCH_POST}" target="_blank" rel="noopener"><img src="/gs_pitch.webp"
+    alt="The founder of Gulf Saathi explaining it on video at Praja Bhavan" width="960" height="428" loading="lazy"></a>
+    <figcaption>Explaining Gulf Saathi at Praja Bhavan, from a public Facebook post, Nov 2026.
+    <a href="{PITCH_POST}" target="_blank" rel="noopener">Watch the post</a></figcaption></figure>
+  </div>
   <ol class="tl" id="tl" aria-label="How it started, swipe sideways">{started}</ol>
   <p class="area">Pilot area: Jagtial district, Telangana. For families of Gulf workers.</p>
   {pilot_btn}
