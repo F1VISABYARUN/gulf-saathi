@@ -583,20 +583,20 @@ def test_started_section_links_the_public_post(mem):
     page = client.get("/").text
     sec = page[page.index('id="started"'):]
     sec = sec[:sec.index("</section>")]
-    assert 'src="/gs_pitch.webp"' in sec and "https://www.facebook.com/share/v/1bkhsPZopf/" in sec
+    assert 'src="/gs_pitch_wide.webp"' in sec and "https://www.facebook.com/share/v/1bkhsPZopf/" in sec
     assert "from a public Facebook post, Nov 2026" in sec
     words = sec.lower()
     for banned in ("praised", "approved", "endorsed", "vinod", "reddy"):
         assert banned not in words, banned
 
 
-def test_started_section_has_three_photos(mem):
+def test_started_section_has_two_photos(mem):
     import os
     page = client.get("/").text
     sec = page[page.index('id="started"'):]
     sec = sec[:sec.index("</section>")]
-    for img in ("gs_prajavani.webp", "gs_pitch.webp", "gs_pitch_wide.webp"):
-        assert f'src="/{img}"' in sec
-        assert os.path.getsize(os.path.join(os.path.dirname(__file__), "..", "public", img)) < 250_000
-    assert sec.count("<img") == 3 == sec.count('alt="')
-    assert "At Pravasi Prajavani, Praja Bhavan, Nov 2026." in sec
+    pub = os.path.join(os.path.dirname(__file__), "..", "public")
+    for img in ("gs_prajavani.webp", "gs_pitch_wide.webp"):
+        assert f'src="/{img}"' in sec and os.path.getsize(os.path.join(pub, img)) < 250_000
+    assert sec.count("<img") == 2 == sec.count('alt="')
+    assert "gs_pitch.webp" not in page and not os.path.exists(os.path.join(pub, "gs_pitch.webp"))
