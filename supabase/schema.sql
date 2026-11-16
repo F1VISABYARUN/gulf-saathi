@@ -181,3 +181,11 @@ create table if not exists scam_alerts (
   failed int not null default 0
 );
 alter table scam_alerts enable row level security;
+
+-- How a case ended (pilot numbers). Recorded by a caseworker; never changes status.
+alter table workers add column if not exists outcome text;              -- solved / partly_solved / not_solved / withdrawn
+alter table workers add column if not exists outcome_problem text;      -- unpaid_wages / passport / wrong_job / agent_fee / death / other
+alter table workers add column if not exists amount_recovered bigint;   -- whole rupees the family got back
+alter table workers add column if not exists outcome_note text;
+alter table workers add column if not exists outcome_at timestamptz;
+notify pgrst, 'reload schema';

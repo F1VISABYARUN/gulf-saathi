@@ -852,6 +852,98 @@ def update_petition(store, worker: dict, status: str, ref: str, now: datetime) -
     return store.get("workers", id=worker["id"])
 
 
+# --- how a case ended (the pilot's numbers) ------------------------------------------
+
+OUTCOMES = ("solved", "partly_solved", "not_solved", "withdrawn")
+OUTCOME_PROBLEMS = ("unpaid_wages", "passport", "wrong_job", "agent_fee", "death", "other")
+
+
+def update_outcome(store, worker: dict, data: dict, now: datetime) -> dict:
+    """A caseworker records how the case ended. A blank outcome reopens it. It never
+    changes the worker's status or stops check-in calls: a worker whose wages came
+    back is still abroad."""
+    outcome = str(data.get("outcome") or "").strip().lower()
+    problem = str(data.get("problem") or "").strip().lower()
+    if outcome and outcome not in OUTCOMES:
+        raise CaseError(f"outcome must be one of {', '.join(OUTCOMES)}")
+    if problem and problem not in OUTCOME_PROBLEMS:
+        raise CaseError(f"problem must be one of {', '.join(OUTCOME_PROBLEMS)}")
+    raw = re.sub(r"[,\s]", "", str(data.get("amount_recovered") if data.get("amount_recovered") is not None else ""))
+    if raw and not raw.isdigit():
+        raise CaseError("money recovered must be a whole number of rupees, 0 or more")
+    changes = {"outcome_problem": problem or None, "updated_at": iso(now), "last_action_at": iso(now)}
+    if outcome:
+        changes.update({"outcome": outcome, "amount_recovered": int(raw) if raw else None,
+                        "outcome_note": (str(data.get("note") or "").strip()[:500] or None),
+                        "outcome_at": worker.get("outcome_at") if worker.get("outcome") == outcome else iso(now)})
+    else:
+        changes.update({"outcome": None, "amount_recovered": None, "outcome_note": None, "outcome_at": None})
+    store.update("workers", {"id": worker["id"]}, changes)
+    return store.get("workers", id=worker["id"])
+
+
+def outcome_totals(workers: list[dict]) -> dict:
+    """Totals for the dashboard. Made-up demo cases are never counted."""
+    done = [w for w in workers if w.get("outcome") in OUTCOMES and not w.get("is_demo")]
+    days = sorted(d for d in (
+        (parse_ts(w.get("outcome_at")) - parse_ts(w.get("created_at"))).days
+        for w in done if parse_ts(w.get("outcome_at")) and parse_ts(w.get("created_at"))) if d >= 0)
+    median = None
+    if days:
+        mid = len(days) // 2
+        median = days[mid] if len(days) % 2 else (days[mid - 1] + days[mid]) / 2
+    return {"closed": len(done), "solved": sum(1 for w in done if w["outcome"] in ("solved", "partly_solved")),
+            "recovered": sum(int(w.get("amount_recovered") or 0) for w in done), "median_days": median}
+
+
+# --- a family already in trouble, entered by a caseworker ------------------------------
+
+def intake_family(store, data: dict, now: datetime) -> dict:
+    """A family comes to a caseworker (for example at Pravasi Prajavani) with a worker
+    already in trouble abroad. Opens or finds the case from the family's phone and runs
+    the same fixed rules as the help line. No call is placed."""
+    if yes_no(data.get("consent")) is not True:
+        raise CaseError("the family must agree before Saathi keeps their details")
+    try:
+        family_phone = normalize_phone(data.get("family_phone"))
+    except CaseError:
+        family_phone = ""
+    if not family_phone:
+        raise CaseError("the family's phone number is required")
+    problem = str(data.get("problem") or "").strip().lower()
+    if problem not in OUTCOME_PROBLEMS:
+        raise CaseError(f"problem must be one of {', '.join(OUTCOME_PROBLEMS)}")
+    worker_phone = ""
+    if str(data.get("worker_phone") or "").strip():
+        worker_phone = normalize_phone(data.get("worker_phone"))
+    months = as_int(data.get("months_unpaid"))
+    call = {
+        "caller_phone": family_phone, "caller_relation": _text(data, "family_relation", 30) or "family",
+        "caller_name": _text(data, "family_name"), "worker_name": _text(data, "worker_name"),
+        "worker_phone": worker_phone, "current_city": _text(data, "dest_city"),
+        "home_district": _text(data, "home_district", 60), "agent_name": _text(data, "agent_name"),
+        "months_unpaid": months if months else (1 if problem == "unpaid_wages" else None),
+        "passport_with_worker": "no" if problem == "passport" else data.get("passport_with_worker"),
+        "threatened": data.get("threatened"), "worker_died": "yes" if problem == "death" else "",
+        "notes": ("Entered by a caseworker at intake (no call). " + (_text(data, "notes", 400) or "")).strip(),
+    }
+    before = store.get("workers", family_phone=family_phone)
+    out = report_problem(store, call, now)
+    if not out.get("ok"):
+        raise CaseError("could not open the case")
+    w = store.get("workers", case_id=out["case_id"])
+    changes = {"outcome_problem": w.get("outcome_problem") or problem, "call_consent": "yes", "updated_at": iso(now)}
+    if out.get("new_case"):
+        changes["source"] = "prajavani"
+    for field, key, limit in (("dest_country", "dest_country", 60), ("employer_name", "employer_name", 200)):
+        if _text(data, key, limit) and not w.get(field):
+            changes[field] = _text(data, key, limit)
+    if not (before or {}).get("consent_notice_at"):
+        changes["consent_notice_at"] = None  # no call was made, so no recorded-call notice was played
+    store.update("workers", {"id": w["id"]}, changes)
+    return {"case_id": w["case_id"], "risk_level": out.get("risk_level"), "new_case": bool(out.get("new_case"))}
+
+
 # --- when a worker dies abroad ------------------------------------------------------
 # The hard part for families is not the grief alone: bodies wait in mortuaries while
 # volunteers search for the village, and illiterate parents face English papers.

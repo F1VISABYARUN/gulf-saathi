@@ -256,7 +256,7 @@ NEW_WORKER_COLUMNS = ("visa_job", "visa_type", "sub_agent_name", "sub_agent_phon
                       "petition_ref", "worker_gender", "death_note", "remains_status", "ex_gratia_status",
                       "promise_words", "contract_before_payment", "promise_by", "promise_date", "call_consent",
                       "passport_type", "emigration_clearance", "pbby", "pbby_nominee", "home_district", "home_mandal", "alerts_opt_in",
-                      "exit_penalty")
+                      "exit_penalty", "outcome", "outcome_problem", "amount_recovered", "outcome_note", "outcome_at")
 
 
 @app.get("/health/db")
@@ -444,7 +444,43 @@ def dashboard_list(q: str = "", district: str = ""):
     totals = cases.summary_counts(workers, cases.briefed_worker_ids(STORE))
     alerts = STORE.select("escalations", {"status": "open"})
     clocks = {w["id"]: cases.case_clock(w, alerts, now()) for w in workers}
-    return dashboard.render_list(workers, status(), totals, q[:100], clocks, district[:60])
+    return dashboard.render_list(workers, status(), totals, q[:100], clocks, district[:60],
+                                 outcomes=cases.outcome_totals(workers), live=go_live_checks())
+
+
+def go_live_checks() -> list[tuple[str, str, str]]:
+    """What the pilot needs switched on: (label, "ok" / "off" / "hand", what to do).
+    "hand" = the server cannot know; a person has to try it."""
+    def line(label, ok, fix):
+        return (label, "ok" if ok else "off", "" if ok else fix)
+    return [
+        line("Database (Supabase)", STORE.kind == "supabase", "Set SUPABASE_URL and SUPABASE_SERVICE_KEY in Vercel."),
+        line("Bolna check-in calls", bolna.configured(), "Set BOLNA_API_KEY and BOLNA_CHECKIN_AGENT_ID in Vercel."),
+        line("Bolna help-line agent", bool(demo_agent_id()), "Set BOLNA_AGENT_ID in Vercel."),
+        line("Bolna webhook token", bool(os.getenv("GS_WEBHOOK_TOKEN", "").strip()),
+             "Set GS_WEBHOOK_TOKEN in Vercel and add ?token=... to the Bolna tool and webhook URLs."),
+        line("SMS to families", sms.provider() != "demo",
+             "Not connected: alerts show as ready to send, so a caseworker phones the family."),
+        line("Team phones (so test calls are not counted)", bool(cases.team_phones()), "Set GS_TEAM_PHONES in Vercel."),
+        line("Join the pilot button", bool(site.pilot_link()), "Set GS_PILOT_WHATSAPP in Vercel (digits, with country code)."),
+        ("Incoming number answers in Telugu", "hand", "Call the Saathi number from your own phone."),
+        ("A call to a Gulf number connects", "hand", "Register a test case with a real Gulf number and press Call now."),
+    ]
+
+
+@app.get("/dashboard/intake", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
+def dashboard_intake():
+    return dashboard.render_intake()
+
+
+@app.post("/api/intake", dependencies=[Depends(require_dashboard)])
+async def api_intake(request: Request):
+    """A caseworker enters a family whose worker is already in trouble abroad. No call is placed."""
+    data = await json_object(request)
+    try:
+        return cases.intake_family(STORE, data, now())
+    except cases.CaseError as e:
+        raise HTTPException(400, str(e))
 
 
 @app.get("/dashboard/agents", response_class=HTMLResponse, dependencies=[Depends(require_dashboard)])
@@ -499,6 +535,16 @@ async def api_petition(case_id: str, request: Request):
     except cases.CaseError as e:
         raise HTTPException(400, str(e))
     return {"ok": True, "petition_status": w["petition_status"]}
+
+
+@app.post("/api/cases/{case_id}/outcome", dependencies=[Depends(require_dashboard)])
+async def api_outcome(case_id: str, request: Request):
+    data = await json_object(request)
+    try:
+        w = cases.update_outcome(STORE, _worker_or_404(case_id), data, now())
+    except cases.CaseError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True, "outcome": w.get("outcome")}
 
 
 @app.get("/dashboard/case/{case_id}/proof-of-work", response_class=HTMLResponse)

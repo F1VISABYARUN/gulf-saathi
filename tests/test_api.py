@@ -527,7 +527,8 @@ def test_login_form_sets_a_cookie(mem):
 
 
 def test_login_never_sends_you_to_another_site(mem):
-    r = client.post("/login", data={"password": "pw-123", "next": "//evil.example"}, follow_redirects=False)
+    # A fresh client: logging in on the shared one would leave every later test logged in.
+    r = TestClient(api.app).post("/login", data={"password": "pw-123", "next": "//evil.example"}, follow_redirects=False)
     assert r.headers["location"] == "/dashboard"
 
 
@@ -600,3 +601,90 @@ def test_started_section_has_two_photos(mem):
         assert f'src="/{img}"' in sec and os.path.getsize(os.path.join(pub, img)) < 250_000
     assert sec.count("<img") == 2 == sec.count('alt="')
     assert "gs_pitch.webp" not in page and not os.path.exists(os.path.join(pub, "gs_pitch.webp"))
+
+
+# --- pilot: outcome, intake, go-live card ---------------------------------------------
+
+def _real_case(**extra):
+    r = client.post("/api/workers", auth=AUTH, json={"worker_name": "Real", "worker_phone": "+919812345678",
+                                                     "family_phone": "+919812345679", **extra})
+    assert r.status_code == 200, r.text
+    return r.json()["case_id"]
+
+
+def test_outcome_is_saved_and_shown(mem):
+    cid = _real_case()
+    assert client.post(f"/api/cases/{cid}/outcome", json={"outcome": "solved"}).status_code == 401
+    assert client.post(f"/api/cases/{cid}/outcome", auth=AUTH, json={"outcome": "won"}).status_code == 400
+    assert client.post(f"/api/cases/{cid}/outcome", auth=AUTH,
+                       json={"outcome": "solved", "amount_recovered": "-5"}).status_code == 400
+    before = api.STORE.get("workers", case_id=cid)
+    r = client.post(f"/api/cases/{cid}/outcome", auth=AUTH, json={
+        "outcome": "solved", "problem": "unpaid_wages", "amount_recovered": "2,00,000", "note": "3 months paid"})
+    assert r.json() == {"ok": True, "outcome": "solved"}
+    w = api.STORE.get("workers", case_id=cid)
+    assert w["amount_recovered"] == 200000 and w["outcome_at"] and w["status"] == before["status"]
+    assert w.get("next_call_at") == before.get("next_call_at")  # calls are not stopped
+    page = client.get(f"/dashboard/case/{cid}", auth=AUTH).text
+    assert "Recorded: Solved · ₹2,00,000 recovered" in page
+    post_call = page[page.index("/outcome'"):][:200]
+    assert "{{" not in post_call and "{problem:" in post_call
+    listing = client.get("/dashboard", auth=AUTH).text
+    assert "Money recovered (recorded by caseworkers)" in listing and "₹2,00,000" in listing
+    # Clearing reopens the case and removes it from the totals.
+    client.post(f"/api/cases/{cid}/outcome", auth=AUTH, json={"outcome": ""})
+    assert api.STORE.get("workers", case_id=cid)["outcome"] is None
+    assert "Money recovered" not in client.get("/dashboard", auth=AUTH).text
+
+
+def test_outcome_totals_leave_out_demo_cases(mem):
+    from gulf_saathi import cases
+    rows = [
+        {"outcome": "solved", "amount_recovered": 100, "created_at": "2026-11-01T00:00:00+00:00", "outcome_at": "2026-11-05T00:00:00+00:00"},
+        {"outcome": "partly_solved", "amount_recovered": 50, "created_at": "2026-11-01T00:00:00+00:00", "outcome_at": "2026-11-11T00:00:00+00:00"},
+        {"outcome": "not_solved", "created_at": "2026-11-01T00:00:00+00:00", "outcome_at": "2026-11-21T00:00:00+00:00"},
+        {"outcome": "solved", "amount_recovered": 999, "is_demo": True, "created_at": "2026-11-01T00:00:00+00:00",
+         "outcome_at": "2026-11-02T00:00:00+00:00"},
+        {"outcome": None},
+    ]
+    assert cases.outcome_totals(rows) == {"closed": 3, "solved": 2, "recovered": 150, "median_days": 10}
+
+
+def test_public_demo_case_has_no_outcome_form(mem):
+    out = client.post("/api/demo/run").json()
+    assert "Save outcome" not in client.get(f"/dashboard/case/{out['yadaiah']}").text
+    assert "Save outcome" in client.get(f"/dashboard/case/{out['yadaiah']}", auth=AUTH).text
+
+
+def test_intake_opens_a_case_from_the_family(mem, monkeypatch):
+    placed = []
+    monkeypatch.setattr(api.bolna, "place_call", lambda *a, **k: placed.append(a) or {"ok": True, "execution_id": "e", "error": None})
+    assert client.get("/dashboard/intake").status_code == 401
+    assert "Did the family agree?" in client.get("/dashboard/intake", auth=AUTH).text
+    body = {"consent": "yes", "family_phone": "98765 43210", "family_name": "Lakshmi", "family_relation": "wife",
+            "worker_name": "Ravi", "dest_country": "Saudi Arabia", "dest_city": "Riyadh", "problem": "unpaid_wages",
+            "months_unpaid": "3", "home_district": "Jagtial", "notes": "No salary since August"}
+    assert client.post("/api/intake", json=body).status_code == 401
+    assert client.post("/api/intake", auth=AUTH, json={**body, "consent": "no"}).status_code == 400
+    assert client.post("/api/intake", auth=AUTH, json={**body, "family_phone": ""}).status_code == 400
+    assert client.post("/api/intake", auth=AUTH, json={**body, "problem": "x"}).status_code == 400
+    out = client.post("/api/intake", auth=AUTH, json=body).json()
+    assert out["new_case"] and out["risk_level"] == "high"
+    w = api.STORE.get("workers", case_id=out["case_id"])
+    assert w["source"] == "prajavani" and w["family_phone"] == "+919876543210" and w["worker_name"] == "Ravi"
+    assert w["dest_country"] == "Saudi Arabia" and w["outcome_problem"] == "unpaid_wages" and w["status"] == "abroad"
+    assert w["call_consent"] == "yes" and not w.get("consent_notice_at")  # no call, so no call notice
+    assert placed == []
+    page = client.get(f"/dashboard/case/{out['case_id']}", auth=AUTH).text
+    assert "Entered by a caseworker at intake (no call)" in page
+    # The same family again finds the same case.
+    again = client.post("/api/intake", auth=AUTH, json=body).json()
+    assert again["case_id"] == out["case_id"] and not again["new_case"]
+
+
+def test_go_live_card_is_for_the_team_only(mem, monkeypatch):
+    monkeypatch.delenv("GS_PILOT_WHATSAPP", raising=False)
+    listing = client.get("/dashboard", auth=AUTH).text
+    assert "Pilot go-live check:" in listing and "CHECK BY HAND" in listing and "Set GS_PILOT_WHATSAPP" in listing
+    for path in ("/", "/demo", "/login"):
+        assert "Pilot go-live check" not in client.get(path).text

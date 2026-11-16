@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from html import escape
 
-from .cases import (CODE_PHRASE_HELP, promise_said, EX_GRATIA_STATUSES, GENDERS, IST, REMAINS_STATUSES, code_phrase_ok, fmt_ist,
+from .cases import (CODE_PHRASE_HELP, OUTCOME_PROBLEMS, OUTCOMES, promise_said, EX_GRATIA_STATUSES, GENDERS, IST, REMAINS_STATUSES, code_phrase_ok, fmt_ist,
                     parse_ts, reason_text)
 from .fees import fmt_rupees
 from .promise import PASSPORT_TYPES, STOP_FLAGS, VISA_TYPES, predeparture_checks, promise_rows
@@ -40,7 +40,7 @@ def badge(level: str) -> str:
 
 
 TEAM_NAV = ('<a href="/dashboard">Cases</a><a href="/dashboard/agents">Agents</a><a href="/dashboard/alerts">Weekly alerts</a>'
-            '<a href="/demo">Demo story</a><span class="sp"></span><a href="/dashboard/new">+ Register worker</a><a href="/logout">Log out</a>')
+            '<a href="/demo">Demo story</a><span class="sp"></span><a href="/dashboard/intake">+ Family in trouble</a><a href="/dashboard/new">+ Register worker</a><a href="/logout">Log out</a>')
 PUBLIC_NAV = '<a href="/demo">Demo story</a><span class="sp"></span><a href="/login">Team login</a>'
 PUBLIC_NOTE = ('<p class="sms info">Demo view, open to everyone. This is a made-up case. '
                'Buttons that change a case or place a call need the team login.</p>')
@@ -174,6 +174,85 @@ def tiles(totals: dict) -> str:
         for k, label, warn in items) + "</div>"
 
 
+OUTCOME_LABELS = {"solved": "Solved", "partly_solved": "Partly solved", "not_solved": "Not solved", "withdrawn": "Family withdrew",
+                  "unpaid_wages": "Unpaid wages or dues", "passport": "Passport or papers", "wrong_job": "Wrong job or place",
+                  "agent_fee": "Agent took money", "death": "Death abroad", "other": "Other"}
+
+
+def _options(values, current, blank: str = "") -> str:
+    first = f'<option value="">{esc(blank)}</option>' if blank else ""
+    return first + "".join(f'<option value="{esc(v)}"{" selected" if v == current else ""}>{esc(OUTCOME_LABELS.get(v, v))}</option>'
+                           for v in values)
+
+
+def outcome_tiles(t: dict | None) -> str:
+    """How cases ended. Numbers are what caseworkers recorded; demo cases are left out."""
+    if not t or not t.get("closed"):
+        return ""
+    days = t.get("median_days")
+    days = "—" if days is None else (int(days) if float(days).is_integer() else days)
+    items = [(t["closed"], "Cases with an outcome"), (t["solved"], "Solved or partly solved"),
+             ("₹" + fmt_rupees(t["recovered"]), "Money recovered (recorded by caseworkers)"), (days, "Median days to an outcome")]
+    return '<div class="tiles">' + "".join(f'<div class="tile"><b>{esc(n)}</b><span>{esc(label)}</span></div>'
+                                           for n, label in items) + "</div>"
+
+
+def go_live_card(checks: list | None) -> str:
+    """Team only: is everything the pilot needs switched on?"""
+    if not checks:
+        return ""
+    auto = [c for c in checks if c[1] != "hand"]
+    ready = sum(1 for c in auto if c[1] == "ok")
+    mark = {"ok": '<b style="color:#067647">ON</b>', "off": '<b style="color:#b42318">OFF</b>', "hand": '<b style="color:#93370d">CHECK BY HAND</b>'}
+    rows = "".join(f'<tr><td>{esc(label)}</td><td class="nowrap">{mark[state]}</td><td class="muted">{esc(fix)}</td></tr>'
+                   for label, state, fix in checks)
+    return (f'<details class="card"{"" if ready == len(auto) else " open"}><summary><b>Pilot go-live check: {ready} of {len(auto)} switched on</b>'
+            f'</summary><div class="wrap"><table><tbody>{rows}</tbody></table></div></details>')
+
+
+def render_intake() -> str:
+    """Short form for a family whose worker is already in trouble abroad."""
+    return page("Family in trouble", f"""<h1>Family in trouble</h1>
+<p class="muted">For a family whose worker is already abroad and has a problem. Saathi opens the case and applies its usual rules.
+No call is placed. Read the consent line to the family first.</p>
+<form onsubmit="return false" class="card" id="intake">
+<fieldset><legend>Consent</legend>
+<p class="sms info" lang="te">"మీ వివరాలు, మీ కుటుంబ సభ్యుడి వివరాలు గల్ఫ్ సాథి కేసులో ఉంచుతాం. సహాయం చేసే అధికారులకు మాత్రమే చూపిస్తాం. మీరు ఎప్పుడైనా ఆపమని చెప్పవచ్చు. సరేనా?"</p>
+<p class="muted">"We will keep your details and your family member's details in a Gulf Saathi case. We show them only to the officials who help. You can ask us to stop at any time. Is that okay?"</p>
+<label>Did the family agree? *<select id="consent"><option value="">Choose</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+</fieldset>
+<fieldset><legend>Family</legend>
+<label>Family member's name<input id="family_name"></label>
+<label>Family phone *<input id="family_phone" inputmode="tel" placeholder="98765 43210"></label>
+<label>Relation to the worker<input id="family_relation" placeholder="wife, mother, brother"></label>
+<label>Home village / district<input id="home_district" placeholder="Jagtial"></label>
+</fieldset>
+<fieldset><legend>Worker abroad</legend>
+<label>Worker's name<input id="worker_name"></label>
+<label>Worker's phone abroad (if the family has it)<input id="worker_phone" inputmode="tel" placeholder="+966 5x xxx xxxx"></label>
+<label>Country<input id="dest_country" placeholder="Saudi Arabia"></label>
+<label>City<input id="dest_city" placeholder="Riyadh"></label>
+<label>Employer or sponsor (if known)<input id="employer_name"></label>
+<label>Agent who sent them (if known)<input id="agent_name"></label>
+</fieldset>
+<fieldset><legend>Problem</legend>
+<label>Main problem *<select id="problem">{_options(OUTCOME_PROBLEMS, "", "Choose")}</select></label>
+<label>Months of salary not paid<input id="months_unpaid" inputmode="numeric" placeholder="3"></label>
+<label>Is the passport with the worker?<select id="passport_with_worker"><option value="">Not known</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+<label>Is the worker being threatened or hurt now?<select id="threatened"><option value="">Not known</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+<label>What the family said<textarea id="notes" rows="3"></textarea></label>
+</fieldset>
+<button class="btn" id="save">Open the case</button><div id="msg"></div></form>
+<script>
+document.getElementById('save').addEventListener('click', async (e) => {{
+  const body = {{}};
+  document.querySelectorAll('#intake input, #intake select, #intake textarea').forEach(el => body[el.id] = el.value);
+  const j = await post('/api/intake', body, e.target, 'Case opened');
+  if (j && j.case_id) location.href = '/dashboard/case/' + j.case_id;
+}});
+</script>""")
+
+
 def search_workers(workers: list[dict], q: str) -> list[dict]:
     """Find a case by name, phone digits, case number, employer, sponsor, place or notes.
     For the embassy or a volunteer asking "whose family is this?"."""
@@ -205,7 +284,8 @@ def clock_badge(clock: dict | None) -> str:
 
 
 def render_list(workers: list[dict], status: dict, totals: dict | None = None, q: str = "",
-                clocks: dict | None = None, district: str = "") -> str:
+                clocks: dict | None = None, district: str = "", outcomes: dict | None = None,
+                live: list | None = None) -> str:
     clocks = clocks or {}
     districts = sorted({" ".join(w["home_district"].split()).title() for w in workers if w.get("home_district")})
     shown = search_workers(workers, q)
@@ -242,11 +322,11 @@ def render_list(workers: list[dict], status: dict, totals: dict | None = None, q
 <tbody>{''.join(rows)}</tbody></table></div>""")
     counts = {lvl: sum(1 for w in workers_all if (w.get("risk_level") or "ok") == lvl) for lvl in order}
     summary = " &nbsp; ".join(f"{badge(l)} {counts[l]}" for l in order)
-    return page("Cases", f"""<h1>Cases</h1>{tiles(totals) if totals else ""}
+    return page("Cases", f"""<h1>Cases</h1>{go_live_card(live)}{tiles(totals) if totals else ""}{outcome_tiles(outcomes)}
 <div class="card">{summary}<div class="muted" style="margin-top:8px">{status_line(status)} · refreshes every 15 seconds</div></div>
 {search}<div class="card">{table}</div>
 <script>
-setInterval(() => {{ if (!document.querySelector('input:focus')) location.reload(); }}, 15000);
+setInterval(() => {{ if (!document.querySelector('input:focus, details[open] summary:focus')) location.reload(); }}, 15000);
 </script>""")
 
 
@@ -533,6 +613,19 @@ a person must tell them.</p>
 <p><button class="btn" onclick="post('/api/cases/{case_id}/death', {{reported_by: d_by.value, informed_by: d_from.value,
 place: d_place.value, when: d_when.value, notes: d_notes.value}}, this, 'Recorded').then(j => j && location.reload())">Record death report</button></p>
 </form></details>"""
+    recorded = ""
+    if w.get("outcome"):
+        money = f" · ₹{fmt_rupees(int(w['amount_recovered']))} recovered" if w.get("amount_recovered") else ""
+        recorded = f"Recorded: {OUTCOME_LABELS.get(w['outcome'], w['outcome'])}{money} · {fmt_ist(w.get('outcome_at'))}"
+    outcome_card = "" if public else f"""<div class="card"><h2>Outcome</h2>
+<p class="muted">How this case ended. It does not stop Saathi's calls. Leave "Outcome" empty while the case is still open.</p>
+<form onsubmit="return false" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+<label style="margin:0">Problem<select id="oprob">{_options(OUTCOME_PROBLEMS, w.get("outcome_problem"), "Not set")}</select></label>
+<label style="margin:0">Outcome<select id="oout">{_options(OUTCOMES, w.get("outcome"), "Still open")}</select></label>
+<label style="margin:0">Money recovered (₹)<input id="oamt" inputmode="numeric" value="{esc(w.get('amount_recovered') if w.get('amount_recovered') is not None else '')}" placeholder="200000"></label>
+<label style="margin:0;flex:1;min-width:200px">Note<input id="onote" value="{esc(w.get('outcome_note'))}" placeholder="what happened"></label>
+<button class="btn" onclick="post('/api/cases/{esc(w['case_id'])}/outcome', {{problem: oprob.value, outcome: oout.value, amount_recovered: oamt.value, note: onote.value}}, this, 'Saved').then(j => j && location.reload())">Save outcome</button>
+</form><div class="muted" style="margin-top:6px">{esc(recorded) if recorded else 'No outcome recorded yet.'}</div></div>"""
     return page(w["case_id"], f"""<h1>{case_id} · {esc(w['worker_name'])}{demo_tag(w)} {case_badge(w)}</h1>
 {death}
 <div class="card">
@@ -550,6 +643,7 @@ place: d_place.value, when: d_when.value, notes: d_notes.value}}, this, 'Recorde
   {clock_badge(clock)}
 </div>
 {embassy}
+{outcome_card}
 <div class="card"><h2>Pravasi Prajavani petition</h2>
 <p class="muted">For families who cannot travel to Hyderabad: Saathi fills the petition from this case; a caseworker hands it in for them.
 The caller hears the status when they call Saathi again.</p>
