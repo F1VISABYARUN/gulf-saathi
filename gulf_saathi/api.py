@@ -256,7 +256,10 @@ NEW_WORKER_COLUMNS = ("visa_job", "visa_type", "sub_agent_name", "sub_agent_phon
                       "petition_ref", "worker_gender", "death_note", "remains_status", "ex_gratia_status",
                       "promise_words", "contract_before_payment", "promise_by", "promise_date", "call_consent",
                       "passport_type", "emigration_clearance", "pbby", "pbby_nominee", "home_district", "home_mandal", "alerts_opt_in",
-                      "exit_penalty", "outcome", "outcome_problem", "amount_recovered", "outcome_note", "outcome_at")
+                      "exit_penalty", "outcome", "outcome_problem", "outcome_note")
+# The check below filters every column on the text "x". That fails with a type error on number and
+# date columns (amount_recovered, outcome_at), so only text columns belong in this list. The five
+# outcome columns come from one SQL block: if the text ones exist, the number and date ones do too.
 
 
 @app.get("/health/db")

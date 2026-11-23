@@ -688,3 +688,15 @@ def test_go_live_card_is_for_the_team_only(mem, monkeypatch):
     assert "Pilot go-live check:" in listing and "CHECK BY HAND" in listing and "Set GS_PILOT_WHATSAPP" in listing
     for path in ("/", "/demo", "/login"):
         assert "Pilot go-live check" not in client.get(path).text
+
+
+def test_health_db_probe_columns_are_all_text():
+    """/health/db filters each listed column on the text "x". On a number or date column Postgres
+    answers with a type error, so the page would say "missing" for a column that exists."""
+    import os
+    import re
+    schema = open(os.path.join(os.path.dirname(__file__), "..", "supabase", "schema.sql"), encoding="utf-8").read()
+    for col in api.NEW_WORKER_COLUMNS:
+        m = re.search(rf"alter table workers add column if not exists {col}\s+(\w+)", schema)
+        assert m, f"{col} is not added in schema.sql"
+        assert m.group(1) == "text", f"{col} is {m.group(1)}: filtering it on 'x' would fail"
