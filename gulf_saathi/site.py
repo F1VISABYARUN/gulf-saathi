@@ -37,6 +37,17 @@ STARTED = [
 ]
 
 
+def helpline() -> tuple[str, str]:
+    """The Saathi help-line number, from GS_HELPLINE_NUMBER (digits, with country code), as (tel: link, how it
+    is shown). Empty until it is set in Vercel: the number is only published once a test call has been answered
+    by the right agent, and it stays out of the public repository."""
+    digits = re.sub(r"[\s+()-]", "", os.getenv("GS_HELPLINE_NUMBER", ""))
+    if not re.fullmatch(r"\d{10,15}", digits):
+        return "", ""
+    shown = f"+91 {digits[2:7]} {digits[7:]}" if digits.startswith("91") and len(digits) == 12 else "+" + digits
+    return f"tel:+{digits}", shown
+
+
 def pilot_link() -> str:
     """WhatsApp link for "Join the pilot", from GS_PILOT_WHATSAPP (digits only, with country code).
     Empty until it is set in Vercel, so the page never shows a dead button."""
@@ -168,6 +179,7 @@ background:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;al
 .step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
 .step>b:first-child{display:block;margin-bottom:4px}
 #started{padding:28px 0}
+.callbox .tel{color:#fff;font-size:1.15em;white-space:nowrap}
 #started h2{margin-bottom:16px}
 #started .pics{display:grid;grid-template-columns:2.24fr 3.57fr;gap:14px;margin:0 0 20px}
 #started figure{margin:0}
@@ -420,6 +432,10 @@ def render_home(counts: dict, demo_calls_on: bool) -> str:
                     for n, text, src, url in STATS)
     clip = "".join(f'<li data-t="{t}"><b>{esc(who)}</b><span class="te" lang="te">{esc(te)}</span>'
                    f'<span class="en">{esc(en)}</span></li>' for t, who, te, en in CALL_CLIP)
+    tel, shown = helpline()
+    helpline_html = (f'<h2>Call Saathi</h2><p>Call <a class="tel" href="{esc(tel)}"><b>{esc(shown)}</b></a> and speak in Telugu. '
+                     f'Ask Saathi to check an agent\'s name or a fee, or tell it what is wrong.</p>'
+                     f'<p class="te" lang="te">తెలుగులో మాట్లాడండి.</p><hr style="border:0;border-top:1px solid #4b5a68;margin:18px 0">') if tel else ""
     started = "".join(
         f'<li class="{state}"><b>{esc(label)}</b><span class="tag">{"Done" if state == "done" else "Next"}</span>'
         f'<p>{esc(text)}</p></li>'
@@ -630,6 +646,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 </div></section>
 
 <section id="call"><div class="wrap"><div class="callbox">
+  {helpline_html}
   <h2>Get a call from Saathi</h2>
   <p>Saathi will call your phone in Telugu. Ask it to check an agent's name or a fee. Indian numbers only for now.</p>
   {call_form}

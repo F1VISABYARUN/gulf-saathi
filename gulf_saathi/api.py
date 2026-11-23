@@ -466,6 +466,8 @@ def go_live_checks() -> list[tuple[str, str, str]]:
              "Not connected: alerts show as ready to send, so a caseworker phones the family."),
         line("Team phones (so test calls are not counted)", bool(cases.team_phones()), "Set GS_TEAM_PHONES in Vercel."),
         line("Join the pilot button", bool(site.pilot_link()), "Set GS_PILOT_WHATSAPP in Vercel (digits, with country code)."),
+        line("Help-line number shown on the site", bool(site.helpline()[0]),
+             "Set GS_HELPLINE_NUMBER in Vercel (digits, with country code), only after a test call is answered by the right agent."),
         ("Incoming number answers in Telugu", "hand", "Call the Saathi number from your own phone."),
         ("A call to a Gulf number connects", "hand", "Register a test case with a real Gulf number and press Call now."),
     ]

@@ -700,3 +700,25 @@ def test_health_db_probe_columns_are_all_text():
         m = re.search(rf"alter table workers add column if not exists {col}\s+(\w+)", schema)
         assert m, f"{col} is not added in schema.sql"
         assert m.group(1) == "text", f"{col} is {m.group(1)}: filtering it on 'x' would fail"
+
+
+def test_helpline_number_shows_only_when_set(mem, monkeypatch):
+    monkeypatch.delenv("GS_HELPLINE_NUMBER", raising=False)
+    page = client.get("/").text
+    assert "Call Saathi</h2>" not in page and 'href="tel:' not in page
+    monkeypatch.setenv("GS_HELPLINE_NUMBER", "+91 80659 52403")
+    page = client.get("/").text
+    assert 'href="tel:+918065952403"' in page and "+91 80659 52403" in page and "తెలుగులో మాట్లాడండి" in page
+    monkeypatch.setenv("GS_HELPLINE_NUMBER", "tel:evil")
+    assert 'href="tel:' not in client.get("/").text
+    monkeypatch.setenv("GS_HELPLINE_NUMBER", "9715501234567")
+    assert 'href="tel:+9715501234567"' in client.get("/").text and "+971550123456" in client.get("/").text
+    words = re.sub(r'href="[^"]*"', "", client.get("/").text).lower()
+    for banned in ("safe", "genuine", "rescue", "trusted", "fraud"):
+        assert banned not in words
+
+
+def test_go_live_card_lists_the_helpline_number(mem, monkeypatch):
+    monkeypatch.delenv("GS_HELPLINE_NUMBER", raising=False)
+    assert "Help-line number shown on the site" in client.get("/dashboard", auth=AUTH).text
+    assert "Set GS_HELPLINE_NUMBER" in client.get("/dashboard", auth=AUTH).text
