@@ -77,7 +77,7 @@ function page(title: string, body: string, description = ''): string {
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title><meta name="description" content="${esc(description)}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anek+Telugu:wght@600;700&family=Noto+Sans+Telugu:wght@400;700&display=swap" rel="stylesheet">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Anek+Telugu:wght@600;700&family=Noto+Sans+Telugu:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link href="https://fonts.googleapis.com/css2?family=Anek+Telugu:wght@600;700&family=Noto+Sans+Telugu:wght@400;700&display=swap" rel="stylesheet"></noscript><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23a8501c'/%3E%3C/svg%3E">
 <style>${S.STYLE}</style></head><body>
 <div class="wrap"><nav><b>Gulf Saathi · గల్ఫ్ సాథి</b><span class="sp"></span>
 <span class="links"><a href="/#how">How it works</a><a href="/#call">Get a call</a><a href="/demo">Demo story</a><a href="/login">Team login</a></span></nav></div>
@@ -136,7 +136,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 </script>`
     : '<p><b>Demo calls are switched off right now.</b> Ask the Gulf Saathi team to turn them on.</p>';
   return page('Gulf Saathi', `
-<header class="big"><img src="/gs_hero_airport.webp" alt="A worker at the airport on the phone, his mother and wife beside him">
+<header class="big"><img src="/gs_hero_airport.webp" srcset="/gs_hero_airport-640.webp 640w, /gs_hero_airport.webp 1376w" sizes="(max-width:640px) 100vw, 50vw" width="1376" height="768" fetchpriority="high" alt="A worker at the airport on the phone, his mother and wife beside him">
 <p class="cap">${AI_PHOTO}</p><div class="wrap"><div class="txt">
   <h1>A trapped worker's only evidence is a selfie video. Saathi records the evidence before the trap.</h1>
   <p class="te">మీ గల్ఫ్ ప్రయాణంలో ప్రతి అడుగులో తోడుగా సాథి.</p>
@@ -165,7 +165,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 
 <section id="watch"><div class="wrap video">
   <h2>Watch the demo</h2>
-  <video controls playsinline preload="metadata" poster="/gulf-saathi-poster.jpg">
+  <video controls playsinline preload="metadata" poster="/gulf-saathi-poster-960.jpg">
     <source src="/gulf-saathi-demo.mp4" type="video/mp4"
       onerror="document.getElementById('watch').hidden=true">
   </video>
@@ -175,9 +175,9 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 <section id="started"><div class="wrap">
   <h2>How Gulf Saathi started</h2>
   <div class="pics">
-  <figure><img src="/gs_prajavani.webp" alt="A family meeting the Pravasi Prajavani desk at Praja Bhavan, Hyderabad"
+  <figure><img src="/gs_prajavani.webp" srcset="/gs_prajavani-800.webp 800w, /gs_prajavani.webp 1600w" sizes="(max-width:700px) 100vw, 420px" alt="A family meeting the Pravasi Prajavani desk at Praja Bhavan, Hyderabad"
     width="1600" height="714" loading="lazy"><figcaption>Pravasi Prajavani, Praja Bhavan, Hyderabad.</figcaption></figure>
-  <figure><a href="${PITCH_POST}" target="_blank" rel="noopener"><img src="/gs_pitch_wide.webp"
+  <figure><a href="${PITCH_POST}" target="_blank" rel="noopener"><img src="/gs_pitch_wide.webp" srcset="/gs_pitch_wide-800.webp 800w, /gs_pitch_wide.webp 1600w" sizes="(max-width:700px) 100vw, 660px"
     alt="Left: the founder of Gulf Saathi explaining it. Right: the Pravasi Prajavani desk."
     width="1600" height="448" loading="lazy"></a>
     <figcaption>Explaining Gulf Saathi at Pravasi Prajavani, from a public Facebook post, Nov 2026.
@@ -212,7 +212,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 </script>
 
 <section id="story"><div class="wrap story">
-  <figure style="margin:0"><img src="/gs_desert_goats.webp" alt="A worker alone in the desert with goats, looking at his phone" loading="lazy">
+  <figure style="margin:0"><img src="/gs_desert_goats.webp" srcset="/gs_desert_goats-640.webp 640w, /gs_desert_goats.webp 1376w" sizes="(max-width:820px) 100vw, 460px" width="1376" height="768" alt="A worker alone in the desert with goats, looking at his phone" loading="lazy">
   <figcaption class="cap">${AI_PHOTO}</figcaption></figure>
   <div>
     <h2>Inspired by Aadujeevitham</h2>
@@ -244,10 +244,10 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 <section id="who"><div class="wrap">
   <h2>Who it helps</h2>
   <div class="who">
-    <article><img src="/gs_family_sms.webp" alt="A mother at home reading a message on her phone" loading="lazy">
+    <article><img src="/gs_family_sms.webp" srcset="/gs_family_sms-600.webp 600w, /gs_family_sms.webp 1200w" sizes="(max-width:640px) 100vw, 340px" width="1200" height="896" alt="A mother at home reading a message on her phone" loading="lazy">
       <div class="in"><p class="cap" style="margin:0 0 8px">${AI_PHOTO}</p><h3>Family</h3>
       <p>A Telugu SMS is ready for the family the moment something is wrong.</p></div></article>
-    <article><img src="/gs_caseworker.webp" alt="A caseworker with a headset at a laptop" loading="lazy">
+    <article><img src="/gs_caseworker.webp" srcset="/gs_caseworker-600.webp 600w, /gs_caseworker.webp 1200w" sizes="(max-width:640px) 100vw, 340px" width="1200" height="896" alt="A caseworker with a headset at a laptop" loading="lazy">
       <div class="in"><p class="cap" style="margin:0 0 8px">${AI_PHOTO}</p><h3>Volunteers and caseworkers</h3>
       <p>A ready case: who, where, which agent, what was promised.</p></div></article>
     <article><div class="plain"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5h17l9 9v13"/><path d="M29 5v9h9"/><path d="M12 5v38h16"/><path d="M18 20h12M18 27h8"/><path d="M38 31l-7 3v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8v-5z"/><path d="M35 39.5l2.2 2.2 4-4.2"/></svg><span>Police · TOMCOM · State</span></div>
@@ -303,7 +303,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 
 <section id="numbers"><div class="wrap">
   <h2>Caseworker view</h2>
-  <div class="shotwrap"><div class="shotbox"><img src="/gs_dashboard.webp" alt="The caseworker dashboard showing a made-up demo case marked CRITICAL, with its red flags" loading="lazy"></div>
+  <div class="shotwrap"><div class="shotbox"><img src="/gs_dashboard.webp" width="1602" height="385" alt="The caseworker dashboard showing a made-up demo case marked CRITICAL, with its red flags" loading="lazy"></div>
   <p class="cap">Screenshot with a made-up demo case.</p></div>
   <p style="margin-top:14px"><a class="btn ghost" href="/demo">Open the demo (no password)</a> <a class="btn ghost" href="/login">Team login</a></p>
 </div></section>

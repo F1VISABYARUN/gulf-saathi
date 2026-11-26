@@ -4,6 +4,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import * as d from '../src/pages/dashboard.js';
+import * as site from '../src/pages/site.js';
+
+process.env.GS_HELPLINE_NUMBER = '918065952403';
+process.env.GS_PILOT_WHATSAPP = '919999999999';
 
 const pages: Array<{ name: string; args: any[]; html: string }> =
   JSON.parse(readFileSync(new URL('./golden/pages.json', import.meta.url), 'utf8'));
@@ -11,6 +15,7 @@ const pages: Array<{ name: string; args: any[]; html: string }> =
 const render: Record<string, (...a: any[]) => string> = {
   list: d.renderList, list_q: d.renderList, list_empty: d.renderList, agents: d.renderAgents, agents_empty: d.renderAgents,
   form: d.renderForm, form_edit: d.renderForm, case: d.renderCase, proof: d.renderProofOfWork, petition: d.renderPetition,
+  site_home: site.renderHome, site_demo: site.renderDemo, site_login: site.renderLogin,
   death: d.renderDeathPacket, intake: d.renderIntake, alerts: d.renderAlerts, alerts_none: d.renderAlerts,
 };
 
@@ -21,7 +26,7 @@ function firstDiff(a: string, b: string): string {
 }
 
 for (const [i, p] of pages.entries()) {
-  test(`dashboard page ${i} ${p.name}`, () => {
+  test(`page ${i} ${p.name}`, () => {
     const mine = render[p.name](...p.args);
     if (mine !== p.html) assert.fail(firstDiff(p.html, mine));
   });

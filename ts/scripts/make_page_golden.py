@@ -102,6 +102,14 @@ add("alerts", [alerts.recipients(workers), alerts.TEMPLATES, alerts.suggestions(
     dashboard.render_alerts(alerts.recipients(workers), alerts.TEMPLATES, [{"template": "fee", "text": "1 caller"}], hist, status))
 pages[-1]["args"][2] = [{"template": "fee", "text": "1 caller"}]
 add("alerts_none", [[], alerts.TEMPLATES, [], [], status_off], dashboard.render_alerts([], alerts.TEMPLATES, [], [], status_off))
+from gulf_saathi import site  # noqa: E402
+os.environ["GS_HELPLINE_NUMBER"] = "918065952403"
+os.environ["GS_PILOT_WHATSAPP"] = "919999999999"
+for counts, on in (({"calls": {"answered": 5, "outside_team": 0}}, True),
+                   ({"calls": {"answered": 5, "outside_team": 2, "outside_callers": 1}}, False), ({}, True)):
+    add("site_home", [counts, on], site.render_home(counts, on))
+add("site_demo", [], site.render_demo())
+add("site_login", ["/dashboard/case/GS-X<y>", "Wrong password"], site.render_login("/dashboard/case/GS-X<y>", "Wrong password"))
 out = Path(__file__).resolve().parents[1] / "test" / "golden" / "pages.json"
 out.write_text(json.dumps(pages, ensure_ascii=False, default=str), encoding="utf-8")
 print(out, len(pages))

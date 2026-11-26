@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
-    "test": "tsx --test test/*.test.ts",
+    "test": "NODE_ENV=test tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

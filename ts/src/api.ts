@@ -221,13 +221,19 @@ export function createApp() {
 
   // --- public website ---------------------------------------------------------------
 
+  // The home page is public and counts every case and call: build the counts at most once a minute.
+  let homeCache: { at: number; counts: Row } | null = null;
   const home: Handler = async () => {
     let counts: Row;
+    if (homeCache && Date.now() - homeCache.at < 60_000) {
+      return site.renderHome(homeCache.counts, Boolean((process.env.GS_DEMO_CODE ?? '').trim() && demoAgentId()));
+    }
     try {
       const workers = await S().select('workers', null, { order: 'updated_at' });
       counts = { ...cases.summaryCounts(workers, {}), demo: workers.filter((w) => truthy(w.is_demo)).length,
         signals: signals.repeatedSignals(workers).filter((x) => x.strong).length,
         calls: cases.callCounts(await S().select('calls'), workers, cases.teamPhones()) };
+      if (process.env.NODE_ENV !== 'test') homeCache = { at: Date.now(), counts };
     } catch (e) {
       if (!(e instanceof StoreError)) throw e;
       counts = {};
