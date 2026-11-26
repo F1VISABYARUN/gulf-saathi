@@ -213,6 +213,11 @@ export function createApp() {
   app.set('trust proxy', true);
   app.disable('x-powered-by');
   app.use(express.raw({ type: () => true, limit: '2mb' }));
+  // Case pages, packets and tool answers hold personal data: no CDN or browser may keep a copy.
+  app.use((req, res, next) => {
+    if (/^\/(dashboard|api|tools|webhooks|check-|login|logout|health)/.test(req.path)) res.set('Cache-Control', 'no-store');
+    next();
+  });
 
   // --- public website ---------------------------------------------------------------
 
@@ -540,7 +545,7 @@ export function createApp() {
   }, team));
 
   // Images, audio and video: served by Vercel from public/ on the old deployment; here by the server.
-  app.use(express.static(findDir('public'), { index: false }));
+  app.use(express.static(findDir('public'), { index: false, maxAge: '1d' }));
 
   app.use((_req: Request, res: Response) => { res.status(404).json({ detail: 'Not Found' }); });
 
