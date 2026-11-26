@@ -1,0 +1,2 @@
+# Vercel deploys the Python app; the TypeScript rewrite lives in ts/ and is not part of that deploy.
+ts/
