@@ -37,47 +37,75 @@ export function page(title: string, body: string, refresh: number | null = null,
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 ${meta}<title>${esc(title)} · Gulf Saathi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-:root { --ink:#101828; --muted:#475467; --line:#e4e7ec; --bg:#f9fafb; --card:#fff; --accent:#1d4ed8; }
+/* Look and feel copied from shadcn/ui (MIT licence): zinc colours, 0.5rem radius, Inter. */
+:root { --bg:#fafafa; --card:#fff; --ink:#09090b; --muted:#71717a; --line:#e4e4e7; --soft:#f4f4f5; --primary:#18181b;
+  --primary-ink:#fafafa; --ring:#a1a1aa; --danger:#dc2626; --radius:10px; --accent:#2563eb; }
 * { box-sizing:border-box; }
-body { margin:0; font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Telugu","Nirmala UI",sans-serif; color:var(--ink); background:var(--bg); }
-header { background:#0b1f3a; color:#fff; padding:12px 16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
-header a { color:#fff; text-decoration:none; font-weight:600; }
+body { margin:0; font:14px/1.55 Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Telugu","Nirmala UI",sans-serif;
+  color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; }
+[lang="te"], .sms, pre { font-family:Inter,"Noto Sans Telugu","Nirmala UI",system-ui,sans-serif; }
+header { position:sticky; top:0; z-index:10; background:rgba(255,255,255,.92); backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line); padding:10px 24px; display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+header a { color:var(--muted); text-decoration:none; font-weight:500; padding:6px 10px; border-radius:8px; font-size:14px; }
+header a:hover { color:var(--ink); background:var(--soft); }
+header a:first-child { color:var(--ink); font-weight:700; }
+header a[href="/dashboard/new"] { background:var(--primary); color:var(--primary-ink); margin-left:6px; }
+header a[href="/dashboard/intake"] { border:1px solid var(--line); color:var(--ink); }
 header .sp { flex:1; }
-main { max-width:1100px; margin:0 auto; padding:16px; }
-h1 { font-size:22px; margin:8px 0 16px; } h2 { font-size:17px; margin:0 0 12px; }
-.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
-.badge { color:#fff; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:700; letter-spacing:.03em; white-space:nowrap; }
-table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
-th { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+main { max-width:1180px; margin:0 auto; padding:24px; }
+h1 { font-size:24px; font-weight:700; letter-spacing:-.02em; margin:4px 0 20px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+h2 { font-size:16px; font-weight:600; letter-spacing:-.01em; margin:0 0 12px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px;
+  margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+details.card > summary { cursor:pointer; list-style:none; } details.card > summary::-webkit-details-marker { display:none; }
+details.card > summary:before { content:"\\25B8"; color:var(--muted); margin-right:8px; display:inline-block; transition:transform .15s; }
+details.card[open] > summary:before { transform:rotate(90deg); }
+.badge { color:#fff; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:600; letter-spacing:.02em; white-space:nowrap; display:inline-block; line-height:18px; }
+table { width:100%; border-collapse:collapse; font-size:14px; }
+th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+th { font-size:12px; color:var(--muted); font-weight:500; height:40px; vertical-align:middle; }
+tbody tr:hover { background:#fafafa; } tbody tr:last-child td { border-bottom:0; }
 .wrap { overflow-x:auto; }
-.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:4px 24px; }
-.kv { padding:4px 0; } .kv b { display:block; font-size:12px; color:var(--muted); font-weight:600; }
-.muted { color:var(--muted); } a { color:var(--accent); }
-.btn { display:inline-block; border:1px solid var(--accent); background:var(--accent); color:#fff; border-radius:8px; padding:8px 14px; font:inherit; cursor:pointer; text-decoration:none; }
-.btn.secondary { background:#fff; color:var(--accent); }
-.btn:disabled { opacity:.5; cursor:wait; }
-.ev { border-left:3px solid var(--line); padding:4px 0 12px 12px; margin-left:4px; }
-.ev.alert { border-color:#b42318; }
-pre { white-space:pre-wrap; background:var(--bg); padding:10px; border-radius:8px; font:13px/1.5 inherit; }
-form label { display:block; font-size:13px; font-weight:600; margin-top:10px; }
-form input, form textarea { width:100%; padding:8px; border:1px solid #d0d5dd; border-radius:8px; font:inherit; }
-fieldset { border:1px solid var(--line); border-radius:10px; margin:0 0 16px; padding:8px 16px 16px; }
-legend { font-weight:700; padding:0 6px; }
-#msg { margin-top:12px; font-weight:600; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:6px 24px; }
+.kv { padding:6px 0; } .kv b { display:block; font-size:12px; color:var(--muted); font-weight:500; margin-bottom:2px; }
+.muted { color:var(--muted); } a { color:var(--accent); text-underline-offset:3px; }
+td a { color:var(--ink); font-weight:600; }
+.btn { display:inline-flex; align-items:center; gap:6px; height:36px; border:1px solid var(--primary); background:var(--primary);
+  color:var(--primary-ink); border-radius:8px; padding:0 14px; font:500 14px/1 inherit; cursor:pointer; text-decoration:none;
+  margin:0 6px 6px 0; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+.btn:hover { opacity:.9; }
+.btn.secondary { background:#fff; color:var(--ink); border-color:var(--line); }
+.btn.secondary:hover { background:var(--soft); opacity:1; }
+.btn:disabled { opacity:.45; cursor:not-allowed; }
+.ev { position:relative; border-left:2px solid var(--line); padding:2px 0 16px 16px; margin-left:6px; }
+.ev:before { content:""; position:absolute; left:-6px; top:6px; width:10px; height:10px; border-radius:50%; background:#fff; border:2px solid var(--ring); }
+.ev.alert { border-color:#fecaca; } .ev.alert:before { border-color:var(--danger); background:#fef2f2; }
+.ev table { margin:8px 0 0; } .ev td { padding:6px 10px; font-size:13px; }
+pre { white-space:pre-wrap; background:var(--soft); padding:12px 14px; border-radius:8px; font-size:13px; line-height:1.55; border:1px solid var(--line); }
+form label { display:block; font-size:13px; font-weight:500; margin:12px 0 6px; }
+form input, form textarea, select { width:100%; height:36px; padding:0 12px; border:1px solid var(--line); border-radius:8px;
+  font:inherit; background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.04); }
+form textarea { height:auto; padding:8px 12px; }
+input:focus, textarea:focus, select:focus { outline:2px solid var(--ring); outline-offset:1px; border-color:var(--ring); }
+fieldset { border:1px solid var(--line); border-radius:var(--radius); margin:0 0 16px; padding:12px 20px 20px; background:#fff; }
+legend { font-weight:600; padding:0 6px; font-size:14px; }
+#msg { margin-top:12px; font-weight:500; }
 .nowrap { white-space:nowrap; }
-.tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:16px; }
-.tile { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
-.tile b { display:block; font-size:26px; line-height:1.2; } .tile span { font-size:13px; color:var(--muted); }
-.tile.warn b { color:#b42318; }
-.flag { color:#b42318; font-size:13px; font-weight:600; }
-.sms { background:#fef3f2; border:1px solid #fecdca; border-radius:8px; padding:10px; }
-.sms.info { background:#f0f9ff; border-color:#b9e6fe; }
-.stop { background:#b42318; color:#fff; border-radius:8px; padding:10px 14px; font-weight:700; margin:8px 0; }
-.demo { background:#fef0c7; color:#93370d; border-radius:999px; padding:1px 8px; font-size:11px; font-weight:700; letter-spacing:.04em; }
-.v-conflict { color:#b42318; font-weight:700; } .v-match { color:#067647; } .v-unknown { color:var(--muted); }
-select { width:100%; padding:8px; border:1px solid #d0d5dd; border-radius:8px; font:inherit; background:#fff; }
+.tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:16px; }
+.tile { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+.tile b { display:block; font-size:28px; font-weight:700; letter-spacing:-.02em; line-height:1.15; }
+.tile span { font-size:13px; color:var(--muted); } .tile.warn b { color:var(--danger); }
+.flag { color:#b91c1c; font-size:13px; font-weight:500; }
+td .flag { font-size:12px; line-height:1.45; margin-top:2px; }
+.more { color:var(--muted); font-size:12px; }
+.sms { background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px 14px; font-size:13px; }
+.sms.info { background:#eff6ff; border-color:#bfdbfe; }
+.stop { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; border-left:4px solid var(--danger); border-radius:8px; padding:12px 14px; font-weight:600; margin:8px 0; }
+.demo { background:#fef9c3; color:#854d0e; border-radius:6px; padding:1px 7px; font-size:11px; font-weight:600; letter-spacing:.02em; }
+.v-conflict { color:#b91c1c; font-weight:600; } .v-match { color:#15803d; font-weight:500; } .v-unknown { color:var(--muted); }
+@media (max-width:640px) { main { padding:16px; } header { padding:8px 12px; } .card { padding:16px; } }
 </style></head><body>
 <header><a href="/">Gulf Saathi</a>${nav}</header>
 <main>${body}</main>
@@ -107,6 +135,10 @@ export function caseBadge(w: Row): string {
   }
   return badge(w.risk_level);
 }
+
+/** At most two red flags in the case list; the case page shows them all. */
+const flagList = (fs: string[]) => fs.slice(0, 2).map((f) => `<div class="flag">${esc(f)}</div>`).join('') +
+  (fs.length > 2 ? `<div class="more">+${fs.length - 2} more on the case page</div>` : '');
 
 export const demoTag = (w: Row) => (truthy(w.is_demo) ? ' <span class="demo">DEMO</span>' : '');
 
@@ -165,7 +197,7 @@ export function goLiveCard(checks: Array<[string, string, string]> | null | unde
   const ready = auto.filter((c) => c[1] === 'ok').length;
   const mark: Record<string, string> = { ok: '<b style="color:#067647">ON</b>', off: '<b style="color:#b42318">OFF</b>', hand: '<b style="color:#93370d">CHECK BY HAND</b>' };
   const rows = checks.map(([lab, state, fix]) => `<tr><td>${esc(lab)}</td><td class="nowrap">${mark[state]}</td><td class="muted">${esc(fix)}</td></tr>`).join('');
-  return `<details class="card"${ready === auto.length ? '' : ' open'}><summary><b>Pilot go-live check: ${ready} of ${auto.length} switched on</b></summary><div class="wrap"><table><tbody>${rows}</tbody></table></div></details>`;
+  return `<details class="card"><summary><b>Pilot go-live check: ${ready} of ${auto.length} switched on</b></summary><div class="wrap"><table><tbody>${rows}</tbody></table></div></details>`;
 }
 
 /** Short form for a family whose worker is already in trouble abroad. */
@@ -255,7 +287,7 @@ export function renderList(workersAll: Row[], status: Row, totals: Row | null = 
     rows.push(`<tr>
 <td>${caseBadge(w)}${clockBadge(clocks[w.id] ?? null)}</td>
 <td class="nowrap"><a href="/dashboard/case/${esc(w.case_id)}"><b>${esc(w.case_id)}</b></a></td>
-<td>${esc(w.worker_name)}${demoTag(w)}<div class="muted">${esc(w.worker_phone)}</div>${predepartureFlags(w).map((f) => `<div class="flag">${esc(f)}</div>`).join('')}</td>
+<td>${esc(w.worker_name)}${demoTag(w)}<div class="muted">${esc(w.worker_phone)}</div>${flagList(predepartureFlags(w))}</td>
 <td>${esc(w.dest_city)}${truthy(w.dest_city) && truthy(w.dest_country) ? ', ' : ''}${esc(w.dest_country)}</td>
 <td>${esc(w.employer_name)}</td>
 <td>${esc(w.status)}</td>
