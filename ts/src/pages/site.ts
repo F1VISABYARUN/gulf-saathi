@@ -136,7 +136,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
 </script>`
     : '<p><b>Demo calls are switched off right now.</b> Ask the Gulf Saathi team to turn them on.</p>';
   return page('Gulf Saathi', `
-<header class="big"><img src="/gs_hero_airport.webp" srcset="/gs_hero_airport-640.webp 640w, /gs_hero_airport.webp 1376w" sizes="(max-width:640px) 100vw, 50vw" width="1376" height="768" fetchpriority="high" alt="A worker at the airport on the phone, his mother and wife beside him">
+<header class="big"><img src="/gs_hero_airport.webp" srcset="/gs_hero_airport-640.webp 640w, /gs_hero_airport-960.webp 960w, /gs_hero_airport.webp 1376w" sizes="(max-width:640px) 100vw, 50vw" width="1376" height="768" fetchpriority="high" alt="A worker at the airport on the phone, his mother and wife beside him">
 <p class="cap">${AI_PHOTO}</p><div class="wrap"><div class="txt">
   <h1>A trapped worker's only evidence is a selfie video. Saathi records the evidence before the trap.</h1>
   <p class="te">మీ గల్ఫ్ ప్రయాణంలో ప్రతి అడుగులో తోడుగా సాథి.</p>
