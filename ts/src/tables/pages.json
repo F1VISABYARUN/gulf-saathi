@@ -1,0 +1,736 @@
+{
+ "site": {
+  "STEPS": [
+   [
+    "Before paying",
+    "డబ్బు ఇచ్చే ముందు",
+    "Is the agent licensed? Checks 2,447 agents (MEA eMigrate, 8 Apr 2026). Adds up every payment against the ₹35,400 legal limit.",
+    "live"
+   ],
+   [
+    "Before flying",
+    "ప్రయాణానికి ముందు",
+    "Records the promised job, visa and payments. Flags a visit visa or a different job at once.",
+    "testing"
+   ],
+   [
+    "Arrival day",
+    "చేరిన రోజు",
+    "Calls on landing: did the registered employer pick you up?",
+    "testing"
+   ],
+   [
+    "Every week",
+    "ప్రతి వారం",
+    "Salary, passport, food, threats, same job and city? Two missed calls in a row raise an alert (one, for a woman in housework).",
+    "testing"
+   ],
+   [
+    "When something is wrong",
+    "సమస్య వస్తే",
+    "Caseworker dashboard, English complaint-ready packet, and a Telugu SMS for the family, ready to send.",
+    "testing"
+   ]
+  ],
+  "STARTED": [
+   [
+    "Listened",
+    "Sat at Pravasi Prajavani, Praja Bhavan, Hyderabad, and heard real cases from Gulf workers' families: wrong jobs, unpaid wages, and months of waiting for papers.",
+    "done"
+   ],
+   [
+    "Built",
+    "Weekly Telugu check-in calls, agent and fee checks before departure, and ready case files for officials.",
+    "done"
+   ],
+   [
+    "Demoed",
+    "Showed it to the Pravasi Prajavani team, Nov 2026.",
+    "done"
+   ],
+   [
+    "Next: pilot",
+    "We were told we can start a pilot with Gulf worker families in Telangana, starting with Jagtial.",
+    "next"
+   ]
+  ],
+  "PITCH_POST": "https://www.facebook.com/share/v/1bkhsPZopf/",
+  "AI_PHOTO": "AI-generated illustration",
+  "PHONE_ICON": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z\"/></svg>",
+  "WARNING_TE": "ఈ నంబర్ మరో 2 సాథి కేసుల్లో వచ్చింది. ఇది రుజువు కాదు, కానీ కేస్‌వర్కర్ చూసే వరకు డబ్బు ఇవ్వకండి.",
+  "WARNING_EN": "This number came up in 2 other Saathi cases. It's not proof, but don't pay until a caseworker checks.",
+  "STATS": [
+   [
+    "9.9 million",
+    "Indians live in the six Gulf countries.",
+    "MEA, Dec 2025",
+    "https://www.mea.gov.in/population-of-overseas-indians"
+   ],
+   [
+    "1.5 million",
+    "(nearly 15 lakh) of them are from Telangana.",
+    "The Hindu, Mar 2026",
+    "https://www.thehindu.com/news/national/telangana/telangana-families-worry-about-gulf-migrant-workers-amid-west-asia-tensions/article70692242.ece"
+   ],
+   [
+    "72%",
+    "of Telangana returnees borrowed money to migrate.",
+    "IOM / CESS survey",
+    "https://publications.iom.int/books/international-returnee-migrants-telangana-survey"
+   ],
+   [
+    "476",
+    "complaints against illegal agents in Telangana, 2021–25: 118 action-taken reports, 0 prosecution sanctions.",
+    "Lok Sabha USQ 2190, 31 Jul 2026, Annex I",
+    "https://sansad.in/getFile/lsapps/loksabhaquestions/annex/188/AU2190_NjP8nJ.pdf"
+   ]
+  ],
+  "CALL_CLIP": [
+   [
+    0.2,
+    "Caller",
+    "అక్కడ పోయిన తర్వాత నా పాస్‌పోర్ట్ పోయింది.",
+    "After I went there, my passport was gone."
+   ],
+   [
+    8.3,
+    "Caller",
+    "ఇప్పుడు నేను ఇండియాకి రావాలంటే ఏం చేయాలి?",
+    "What do I do to get back to India?"
+   ],
+   [
+    12.2,
+    "Saathi",
+    "సరే, నోట్ చేస్తున్నాను.",
+    "OK, I'm noting it down."
+   ],
+   [
+    19.4,
+    "Saathi",
+    "మీరు ఒంటరి కాదు. మీ కేసు అత్యవసరంగా నమోదు అయింది; సాథి బృందం మీరు చెప్పిన విషయాలతో భారత రాయబార కార్యాలయాన్ని అప్రమత్తం చేస్తోంది.",
+    "You are not alone. Your case is registered as urgent; the Saathi team is alerting the Indian Embassy with what you told us."
+   ],
+   [
+    29.6,
+    "Saathi",
+    "వీలైతే ఇతరులు ఉన్న చోట ఉండండి, ఫోన్‌ను దాచుకుని ఛార్జ్‌లో ఉంచండి.",
+    "If you can, stay where other people are. Keep your phone hidden and charged."
+   ],
+   [
+    35.0,
+    "Saathi",
+    "దగ్గర కనిపించే భవనం, షాప్, మసీదు లేదా రోడ్డు పేరు ఏమిటి? మీ కేసు నంబర్ జీ ఎస్, డబ్ల్యూ 9 హెచ్ డబ్ల్యూ ఎస్ వై.",
+    "What building, shop, mosque or road can you see? Your case number is G S, W 9 H W S Y."
+   ]
+  ],
+  "STYLE": "\n:root{--ink:#1d1a16;--muted:#5c544a;--line:#e6dccd;--bg:#f8f3ea;--card:#fffdf9;--sand:#efe2cc;--accent:#a8501c;--accent-ink:#fff;\n--deep:#1f2328;--alert:#b42318;--ok:#067647}\n@media (prefers-color-scheme:dark){:root:not([data-theme=\"light\"]){--ink:#f2ece3;--muted:#b8ad9e;--line:#3a332b;--bg:#16130f;\n--card:#201b16;--sand:#2b241c;--accent:#e2834a;--accent-ink:#16130f;--deep:#0e1114;--alert:#f97066;--ok:#4cc38a}}\n*{box-sizing:border-box}\nbody{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 system-ui,-apple-system,\"Segoe UI\",Roboto,\"Noto Sans Telugu\",\"Nirmala UI\",sans-serif}\na{color:var(--accent)} img{max-width:100%;display:block}\nhtml{-webkit-text-size-adjust:100%}\n[lang=\"te\"],.te,.t{font-family:\"Noto Sans Telugu\",\"Nirmala UI\",system-ui,sans-serif;line-height:1.65}\n.wrap{max-width:1080px;margin:0 auto;padding:0 16px}\nnav{display:flex;gap:4px 16px;align-items:center;padding:8px 0;flex-wrap:wrap}\nnav .links{display:flex;gap:16px;align-items:center}\nnav b{font-size:18px;letter-spacing:.01em} nav .sp{flex:1} nav a{text-decoration:none;font-weight:600;display:inline-flex;align-items:center;min-height:44px;white-space:nowrap}\n.hero{padding:40px 16px 32px}\n.hero h1{font-size:clamp(30px,6vw,52px);line-height:1.1;margin:0 0 12px;letter-spacing:-.02em}\n.hero .te{font-size:clamp(20px,3.5vw,28px);color:var(--accent);font-weight:700;margin:0 0 16px}\n.hero p{font-size:18px;max-width:640px;color:var(--muted);margin:0 0 20px}\n.big{position:relative;min-height:min(86vh,720px);display:flex;align-items:flex-end;color:#fff;background:#14110e;overflow:hidden}\n.big>img{position:absolute;top:0;right:0;width:50%;height:100%;object-fit:cover;object-position:20% center}\n.big:before{content:\"\";position:absolute;inset:0;z-index:1;\nbackground:linear-gradient(90deg,rgba(20,17,14,1) 0%,rgba(20,17,14,1) 50%,rgba(20,17,14,.55) 52%,rgba(20,17,14,0) 55%)}\n.big .wrap{position:relative;z-index:2;width:100%;padding-top:72px;padding-bottom:56px}\n.big .txt{max-width:min(480px,40vw)}\n.big h1{font-size:clamp(28px,3.6vw,48px);line-height:1.1;margin:0 0 14px;letter-spacing:-.02em}\n.big .te{font-size:clamp(18px,2.2vw,24px);color:#f0b27f;font-weight:700;margin:0 0 14px}\n.big p{font-size:18px;color:#e8e1d7;margin:0 0 22px}\n.big .btn.ghost{color:#fff;border-color:#fff}\n.badge{display:inline-block;margin-top:14px;font-size:13px;font-weight:700;letter-spacing:.03em;border:1px solid rgba(255,255,255,.45);border-radius:999px;padding:4px 12px;color:#f3ede4}\n.cap{font-size:12px;color:var(--muted);margin:6px 0 0}\n.big .cap{position:absolute;z-index:2;right:16px;bottom:10px;color:#e8e1d7;text-shadow:0 1px 3px rgba(0,0,0,.7)}\n@media (max-width:640px){.big{display:block;min-height:0;background:var(--deep)}\n.big>img{position:static;width:100%;height:auto;aspect-ratio:4/3}.big:before{display:none}\n.big .cap{position:static;color:#b8ad9e;text-shadow:none;padding:6px 16px 0;text-align:right}\n.big .wrap{padding-top:18px;padding-bottom:32px}.big .txt{max-width:none}.big h1{font-size:30px}}\n.btn{display:inline-block;background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:13px 20px;font:inherit;font-weight:700;text-decoration:none;cursor:pointer;margin:0 8px 8px 0}\n.btn.ghost{background:transparent;color:var(--accent);border:2px solid var(--accent)}\n.btn:disabled{opacity:.5;cursor:wait}\nsection{padding:48px 0;border-top:1px solid var(--line)}\nh2{font-size:clamp(24px,3.6vw,32px);line-height:1.2;margin:0 0 10px;letter-spacing:-.01em} .lede{color:var(--muted);max-width:720px;margin:0 0 24px}\n.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}\n.num{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--alert);border-radius:12px;padding:18px}\n.num b{display:block;font-size:44px;line-height:1;color:var(--alert);margin-bottom:8px} .num p{margin:0 0 10px}\n.src{font-size:13px;color:var(--muted)}\n.story{display:grid;grid-template-columns:5fr 6fr;gap:28px;align-items:start}\n.story img{border-radius:14px;width:100%;aspect-ratio:16/10;object-fit:cover}\n.vs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;align-items:stretch}\n.vs div{border-radius:12px;padding:16px;background:var(--card);border:1px solid var(--line)}\n.vs h3{margin:0 0 8px;font-size:17px} .vs ul{margin:0;padding-left:18px} .vs li{margin-bottom:6px}\n.vs .without{border-top:4px solid var(--alert)} .vs .with{border-top:4px solid var(--ok)}\n@media (max-width:820px){.story,.vs{grid-template-columns:1fr}}\n.timeline{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;counter-reset:s;list-style:none;padding:0;margin:0}\n.timeline li{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:46px 14px 14px;display:flex;flex-direction:column}\n.timeline li .st{margin-top:auto;align-self:flex-start}\n.timeline li:before{counter-increment:s;content:counter(s);position:absolute;top:12px;left:14px;width:26px;height:26px;border-radius:50%;\nbackground:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}\n.timeline h3{margin:0;font-size:17px} .timeline .t{color:var(--accent);font-weight:700;font-size:15px} .timeline p{margin:8px 0 14px;color:var(--muted);font-size:15px}\n@media (max-width:900px){.timeline{grid-template-columns:1fr;border-left:3px solid var(--line);margin-left:12px;padding-left:20px}\n.timeline li{padding-top:14px}.timeline li:before{left:-35px;top:14px}}\n.st{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.02em;border-radius:6px;padding:3px 7px;white-space:nowrap}\n.st.live{background:#d1fadf;color:#05603a} .st.testing{background:#fef0c7;color:#93370d}\n.who{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}\n.who article{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}\n.who img{width:100%;aspect-ratio:4/3;object-fit:cover} .who .in{padding:12px 16px 16px} .who h3{margin:0 0 6px;font-size:18px} .who p{margin:0}\n.who .plain{display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;aspect-ratio:4/3;background:var(--sand);color:var(--accent);font-weight:700;font-size:15px;letter-spacing:.03em}\n.who .plain svg{width:84px;height:84px} .who .mini{display:none;width:28px;height:28px;color:var(--accent)}\n@media (max-width:640px){.who .plain{display:none}.who .mini{display:inline-block;vertical-align:-6px;margin-right:6px}}\n.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}\n@media (max-width:760px){.tiles{grid-template-columns:1fr 1fr}.tiles .tile:nth-child(5){grid-column:1/-1}}\n.tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}\n.tile b{display:block;font-size:30px;line-height:1.1} .tile span{color:var(--muted);font-size:14px}\n.shotbox{position:relative;max-height:320px;overflow:hidden;border-radius:12px;border:1px solid var(--line);margin:20px 0 8px;box-shadow:0 10px 30px rgba(0,0,0,.12)}\n.shotbox:after{content:\"\";position:absolute;left:0;right:0;bottom:0;height:36px;background:linear-gradient(rgba(255,255,255,0),#fff)}\n.shotbox img{width:100%}\n.tag{display:inline-block;background:#fef0c7;color:#93370d;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;letter-spacing:.04em}\n.callbox{background:var(--deep);color:#fff;border-radius:16px;padding:22px}\n.callbox h2{color:#fff} .callbox p{color:#d6dde4}\n.callbox label{display:block;font-weight:600;margin:10px 0 4px;font-size:14px}\n.callbox input{width:100%;max-width:360px;padding:11px 12px;border-radius:10px;border:1px solid #4b5a68;background:#0f151b;color:#fff;font:inherit}\n#msg{margin-top:12px;font-weight:700;min-height:1.6em}\n#msg:empty{margin:0;min-height:0}\n.honest{font-size:14px;color:var(--muted)} .honest li{margin-bottom:4px}\n.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}\n.step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}\n.step>b:first-child{display:block;margin-bottom:4px}\n#started{padding:28px 0}\n.callbox .tel{color:#fff;font-size:1.15em;white-space:nowrap}\n#started h2{margin-bottom:16px}\n#started .pics{display:grid;grid-template-columns:2.24fr 3.57fr;gap:14px;margin:0 0 20px}\n#started figure{margin:0}\n#started figcaption a{display:inline-block;padding:6px 0}\n@media (max-width:700px){#started .pics{grid-template-columns:1fr}}\n#started figure img{width:100%;height:auto;border-radius:12px;border:1px solid var(--line)}\n#started figcaption{font-size:13px;color:var(--muted);margin-top:6px}\n#started .area{margin:4px 0 12px;color:var(--muted)}\n#started .tl{list-style:none;margin:0 0 12px;padding:0 0 8px;display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}\n#started .tl li{position:relative;flex:0 0 76%;max-width:300px;scroll-snap-align:start;padding-top:40px}\n#started .tl li:before{content:\"✓\";position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;background:var(--ok);color:#fff;\n  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px}\n#started .tl li.next:before{content:\"\";background:var(--card);border:3px solid var(--accent)}\n#started .tl li:not(:last-child):after{content:\"\";position:absolute;left:34px;right:-14px;top:13px;height:2px;background:var(--ok)}\n#started .tl b{font-size:17px} #started .tl .t{color:var(--accent);font-weight:700;font-size:15px;margin:0}\n#started .tl p{margin:3px 0 0;font-size:15px;line-height:1.5} #started .tl .te{color:var(--muted);font-size:14px}\n#started .tag{display:inline-block;margin-left:6px;border-radius:999px;padding:0 8px;font-size:11px;font-weight:700;letter-spacing:.03em;\n  background:var(--sand);color:var(--ok);vertical-align:middle}\n#started li.next .tag{background:var(--accent);color:var(--accent-ink)}\n@media (min-width:900px){#started .tl{overflow:visible}#started .tl li{flex:1 1 0;max-width:none}}\n.video{max-width:1080px;margin:0 auto}\n.video video{display:block;width:100%;aspect-ratio:16/9;background:#000;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.18)}\n.video p{text-align:center;margin:10px 0 0}\n.label{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--muted);border:1px dashed var(--muted);border-radius:6px;padding:2px 8px;margin:0 0 10px;white-space:nowrap;line-height:1.5}\n.hear{max-width:560px;margin:4px 0 14px} .hl{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}\ndetails.more{margin-top:22px}\n@media (prefers-color-scheme:dark){:root:not([data-theme=\"light\"]) .bubble{background:#2b2214;border-color:#7a5a20;color:#f2ece3}\n:root:not([data-theme=\"light\"]) .bubble .te{color:#f6e3bf} :root:not([data-theme=\"light\"]) .bubble .en{color:#d9c7a3}\n:root:not([data-theme=\"light\"]) .player audio{filter:invert(.9) hue-rotate(180deg)}\n:root:not([data-theme=\"light\"]) .callbox{border:1px solid #3a4652;background:#1a2129}\n:root:not([data-theme=\"light\"]) .shotbox{opacity:.92;border-color:#3a332b}}\n#why{padding:28px 0}\n.traction{margin:14px 0 0;font-size:16px}\n.player{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;max-width:820px}\n.player audio{width:100%;margin-bottom:10px}\n.caps{list-style:none;margin:0;padding:0}\n.caps li{display:grid;grid-template-columns:70px 1fr;gap:2px 12px;padding:8px 10px;border-radius:10px;cursor:pointer}\n.caps li b{grid-row:span 2;font-size:13px;color:var(--muted)} .caps .te{font-weight:700} .caps .en{font-size:14px;color:var(--muted)}\n.caps li.on{background:rgba(217,165,74,.16)}\n.wedges{margin:0;padding-left:18px} .wedges li{margin-bottom:6px}\ndetails.more>summary{display:inline-block;cursor:pointer;list-style:none;font-weight:700;color:var(--accent);\nborder:2px solid var(--accent);border-radius:10px;padding:8px 14px}\ndetails.more>summary::-webkit-details-marker{display:none}\ndetails.more>summary:after{content:\" ▾\"} details.more[open]>summary:after{content:\" ▴\"}\ndetails.more .arch{margin-top:14px}\n.bubble{position:relative;background:#fff4dc;border:1px solid #f0cf8a;border-radius:12px;padding:12px 14px 12px 42px;color:#3d2a06}\n.bubble svg{position:absolute;left:14px;top:14px;width:20px;height:20px;color:#a86a00}\n.bubble .te{margin:0 0 6px;font-weight:700;font-size:15px;line-height:1.5;color:#3d2a06} .bubble .en{margin:0;font-size:14px;line-height:1.45;color:#5c4512}\n.netbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 22px}\n.cn{display:grid;grid-template-columns:1.15fr 36px 1fr 36px 1fr;align-items:center}\n.cn-in{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}\n.cn-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);\nborder-left:4px solid var(--muted);border-radius:10px;padding:8px 12px;font-size:14px}\n.cn-row span{font-size:12px;color:var(--muted);text-align:right;min-width:0}\n.cn-row b{white-space:nowrap;flex:0 0 auto}\n.cn-row.bad{border-left-color:var(--alert)} .cn-row.bad span{color:var(--alert);font-weight:800;letter-spacing:.04em}\n.cn-arrow{height:2px;background:var(--muted);position:relative;margin:0 6px;opacity:.7}\n.cn-arrow:after{content:\"\";position:absolute;right:-2px;top:-5px;border:6px solid transparent;border-right:0;border-left:8px solid var(--muted)}\n.cn-hub,.cn-out{border-radius:14px;padding:14px 16px;text-align:center}\n.cn-hub{border:2px solid #d9a54a;background:rgba(217,165,74,.12)}\n.cn-out{border:2px solid var(--ok);background:rgba(6,118,71,.08)}\n.cn .k{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}\n.cn-hub .id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:15px;font-weight:700;margin:2px 0}\n.cn-hub .cnt{margin-top:8px;font-size:13px;color:var(--muted)}\n.cn-out b{display:block;font-size:15px;margin-bottom:8px}\n.cn-out .pill{display:inline-block;background:var(--ok);color:#fff;font-size:12px;font-weight:800;letter-spacing:.05em;border-radius:6px;padding:3px 8px}\n@media (max-width:820px){.cn{grid-template-columns:1fr;gap:0}\n.cn-arrow{width:2px;height:22px;margin:6px auto}\n.cn-arrow:after{right:-5px;top:auto;bottom:-2px;border:6px solid transparent;border-bottom:0;border-top:8px solid var(--muted)}}\n.arch{margin-top:28px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}\n.arch h3{margin:0 0 12px;font-size:18px}\n.stages{display:grid;grid-template-columns:1fr 1fr 1.35fr .85fr 1.15fr .9fr;gap:26px;list-style:none;margin:0;padding:0}\n.stage{position:relative;display:flex;flex-direction:column;gap:8px}\n.stage:not(:last-child):after{content:\"→\";position:absolute;right:-21px;top:40%;font-weight:900;font-size:20px;color:var(--ink)}\n.sh{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--accent)}\n.ab{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px;line-height:1.35}\n.ab.small{font-size:13px;padding:6px 8px}\n.stage.human .ab{background:var(--deep);color:#fff;border-color:var(--deep);font-weight:700}\n.levels{display:flex;flex-direction:column;gap:6px}\n.lv{color:#fff;font-size:12px;font-weight:800;letter-spacing:.04em;border-radius:999px;padding:4px 10px;text-align:center}\n.lv.ok{background:#067647} .lv.medium{background:#a15c07} .lv.high{background:#c4320a} .lv.critical{background:#b42318}\n.loop{position:relative;height:24px;margin:10px 23% 0 7%;border:2px dashed var(--accent);border-top:0;border-radius:0 0 14px 14px}\n.loop:before{content:\"▲\";position:absolute;left:-8px;top:-12px;font-size:13px;color:var(--accent)}\n.looplabel{text-align:center;margin:6px 0 14px;font-size:14px;font-weight:600;color:var(--accent)}\n.roadmap{border-top:2px dashed var(--line);padding-top:10px;margin:0;color:var(--muted);font-size:14px}\n@media (max-width:900px){.stages{grid-template-columns:1fr;gap:26px}\n.stage:not(:last-child):after{content:\"↓\";right:auto;left:12px;top:auto;bottom:-23px;line-height:1;font-size:18px}\n.loop{display:none}.looplabel{text-align:left;border:2px dashed var(--accent);border-radius:10px;padding:8px 10px;margin-top:16px}}\n.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}\n.stats .num b{font-size:clamp(28px,2.6vw,36px);white-space:nowrap}\n.big-label{display:inline-block;font-size:14px;padding:4px 10px;border-width:2px;margin:0 8px 10px 0;vertical-align:1px}\n#why a,.stats .src a,.more-link{display:inline-block;padding:10px 0;margin:-10px 0}\n@media (prefers-color-scheme:dark){:root:not([data-theme=\"light\"]) .timeline li:before{background:var(--accent);color:#16130f}}\n@media (max-width:900px){.stats{grid-template-columns:1fr 1fr}}\n@media (max-width:520px){.stats{gap:10px}.stats .num{padding:12px}.stats .num b{font-size:24px}.stats .num p{font-size:14px;margin-bottom:6px}.stats .src{font-size:12px;line-height:1.45}}\n#call .callbox{max-width:none}\n.pay{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px}\n@media (max-width:820px){.pay{grid-template-columns:1fr}}\n.pay article{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:12px;padding:16px}\n.pay h3{margin:0 0 2px;font-size:18px} .pay .k{font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--accent);text-transform:uppercase;margin-bottom:8px} .pay p{margin:0;color:var(--muted)}\n.vs .today{border-top:4px solid var(--muted)} .heard .with{border-top:4px solid var(--accent)}\n.heard .end{margin:12px 0 0;font-weight:800;font-size:14px} .heard .today .end{color:var(--muted)} .heard .with .end{color:var(--accent)}\n.pills{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}\n.pills li{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:14px}\n.payers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;list-style:none;padding:0;margin:18px 0 0;counter-reset:p}\n.payers li{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:46px 16px 16px}\n.payers li:before{counter-increment:p;content:counter(p);position:absolute;top:12px;left:16px;width:26px;height:26px;border-radius:50%;\nbackground:var(--deep);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}\n.payers h3{margin:0 0 6px;font-size:18px} .payers p{margin:0;color:var(--muted);font-size:15px}\n@media (max-width:820px){.payers{grid-template-columns:1fr}}\n@media (prefers-color-scheme:dark){:root:not([data-theme=\"light\"]) .payers li:before{background:var(--accent);color:#16130f}}\n.never-line{margin:18px 0 6px;font-weight:800;color:var(--accent)}\nh1,h2,h3,nav b{font-family:\"Anek Telugu\",system-ui,-apple-system,\"Segoe UI\",Roboto,\"Noto Sans Telugu\",sans-serif}\nfooter{padding:24px 0 40px;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}\n.btn{min-height:44px;line-height:1.3}\n@media (prefers-color-scheme:dark){:root:not([data-theme=\"light\"]) .st.live{background:#0d3b28;color:#8be3b6}\n:root:not([data-theme=\"light\"]) .cn-out .pill{color:#0b1f15}\n:root:not([data-theme=\"light\"]) .st.testing,:root:not([data-theme=\"light\"]) .tag{background:#45300b;color:#f8cf86}}\n/* Phones */\n@media (max-width:640px){\nbody{font-size:16px;line-height:1.55}\nnav{padding:6px 0 0}\nnav b{flex:0 0 100%;font-size:17px;padding-top:4px}\nnav .sp{display:none}\nnav .links{flex:0 0 100%;flex-wrap:wrap;gap:0 4px;justify-content:space-between}\nnav a{font-size:clamp(12.5px,3.45vw,14.5px);min-height:40px}\nsection{padding:32px 0}\n#why{padding:20px 0 28px}\nh2{font-size:23px;margin-bottom:8px}\n.lede{margin-bottom:18px}\n.hero{padding:24px 16px 24px}.hero h1{font-size:30px}.hero .te{font-size:20px}.hero p{font-size:16px}\n.big>img{aspect-ratio:16/10;object-position:60% 35%}\n.big .wrap{padding-top:16px;padding-bottom:28px}\n.big h1{font-size:28px;line-height:1.15;margin-bottom:10px}\n.big .te{font-size:18px;margin-bottom:10px}\n.big p{font-size:16px;margin-bottom:18px}\n.big .btn,.hero .btn{padding:11px 16px;font-size:15.5px;margin:0 6px 8px 0}\n.badge{font-size:12px;margin-top:8px;line-height:1.45;border-radius:12px}\n.cap{font-size:12px}\n.stats .num b{font-size:24px}\n.video video{border-radius:12px}\n.player{padding:10px 10px 6px}\n.caps li{grid-template-columns:52px 1fr;gap:2px 8px;padding:8px 6px}\n.caps li b{font-size:12.5px;padding-top:2px}\n.story{gap:14px}\n.vs{gap:12px;margin:14px 0}\n.who{gap:14px}\n.who img{aspect-ratio:16/9}\n.timeline p{font-size:15px}\n.netbox{padding:12px}\n.cn-row{padding:8px 10px}\n.bubble{padding:12px 12px 12px 40px}\n.bubble .te{line-height:1.65}\n.shotbox{max-height:260px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}\n.shotbox img{width:280%;max-width:none}\n.shotbox{box-shadow:inset -24px 0 16px -16px rgba(0,0,0,.25),0 10px 30px rgba(0,0,0,.12)}\n.shotbox:after{display:none}\n.callbox{padding:20px 16px}\n.callbox input{max-width:none;font-size:16px}\n.pay{gap:12px}\n@media (min-width:901px){.timeline{grid-template-columns:repeat(5,minmax(0,1fr))} .timeline .st{white-space:normal}}\n@media (min-width:641px){.who{grid-template-columns:repeat(3,minmax(0,1fr))}}\n@media (min-width:1000px){.who .plain + .in{padding-top:39px}}\n.steps{grid-template-columns:repeat(4,minmax(0,1fr))} .steps .step:last-child{grid-column:span 2}\n@media (max-width:1000px){.steps{grid-template-columns:1fr 1fr}.steps .step:last-child{grid-column:1/-1}}\n@media (max-width:640px){.steps{grid-template-columns:1fr}}\n@media (max-width:900px){.badge{border-radius:12px;line-height:1.45}\n.stages{gap:34px}.stage:not(:last-child):after{bottom:-31px}}\n.big-label{display:table;margin:0 0 10px}\n.ab.small{font-size:14px;padding:8px 10px}\n.player{max-width:none}\nfooter{padding:20px 0 32px;font-size:14px}\n.steps{gap:10px}\n}\n@media (min-width:641px) and (max-width:900px){section{padding:40px 0}}\n",
+  "ARCH_STAGES": [
+   [
+    "Call",
+    [
+     "Telugu call from worker or family",
+     "Bolna voice agent · Sarvam saaras:v3 speech-to-text"
+    ]
+   ],
+   [
+    "Backend",
+    [
+     "FastAPI on Vercel",
+     "Supabase case store"
+    ]
+   ],
+   [
+    "Fixed rules",
+    [
+     "Licensed agent?",
+     "Fee over ₹35,400?",
+     "Visit visa for a job?",
+     "Number seen in other cases?"
+    ]
+   ],
+   [
+    "Risk level",
+    null
+   ],
+   [
+    "Outputs",
+    [
+     "Telugu warning on the call",
+     "Dashboard + English case packet",
+     "Family SMS, ready to send"
+    ]
+   ],
+   [
+    "Then",
+    [
+     "A human caseworker decides and acts"
+    ]
+   ]
+  ],
+  "RISK_LEVELS": [
+   [
+    "OK",
+    "ok"
+   ],
+   [
+    "MEDIUM",
+    "medium"
+   ],
+   [
+    "HIGH",
+    "high"
+   ],
+   [
+    "CRITICAL",
+    "critical"
+   ]
+  ],
+  "DEMO_PEOPLE": [
+   {
+    "key": "yadaiah",
+    "name": "Yadaiah",
+    "te": "యాదయ్య",
+    "who": "Going to Riyadh, Saudi Arabia",
+    "facts": [
+     [
+      "Promised",
+      "Cleaner"
+     ],
+     [
+      "Visa says",
+      "Agricultural worker"
+     ],
+     [
+      "Paid",
+      "₹90,000 in two parts"
+     ]
+    ],
+    "caught": [
+     "Agent not in the licensed list",
+     "Paid over the ₹35,400 limit",
+     "Visa job ≠ promised job",
+     "Arrival call: herding goats in Al Kharj, passport taken → CRITICAL"
+    ]
+   },
+   {
+    "key": "ramesh",
+    "name": "Ramesh",
+    "te": "రమేష్",
+    "who": "Going to Dammam, Saudi Arabia",
+    "facts": [
+     [
+      "Promised",
+      "Driver"
+     ],
+     [
+      "Visa",
+      "Visit visa"
+     ],
+     [
+      "Paid",
+      "₹90,000 in two parts"
+     ]
+    ],
+    "caught": [
+     "Visit visa for a job",
+     "Same village agent phone and UPI ID as Yadaiah: seen in 2 cases"
+    ]
+   },
+   {
+    "key": "saraswathi",
+    "name": "Saraswathi, 27",
+    "te": "సరస్వతి",
+    "who": "Going to Muscat, Oman",
+    "facts": [
+     [
+      "Promised",
+      "Housemaid"
+     ],
+     [
+      "Visa",
+      "Tourist visa"
+     ],
+     [
+      "Paid",
+      "₹80,000"
+     ]
+    ],
+    "caught": [
+     "Tourist visa for housework",
+     "Paid over the ₹35,400 limit",
+     "Stopped before she flies"
+    ]
+   }
+  ],
+  "DEMO_STEPS": [
+   [
+    "Registered before flying",
+    "Yadaiah's promised job, visa and payments are recorded."
+   ],
+   [
+    "Red flags at once",
+    "Unlicensed agent, ₹90,000 paid, visa job is not the promised job: \"do not pay more or travel until this is sorted out\"."
+   ],
+   [
+    "Family SMS",
+    "One Telugu SMS for his wife with the case number (shown, not sent)."
+   ],
+   [
+    "Arrival-day call",
+    "A stranger picked him up. He is herding goats in Al Kharj and his passport was taken. Fixed rules mark it CRITICAL."
+   ],
+   [
+    "Case file",
+    "A Telugu alert for the family and an English case packet for MADAD or the embassy."
+   ],
+   [
+    "Seen in 2 cases",
+    "Ramesh paid the same village agent's phone and UPI ID. Shown as \"needs human review\", not as fraud."
+   ],
+   [
+    "A woman sent for housework",
+    "Saraswathi is going to Muscat as a housemaid on a tourist visa. Flagged before she flies."
+   ]
+  ],
+  "DEMO_LOOK": [
+   [
+    "Promise vs reality",
+    "what was promised next to what the worker says now"
+   ],
+   [
+    "Download English case packet",
+    "the file a caseworker sends to MADAD or the embassy"
+   ],
+   [
+    "Proof of work",
+    "a dated record of every call, against a false absconding report"
+   ],
+   [
+    "Seen in other cases",
+    "the repeat-agent warning, on Yadaiah's and Ramesh's pages"
+   ]
+  ],
+  "DEMO_STYLE": "\n.demo-note{display:inline-block;background:#fef0c7;color:#93370d;border-radius:999px;padding:4px 12px;font-weight:700;font-size:13px}\n.people{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}\n.person{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column}\n.person h3{margin:0;font-size:19px} .person .te{margin:0 0 2px} .person .who{color:var(--muted);margin:0 0 12px;font-size:14px}\n.person dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0 0 12px;font-size:14.5px}\n.person dt{color:var(--muted)} .person dd{margin:0;font-weight:700}\n.person ul{margin:0 0 14px;padding-left:18px;font-size:14.5px} .person li{margin:3px 0}\n.person .catch{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#b42318;font-weight:700;margin:0 0 4px}\n.person .btn{margin:auto 0 0;text-align:center}\n.person .btn[aria-disabled=true]{opacity:.45;pointer-events:none}\n.tl{list-style:none;margin:0;padding:0;counter-reset:s;max-width:760px}\n.tl li{counter-increment:s;position:relative;padding:0 0 18px 48px}\n.tl li:before{content:counter(s);position:absolute;left:0;top:0;width:32px;height:32px;border-radius:50%;background:var(--accent);\n  color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:700}\n.tl li:not(:last-child):after{content:\"\";position:absolute;left:15px;top:34px;bottom:2px;width:2px;background:var(--line)}\n.tl b{display:block}\n.look{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:760px;padding:0;list-style:none}\n.look li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14.5px}\n@media (max-width:900px){.people{grid-template-columns:1fr}.look{grid-template-columns:1fr}}\n"
+ },
+ "dashboard": {
+  "CODE_PHRASE_HELP": "Use a short sentence the worker would never say by accident, e.g. అమ్మ బాగుందా",
+  "OUTCOME_PROBLEMS": [
+   "unpaid_wages",
+   "passport",
+   "wrong_job",
+   "agent_fee",
+   "death",
+   "other"
+  ],
+  "OUTCOMES": [
+   "solved",
+   "partly_solved",
+   "not_solved",
+   "withdrawn"
+  ],
+  "EX_GRATIA_STATUSES": [
+   "not_applied",
+   "applied",
+   "paid",
+   "rejected"
+  ],
+  "GENDERS": [
+   "woman",
+   "man"
+  ],
+  "REMAINS_STATUSES": [
+   "reported",
+   "embassy_informed",
+   "family_decided",
+   "papers_signed",
+   "remains_home",
+   "buried_abroad",
+   "closed"
+  ],
+  "PASSPORT_TYPES": [
+   "ecr",
+   "ecnr",
+   "unknown"
+  ],
+  "VISA_TYPES": [
+   "employment",
+   "visit",
+   "tourist",
+   "unknown"
+  ],
+  "BADGE": {
+   "critical": "#b42318",
+   "high": "#c4320a",
+   "medium": "#a15c07",
+   "ok": "#067647"
+  },
+  "PICKUP": {
+   "employer": "Registered employer",
+   "other_person": "Someone else",
+   "nobody": "Nobody came",
+   "not_arrived": "Not arrived yet"
+  },
+  "ANSWER_LABELS": [
+   [
+    "pickup_status",
+    "Who picked them up"
+   ],
+   [
+    "pickup_person",
+    "Person at pickup"
+   ],
+   [
+    "current_location",
+    "Where they are now"
+   ],
+   [
+    "current_job",
+    "Work they are doing now"
+   ],
+   [
+    "current_city",
+    "City they are in now"
+   ],
+   [
+    "landmark",
+    "Nearby place"
+   ],
+   [
+    "home_district",
+    "Home village / district"
+   ],
+   [
+    "agent_name",
+    "Agent (as said)"
+   ],
+   [
+    "agent_phone",
+    "Agent phone (as said)"
+   ],
+   [
+    "salary_received",
+    "Salary received"
+   ],
+   [
+    "salary_amount",
+    "Salary amount received"
+   ],
+   [
+    "papers_problem",
+    "Papers problem (visa / iqama / absconding)"
+   ],
+   [
+    "months_unpaid",
+    "Months unpaid"
+   ],
+   [
+    "passport_with_worker",
+    "Passport with worker"
+   ],
+   [
+    "food_ok",
+    "Food and room OK"
+   ],
+   [
+    "threatened",
+    "Threats or violence"
+   ],
+   [
+    "movement_restricted",
+    "Stopped from going out"
+   ],
+   [
+    "employer_changed",
+    "Moved to another employer / house"
+   ],
+   [
+    "needs_help",
+    "Asked for help"
+   ],
+   [
+    "code_phrase_used",
+    "Said the danger phrase"
+   ],
+   [
+    "briefing_understood",
+    "Understood the briefing"
+   ],
+   [
+    "notes",
+    "Notes"
+   ]
+  ],
+  "TEAM_NAV": "<a href=\"/dashboard\">Cases</a><a href=\"/dashboard/agents\">Agents</a><a href=\"/dashboard/alerts\">Weekly alerts</a><a href=\"/demo\">Demo story</a><span class=\"sp\"></span><a href=\"/dashboard/intake\">+ Family in trouble</a><a href=\"/dashboard/new\">+ Register worker</a><a href=\"/logout\">Log out</a>",
+  "PUBLIC_NAV": "<a href=\"/demo\">Demo story</a><span class=\"sp\"></span><a href=\"/login\">Team login</a>",
+  "PUBLIC_NOTE": "<p class=\"sms info\">Demo view, open to everyone. This is a made-up case. Buttons that change a case or place a call need the team login.</p>",
+  "OUTCOME_LABELS": {
+   "solved": "Solved",
+   "partly_solved": "Partly solved",
+   "not_solved": "Not solved",
+   "withdrawn": "Family withdrew",
+   "unpaid_wages": "Unpaid wages or dues",
+   "passport": "Passport or papers",
+   "wrong_job": "Wrong job or place",
+   "agent_fee": "Agent took money",
+   "death": "Death abroad",
+   "other": "Other"
+  },
+  "FIELDS": [
+   [
+    "Worker",
+    [
+     [
+      "worker_name",
+      "Name (English) *",
+      "Yadaiah"
+     ],
+     [
+      "worker_name_te",
+      "Name in Telugu (for the family SMS)",
+      "యాదయ్య"
+     ],
+     [
+      "worker_phone",
+      "Worker phone *",
+      "98765 43210"
+     ],
+     [
+      "code_phrase",
+      "Danger code phrase",
+      "అమ్మ బాగుందా"
+     ],
+     [
+      "worker_gender",
+      "Woman or man",
+      ""
+     ],
+     [
+      "worker_age",
+      "Age",
+      "34"
+     ],
+     [
+      "home_district",
+      "Home district",
+      "Jagtial"
+     ],
+     [
+      "home_mandal",
+      "Home mandal",
+      "Korutla"
+     ]
+    ]
+   ],
+   [
+    "Family",
+    [
+     [
+      "family_name",
+      "Family member name",
+      "Lakshmi"
+     ],
+     [
+      "family_relation",
+      "Relation",
+      "wife"
+     ],
+     [
+      "family_phone",
+      "Family phone *",
+      "91234 56780"
+     ]
+    ]
+   ],
+   [
+    "Employer and sponsor",
+    [
+     [
+      "employer_name",
+      "Employer / company",
+      "Al Noor Cleaning LLC"
+     ],
+     [
+      "employer_phone",
+      "Employer phone (with country code)",
+      "+971 50 123 4567"
+     ],
+     [
+      "sponsor_name",
+      "Sponsor (kafeel) name",
+      ""
+     ],
+     [
+      "sponsor_id",
+      "Sponsor ID",
+      ""
+     ],
+     [
+      "dest_country",
+      "Country",
+      "UAE"
+     ],
+     [
+      "dest_city",
+      "City",
+      "Dubai"
+     ],
+     [
+      "job_title",
+      "Job the agent promised",
+      "Cleaner"
+     ],
+     [
+      "contract_salary",
+      "Contract salary",
+      "1500"
+     ],
+     [
+      "salary_currency",
+      "Currency",
+      "AED"
+     ]
+    ]
+   ],
+   [
+    "Recruiting agent",
+    [
+     [
+      "agent_name",
+      "Agency name",
+      "Gagan Manpower"
+     ],
+     [
+      "agent_owner",
+      "Owner name",
+      "Bolle Ganga Narsaiah"
+     ],
+     [
+      "agent_district",
+      "Agent's district",
+      "Jagtial"
+     ],
+     [
+      "agent_licence",
+      "Licence / RA number",
+      ""
+     ],
+     [
+      "sub_agent_name",
+      "Village sub-agent name",
+      ""
+     ],
+     [
+      "sub_agent_phone",
+      "Village sub-agent phone",
+      "98480 12345"
+     ],
+     [
+      "payments",
+      "Every payment to the agent, separated by ;",
+      "50000; 30000"
+     ],
+     [
+      "payment_to",
+      "Money paid to (UPI ID / account / phone)",
+      "agent@upi"
+     ],
+     [
+      "promise_by",
+      "Who made the verbal promise",
+      "sub-agent Ramu"
+     ],
+     [
+      "promise_words",
+      "What they said, in their own words (not what the papers say)",
+      "salary 1,500 riyal, cleaning job, free food"
+     ],
+     [
+      "promise_date",
+      "When they said it",
+      "10 Oct 2026"
+     ],
+     [
+      "contract_before_payment",
+      "Got the full written contract before paying?",
+      ""
+     ],
+     [
+      "exit_penalty",
+      "Penalty in the contract for leaving or cancelling the visa (amount, or no)",
+      "AED 4,100"
+     ],
+     [
+      "call_consent",
+      "Worker agreed to recorded Saathi calls?",
+      ""
+     ],
+     [
+      "alerts_opt_in",
+      "Worker and family agreed to weekly scam alerts?",
+      ""
+     ]
+    ]
+   ],
+   [
+    "Visa papers (type exactly what the visa says)",
+    [
+     [
+      "visa_type",
+      "Visa type",
+      ""
+     ],
+     [
+      "visa_job",
+      "Job written on the visa",
+      "Agricultural worker"
+     ]
+    ]
+   ],
+   [
+    "Emigration papers",
+    [
+     [
+      "passport_type",
+      "Passport type (ECR if the worker did not pass 10th)",
+      ""
+     ],
+     [
+      "emigration_clearance",
+      "Emigration clearance on eMigrate?",
+      ""
+     ],
+     [
+      "pbby",
+      "PBBY insurance taken?",
+      ""
+     ],
+     [
+      "pbby_nominee",
+      "PBBY nominee",
+      "wife, Lakshmi"
+     ]
+    ]
+   ],
+   [
+    "Travel",
+    [
+     [
+      "departure_date",
+      "Departure date",
+      ""
+     ],
+     [
+      "flight_no",
+      "Flight",
+      "EK 527"
+     ],
+     [
+      "arrival_call_at",
+      "Arrival-day call (India time)",
+      ""
+     ]
+    ]
+   ]
+  ]
+ }
+}
