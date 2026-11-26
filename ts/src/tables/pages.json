@@ -460,7 +460,7 @@
     "Notes"
    ]
   ],
-  "TEAM_NAV": "<a href=\"/dashboard\">Cases</a><a href=\"/dashboard/agents\">Agents</a><a href=\"/dashboard/alerts\">Weekly alerts</a><a href=\"/demo\">Demo story</a><span class=\"sp\"></span><a href=\"/dashboard/intake\">+ Family in trouble</a><a href=\"/dashboard/new\">+ Register worker</a><a href=\"/logout\">Log out</a>",
+  "TEAM_NAV": "<a href=\"/dashboard\">Cases</a><a href=\"/dashboard/agents\">Agents</a><a href=\"/dashboard/alerts\">Weekly alerts</a><a href=\"/demo\">Demo story</a><span class=\"sp\"></span><a class=\"outline\" href=\"/dashboard/intake\">+ Family in trouble</a><a class=\"primary\" href=\"/dashboard/new\">+ Register worker</a><a href=\"/logout\">Log out</a>",
   "PUBLIC_NAV": "<a href=\"/demo\">Demo story</a><span class=\"sp\"></span><a href=\"/login\">Team login</a>",
   "PUBLIC_NOTE": "<p class=\"sms info\">Demo view, open to everyone. This is a made-up case. Buttons that change a case or place a call need the team login.</p>",
   "OUTCOME_LABELS": {

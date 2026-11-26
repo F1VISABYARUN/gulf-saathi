@@ -51,8 +51,8 @@ header { position:sticky; top:0; z-index:10; background:rgba(255,255,255,.92); b
 header a { color:var(--muted); text-decoration:none; font-weight:500; padding:6px 10px; border-radius:8px; font-size:14px; }
 header a:hover { color:var(--ink); background:var(--soft); }
 header a:first-child { color:var(--ink); font-weight:700; }
-header a[href="/dashboard/new"] { background:var(--primary); color:var(--primary-ink); margin-left:6px; }
-header a[href="/dashboard/intake"] { border:1px solid var(--line); color:var(--ink); }
+header a.primary { background:var(--primary); color:var(--primary-ink); margin-left:6px; }
+header a.outline { border:1px solid var(--line); color:var(--ink); }
 header .sp { flex:1; }
 main { max-width:1180px; margin:0 auto; padding:24px; }
 h1 { font-size:24px; font-weight:700; letter-spacing:-.02em; margin:4px 0 20px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
