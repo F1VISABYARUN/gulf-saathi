@@ -120,28 +120,46 @@ export function splitAgency(text: string): [string, string] {
   return [distinct.join(' '), generic.join(' ')];
 }
 
-type Person = [string, string, string[], string[]];
+// [plain, phonetic, plain tokens, phonetic tokens, plain tokens sorted, phonetic tokens sorted]. The sorted
+// forms are what token_sort_ratio compares; keeping them saves sorting 2,447 owners on every check.
+type Person = [string, string, string[], string[], string, string];
+
+const sortJoin = (ts: string[]) => [...ts].sort((p, q) => (p < q ? -1 : p > q ? 1 : 0)).join(' ');
 
 function person(text: string): Person {
   const plain = tokens(text);
   const flat = plain.map(phonetic);
-  return [plain.join(' '), flat.join(' '), plain, flat];
+  return [plain.join(' '), flat.join(' '), plain, flat, sortJoin(plain), sortJoin(flat)];
+}
+
+// The same two words are compared again and again (common first names): remember the score.
+const ratioCache = new Map<string, number>();
+function wordRatio(a: string, b: string): number {
+  const k = a + '\u0000' + b;
+  let v = ratioCache.get(k);
+  if (v === undefined) {
+    if (ratioCache.size > 200_000) ratioCache.clear();
+    v = ratio(a, b);
+    ratioCache.set(k, v);
+  }
+  return v;
 }
 
 /** Best match against any owner. Plain spelling first; phonetic is a weaker fallback. */
 export function ownerScore(said: Person, owners: Person[]): number {
-  const [sPlain, sFlat, sPt, sFt] = said;
+  const [, , sPt, sFt, sSortPlain, sSortFlat] = said;
   if (!sPt.length) return 0;
   let best = 0;
-  for (const [oPlain, oFlat, oPt, oFt] of owners) {
+  for (const [, , oPt, oFt, oSortPlain, oSortFlat] of owners) {
     if (!oPt.length) continue;
-    const full = Math.max(tokenSortRatio(sPlain, oPlain), tokenSortRatio(sFlat, oFlat) - 3);
+    // Same as token_sort_ratio(plain, owner plain), with both sides already sorted.
+    const full = Math.max(wordRatio(sSortPlain, oSortPlain), wordRatio(sSortFlat, oSortFlat) - 3);
     const n = Math.min(sPt.length, sFt.length);
     const per: number[] = [];
     for (let k = 0; k < n; k++) {
       const m = Math.min(oPt.length, oFt.length);
       let mx = -Infinity;
-      for (let j = 0; j < m; j++) mx = Math.max(mx, Math.max(ratio(sPt[k], oPt[j]), ratio(sFt[k], oFt[j]) - 3));
+      for (let j = 0; j < m; j++) mx = Math.max(mx, Math.max(wordRatio(sPt[k], oPt[j]), wordRatio(sFt[k], oFt[j]) - 3));
       per.push(mx);
     }
     const coverage = Math.min(1.0, sPt.length / oPt.length);
@@ -291,12 +309,14 @@ export class LicensedList {
     const saidOwner = owner ? person(owner) : null;
     const wantDistrict = district ? districtKey(district) : '';
     const scored: Array<[Agent, number, number, number, boolean]> = [];
+    const districtOk = new Map<string, boolean>(); // agents share a few hundred districts
     this.agents.forEach((a, idx) => {
       const [aKey, oKeys, aDistrict] = this.keys[idx];
       const o = owner ? ownerScore(saidOwner!, oKeys) : 0;
       const g = agency ? agencyScore(saidAgency!, aKey) : 0;
       let score = owner && agency && !query ? Math.max((o + g) / 2, Math.max(o, g) - 8) : Math.max(o, g);
-      const dOk = !!wantDistrict && ratio(wantDistrict, aDistrict) >= 90;
+      let dOk = districtOk.get(aDistrict);
+      if (dOk === undefined) { dOk = !!wantDistrict && ratio(wantDistrict, aDistrict) >= 90; districtOk.set(aDistrict, dOk); }
       if (district) score += dOk ? 4 : -8;
       scored.push([a, score, o, g, dOk]);
     });

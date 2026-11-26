@@ -4,20 +4,44 @@
 
 const cps = (s: string) => Array.from(s);
 
-/** Indel distance = len(a) + len(b) - 2 * longest common subsequence. */
+/** Indel distance = len(a) + len(b) - 2 * longest common subsequence. The LCS uses the bit-parallel
+ * method (Hyyrö 2004), 32 characters of `a` per machine word, like rapidfuzz itself: the agent check runs
+ * this thousands of times per call, so a plain table was too slow under load. */
 export function indelDistance(a: string, b: string): number {
   const x = cps(a), y = cps(b);
   if (!x.length || !y.length) return x.length + y.length;
-  let prev = new Array<number>(y.length + 1).fill(0);
-  let cur = new Array<number>(y.length + 1).fill(0);
-  for (let i = 1; i <= x.length; i++) {
-    for (let j = 1; j <= y.length; j++) {
-      cur[j] = x[i - 1] === y[j - 1] ? prev[j - 1] + 1 : Math.max(prev[j], cur[j - 1]);
-    }
-    [prev, cur] = [cur, prev];
-    cur.fill(0);
+  return x.length + y.length - 2 * lcsLength(x, y);
+}
+
+function lcsLength(x: string[], y: string[]): number {
+  const m = x.length, words = (m + 31) >>> 5;
+  // For each character, a bit mask of where it appears in x.
+  const pm = new Map<string, Uint32Array>();
+  for (let i = 0; i < m; i++) {
+    let v = pm.get(x[i]);
+    if (!v) { v = new Uint32Array(words); pm.set(x[i], v); }
+    v[i >>> 5] |= 1 << (i & 31);
   }
-  return x.length + y.length - 2 * prev[y.length];
+  const V = new Uint32Array(words).fill(0xffffffff);
+  for (const ch of y) {
+    const M = pm.get(ch);
+    if (!M) continue; // V & M is 0: V stays the same
+    let carry = 0;
+    for (let w = 0; w < words; w++) {
+      const v = V[w], u = (v & M[w]) >>> 0;
+      const sum = v + u + carry; // up to 2^33, exact in a double
+      carry = sum > 0xffffffff ? 1 : 0;
+      V[w] = ((sum >>> 0) | (v & ~u)) >>> 0;
+    }
+  }
+  let lcs = 0;
+  for (let w = 0; w < words; w++) {
+    const bits = w === words - 1 && (m & 31) ? (m & 31) : 32;
+    let z = ~V[w] >>> 0;
+    if (bits < 32) z &= (1 << bits) - 1;
+    while (z) { z &= z - 1; lcs++; }
+  }
+  return lcs;
 }
 
 function normSim(dist: number, lensum: number): number {
