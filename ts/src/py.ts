@@ -76,7 +76,9 @@ export function squash(s: string): string {
 export function truthy(v: unknown): boolean {
   if (v === null || v === undefined || v === false || v === 0 || v === '') return false;
   if (Array.isArray(v)) return v.length > 0;
-  if (typeof v === 'object') return Object.keys(v as object).length > 0;
+  if (v instanceof Set || v instanceof Map) return v.size > 0;
+  // Only plain objects (JSON dicts) are empty-or-not; a Date or other object is always "true", as in Python.
+  if (typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) return Object.keys(v as object).length > 0;
   return true;
 }
 

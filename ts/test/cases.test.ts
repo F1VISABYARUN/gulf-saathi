@@ -959,3 +959,9 @@ test("alert suggestions from this week's calls", () => {
   const hints = alerts.suggestions(reports, NOW);
   assert.deepEqual(hints.map((h) => h.template), ['visit_visa', 'fee']); assert.ok(hints[0].text.startsWith('1 caller'));
 });
+
+test('papers show the time they were prepared (a Date is not empty)', async () => {
+  const w = (await register()).worker;
+  assert.ok((await casePacket(store, w, NOW)).includes('Prepared 21 Oct 2026, 11:30 IST'));
+  assert.ok((await cases.embassyAlert(store, w, NOW)).body.includes('21 Oct 2026, 11:30 IST'));
+});

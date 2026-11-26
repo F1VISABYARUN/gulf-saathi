@@ -33,7 +33,7 @@ MADAD, the Indian Embassy, Pravasi Prajavani or the state ex-gratia scheme.
 | Piece | Where |
 |---|---|
 | Live API, webhooks, site, dashboard | Python FastAPI in `gulf_saathi/`, deployed by Vercel from branch `claude/practical-cray-rj4tyo` (Hobby plan, project `gulf-saathi`) |
-| TypeScript rewrite | `ts/` (Express, Node 22). Not deployed yet. `.vercelignore` keeps it out of the Vercel deploy |
+| TypeScript rewrite | `ts/` (Express 5, Node 22). Complete: same URLs, pages and rules as Python, 194 tests. Not deployed yet; `.vercelignore` keeps it out of the Vercel deploy. See `ts/README.md` |
 | Database | Supabase project `gulf-saathi` (Mumbai), Free plan. Schema in `supabase/schema.sql`; `/health/db` checks columns |
 | Voice | Bolna agents "Gulf Saathi" (help line, inbound) and "Saathi Check-in agent" (outbound). Both default to Hindi with Telugu switching: fix to Telugu |
 | Phone | Plivo number +91 80659 52403, routed to the help-line agent's Bolna application only |
@@ -49,7 +49,12 @@ MADAD, the Indian Embassy, Pravasi Prajavani or the state ex-gratia scheme.
 
 ## How to change code safely
 - Python: `python -m pytest -q` must pass before every push (`pytest -q > /dev/null && git push ...`).
-- TypeScript: `cd ts && npm test && npx tsc --noEmit`. Pure logic is checked against golden outputs generated
-  from the Python code; the API is checked by sending the same requests to both servers.
+- TypeScript: `cd ts && npm test && npx tsc --noEmit`. Pure logic and every dashboard page are checked against
+  golden outputs from the Python code (`ts/scripts/make_golden.py`, `make_page_golden.py`); re-run those after a
+  Python change. While both exist, change Python and TypeScript together.
+- Page text and CSS live in Python; `PYTHONPATH=. python ts/scripts/export_page_text.py` copies them to
+  `ts/src/tables/pages.json`.
+- Known harmless differences: the 422 message for a body that is not JSON; Python's in-memory store prints a
+  salary as "1500.0" where Supabase (and TypeScript) give "1500".
 - Never stop the shell with `pkill -f`; use `fuser -k <port>/tcp`.
 - Commit messages end with the attribution lines given in the session.
