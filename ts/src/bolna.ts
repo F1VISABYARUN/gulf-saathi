@@ -15,11 +15,13 @@ export const configured = () => Boolean(apiKey() && checkinAgentId());
 
 export interface CallResult { ok: boolean; execution_id: string | null; error: string | null }
 
-// Tests swap this out so no real call is ever placed.
-export const hooks: { fetch: typeof fetch } = { fetch: (...a) => fetch(...a) };
+type PlaceCall = (phone: string, userData: Record<string, unknown>, scheduledAt?: Date | null, agentId?: string) => Promise<CallResult> | CallResult;
+// Tests swap these out so no real call is ever placed.
+export const hooks: { fetch: typeof fetch; placeCall: PlaceCall | null } = { fetch: (...a) => fetch(...a), placeCall: null };
 
 export async function placeCall(phone: string, userData: Record<string, unknown>, scheduledAt: Date | null = null,
   agentId = ''): Promise<CallResult> {
+  if (hooks.placeCall) return hooks.placeCall(phone, userData, scheduledAt, agentId);
   agentId = agentId || checkinAgentId();
   if (!(apiKey() && agentId)) {
     return { ok: false, execution_id: null, error: 'Bolna not configured (BOLNA_API_KEY / BOLNA_CHECKIN_AGENT_ID)' };

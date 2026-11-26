@@ -6,10 +6,13 @@
 export const provider = () =>
   process.env.PLIVO_AUTH_ID && process.env.PLIVO_AUTH_TOKEN && process.env.PLIVO_FROM ? 'plivo' : 'demo';
 
-export const hooks: { fetch: typeof fetch } = { fetch: (...a) => fetch(...a) };
+export const hooks: { fetch: typeof fetch; sendSms: ((to: string, text: string) => Promise<string> | string) | null } = {
+  fetch: (...a) => fetch(...a), sendSms: null,
+};
 
 /** Returns a short status for the dashboard: "sent", "demo: not sent" or "failed: ...". */
 export async function sendSms(to: string, text: string): Promise<string> {
+  if (hooks.sendSms) return hooks.sendSms(to, text);
   if (!to) return 'failed: no family number';
   if (provider() === 'demo') return 'demo: not sent (no SMS provider configured)';
   const id = process.env.PLIVO_AUTH_ID!, token = process.env.PLIVO_AUTH_TOKEN!;
