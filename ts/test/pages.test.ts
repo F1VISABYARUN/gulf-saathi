@@ -1,7 +1,7 @@
-// Every dashboard page rendered by the Python code (scripts/make_page_golden.py) must come out the same
-// from the TypeScript port, byte for byte.
+// Snapshot test: every page must come out exactly as saved in golden/pages.json (first made from the old
+// Python version). After a deliberate page change, run `npm run snapshot` and check the diff.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { test } from 'node:test';
 import * as d from '../src/pages/dashboard.js';
 import * as site from '../src/pages/site.js';
@@ -25,9 +25,12 @@ function firstDiff(a: string, b: string): string {
   return `at ${i}\n  python: ${JSON.stringify(a.slice(Math.max(0, i - 80), i + 80))}\n  ts:     ${JSON.stringify(b.slice(Math.max(0, i - 80), i + 80))}`;
 }
 
+const UPDATE = process.env.UPDATE_SNAPSHOT === '1';
 for (const [i, p] of pages.entries()) {
   test(`page ${i} ${p.name}`, () => {
     const mine = render[p.name](...p.args);
-    if (mine !== p.html) assert.fail(firstDiff(p.html, mine));
+    if (UPDATE) p.html = mine;
+    else if (mine !== p.html) assert.fail(firstDiff(p.html, mine));
   });
 }
+if (UPDATE) test('save snapshot', () => writeFileSync(new URL('./golden/pages.json', import.meta.url), JSON.stringify(pages)));

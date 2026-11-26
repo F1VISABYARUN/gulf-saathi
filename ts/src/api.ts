@@ -550,6 +550,40 @@ export function createApp() {
     return { ok: true };
   }, team));
 
+  // --- for search engines and AI tools: what is public, and a plain summary -----------------
+
+  const origin = (req: Request) => `${req.protocol}://${req.get('host')}`;
+  const text = (res: Response, body: string, type = 'text/plain') => res.type(`${type}; charset=utf-8`).send(body);
+  app.get('/robots.txt', (req, res) => text(res, [
+    'User-agent: *', 'Allow: /', 'Allow: /demo',
+    // Private pages: case data, login, and the endpoints the voice agents call.
+    'Disallow: /dashboard', 'Disallow: /api/', 'Disallow: /tools/', 'Disallow: /webhooks/', 'Disallow: /login',
+    'Disallow: /check-agent', 'Disallow: /check-fee', 'Disallow: /check-contact', 'Disallow: /health',
+    '', `Sitemap: ${origin(req)}/sitemap.xml`, ''].join('\n')));
+  app.get('/sitemap.xml', (req, res) => text(res, '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    ['/', '/demo'].map((p) => `  <url><loc>${origin(req)}${p}</loc></url>`).join('\n') + '\n</urlset>\n', 'application/xml'));
+  app.get('/llms.txt', (req, res) => text(res, `# Gulf Saathi (గల్ఫ్ సాథి)
+
+> A Telugu phone line and case system for people from Telangana who go to work in Gulf countries, and
+> for their families.
+
+- Before paying an agent: checks the agent's name against the MEA eMigrate list of licensed recruiting
+  agents, adds up payments against the legal limit of Rs 35,400, and flags a visit visa offered for a job.
+- After the worker flies: a call on arrival day and every week (salary, passport, food, threats, the
+  promised job and city). Fixed rules, not the AI, set the risk level.
+- When something is wrong: a caseworker gets a ready English case file for MADAD, the Indian Embassy or
+  Pravasi Prajavani, and a Telugu message for the family is prepared.
+- Status (Nov 2026): built and tested with test calls; a pilot with Gulf worker families in Jagtial
+  district, Telangana, is starting. Voice by Bolna, Telugu speech by Sarvam.
+- Gulf Saathi is a help line, not a government body. It never says an agent is safe and never promises
+  rescue or money back.
+
+## Pages
+- [Home](${origin(req)}/): how it works, the problem in numbers with sources, a real test call
+- [Demo story](${origin(req)}/demo): three made-up workers, from the first call to the case file
+`));
+
   // Images, audio and video: served by Vercel from public/ on the old deployment; here by the server.
   app.use(express.static(findDir('public'), { index: false, maxAge: '1d' }));
 

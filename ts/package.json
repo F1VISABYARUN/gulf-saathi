@@ -11,7 +11,8 @@
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "test": "NODE_ENV=test tsx --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "snapshot": "UPDATE_SNAPSHOT=1 NODE_ENV=test tsx --test test/pages.test.ts"
   },
   "dependencies": {
     "express": "^5.1.0"

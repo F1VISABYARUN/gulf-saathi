@@ -636,3 +636,14 @@ test('go live card lists the helpline number', async () => {
   const page = (await client.get('/dashboard', { auth: AUTH })).text;
   assert.ok(page.includes('Help-line number shown on the site') && page.includes('Set GS_HELPLINE_NUMBER'));
 });
+
+test('robots, sitemap and llms.txt keep private pages out', async () => {
+  const robots = (await client.get('/robots.txt')).text;
+  for (const p of ['/dashboard', '/api/', '/tools/', '/webhooks/']) assert.ok(robots.includes(`Disallow: ${p}`), p);
+  assert.ok(robots.includes('/sitemap.xml'));
+  const map = (await client.get('/sitemap.xml')).text;
+  assert.ok(map.includes('/demo</loc>') && !map.includes('dashboard'));
+  const llms = (await client.get('/llms.txt')).text.toLowerCase();
+  assert.ok(llms.includes('gulf saathi') && llms.includes('not a government body'));
+  for (const banned of ['approved', 'government pilot', 'trusted', 'genuine']) assert.ok(!llms.includes(banned), banned);
+});

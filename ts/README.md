@@ -1,29 +1,28 @@
-# Gulf Saathi, TypeScript server
+# Gulf Saathi server (TypeScript)
 
-The same server as the Python one in `gulf_saathi/`, rewritten in TypeScript (Node 22, Express 5): the same
-URLs, the same answers to the Bolna tools and webhook, and the same HTML pages. It is not deployed yet; the
-live site still runs the Python code on Vercel.
+**This is the live server.** It runs on Hostinger (Node 22, Express 5) and rebuilds itself on every push to
+the `claude/practical-cray-rj4tyo` branch. The Python code in `gulf_saathi/` is the old version: frozen,
+not deployed, kept only for reference. Make every change here.
 
 ## Run it
 ```
 cd ts
 npm install
-npm test            # 194 tests: ported Python tests plus golden checks against the Python output
+npm test            # all tests
 npm run dev         # http://localhost:8000, data in memory
-npm run build && npm start   # what a host runs (dist/server.js, PORT from the environment)
+npm run build && npm start   # what Hostinger runs (dist/server.js, PORT from the environment)
 ```
-Without `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` it keeps data in memory only. Every other setting is the same
-environment variable as on Vercel (`GS_DASHBOARD_PASSWORD`, `BOLNA_API_KEY`, `BOLNA_CHECKIN_AGENT_ID`,
-`BOLNA_AGENT_ID`, `GS_WEBHOOK_TOKEN`, `GS_TEAM_PHONES`, ...). Images and the demo video are served from `public/`.
+Settings are environment variables, set in hPanel → Websites → the site → Node.js → Environment variables:
+`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `BOLNA_API_KEY`, `BOLNA_AGENT_ID`, `BOLNA_CHECKIN_AGENT_ID`,
+`GS_WEBHOOK_TOKEN`, `GS_DASHBOARD_PASSWORD`, `GS_TEAM_PHONES` (and later `GS_HELPLINE_NUMBER`,
+`GS_PILOT_WHATSAPP`, `GS_DEMO_CODE`). Never put a value in the repo: it is public.
 
-## How it is kept equal to the Python version
+## Tests
 | Check | File |
 |---|---|
-| Agent matcher, fuzzy scores, Telugu transliteration, money parsing, call records | `test/golden.test.ts` (outputs from `scripts/make_golden.py` and a recorded pytest run) |
-| Case rules, alerts, death papers, signals | `test/cases.test.ts`, `test/promise.test.ts` (ported from `tests/`) |
-| Every dashboard page, byte for byte | `test/pages.test.ts` (outputs from `scripts/make_page_golden.py`) |
-| HTTP API | `test/api.test.ts` (ported from `tests/test_api.py`) |
+| Agent matcher, fuzzy scores, Telugu transliteration, money parsing, call records | `test/golden.test.ts` |
+| Case rules, alerts, death papers, signals | `test/cases.test.ts`, `test/promise.test.ts` |
+| Every page, byte for byte against a saved snapshot | `test/pages.test.ts` (after a deliberate page change: `npm run snapshot`) |
+| HTTP API, login, robots/sitemap/llms.txt | `test/api.test.ts` |
 
-Page text and CSS are exported from the Python modules into `src/tables/pages.json`
-(`PYTHONPATH=. python ts/scripts/export_page_text.py`). While both versions exist, change both together and
-re-run the golden scripts.
+Page text and CSS live in `src/tables/pages.json` and the templates in `src/pages/`.
