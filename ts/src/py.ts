@@ -91,3 +91,72 @@ export function pyTitle(s: string): string {
 export function pyCapitalize(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
 }
+
+/** Python int(v) for a number or a string: numbers truncate, strings must be whole numbers. */
+export function pyInt(v: unknown): number {
+  if (typeof v === 'boolean') return v ? 1 : 0;
+  if (typeof v === 'number') {
+    if (!Number.isFinite(v)) throw new Error(`cannot convert float ${v} to integer`);
+    return Math.trunc(v);
+  }
+  const t = asciiDigits(String(v).trim()).replace(/(\d)_(?=\d)/g, '$1');
+  if (!/^[+-]?\d+$/.test(t)) throw new Error(`invalid literal for int() with base 10: '${String(v)}'`);
+  return Number(t);
+}
+
+/** Python float(v) for a number or a string. */
+export function pyNum(v: unknown): number {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'boolean') return v ? 1 : 0;
+  return pyFloat(String(v));
+}
+
+/** Python's < for the values a sort key can hold (numbers, strings, booleans, None as ""). */
+export function pyCompare(a: unknown, b: unknown): number {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    for (let i = 0; i < Math.min(a.length, b.length); i++) {
+      const c = pyCompare(a[i], b[i]);
+      if (c) return c;
+    }
+    return a.length - b.length;
+  }
+  if (typeof a === 'boolean') a = a ? 1 : 0;
+  if (typeof b === 'boolean') b = b ? 1 : 0;
+  if (typeof a === 'number' && typeof b === 'number') return a < b ? -1 : a > b ? 1 : 0;
+  if (typeof a === 'string' && typeof b === 'string') {
+    // Python compares strings by code point, not by UTF-16 unit.
+    const x = Array.from(a), y = Array.from(b);
+    for (let i = 0; i < Math.min(x.length, y.length); i++) {
+      if (x[i] !== y[i]) return x[i].codePointAt(0)! - y[i].codePointAt(0)!;
+    }
+    return x.length - y.length;
+  }
+  throw new TypeError(`'<' not supported between ${typeof a} and ${typeof b}`);
+}
+
+/** Python sorted(items, key=..., reverse=...): stable, and reverse keeps equal items in order. */
+export function pySorted<T>(items: Iterable<T>, key: (x: T) => unknown = (x) => x, reverse = false): T[] {
+  const arr = [...items].map((x, i) => ({ x, k: key(x), i }));
+  arr.sort((p, q) => (reverse ? pyCompare(q.k, p.k) : pyCompare(p.k, q.k)) || p.i - q.i);
+  return arr.map((e) => e.x);
+}
+
+/** s[:n] by code point, as Python slices strings. */
+export function cut(s: string, n: number): string {
+  if (s.length <= n) return s;
+  return Array.from(s).slice(0, n).join('');
+}
+
+/** Python max(items, key=...): the first item with the largest key. */
+export function maxBy<T>(items: T[], key: (x: T) => number, dflt?: T): T {
+  if (!items.length) {
+    if (dflt === undefined) throw new Error('max() arg is an empty sequence');
+    return dflt;
+  }
+  let best = items[0];
+  for (const x of items.slice(1)) if (key(x) > key(best)) best = x;
+  return best;
+}
+
+/** Python `str(v or "")`. */
+export const orStr = (v: unknown): string => (truthy(v) ? pyStr(v) : '');
