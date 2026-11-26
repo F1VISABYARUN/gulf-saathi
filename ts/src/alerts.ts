@@ -13,6 +13,7 @@ import * as sms from './sms.js';
 
 export const CHANNELS = ['voice', 'sms'];
 export const MAX_LEN = 300;
+const ALERT_BATCH = 8;
 
 // Ready warnings a caseworker can pick, each about a pattern Saathi sees.
 export const TEMPLATES: Array<[string, string, string]> = [
@@ -79,16 +80,19 @@ export async function sendAlert(store: Store, workers: Row[], message: unknown, 
   const people = recipients(workers);
   if (!people.length) throw new CaseError('nobody has agreed to receive alerts yet');
   let sent = 0, failed = 0, prepared = 0;
-  for (const p of people) {
-    let status: string;
-    if (channel === 'sms') status = await sms.sendSms(p.phone, msg);
-    else {
-      const res = await bolna.placeCall(p.phone, { call_kind: 'alert', alert_text: msg, case_id: p.case_id });
-      status = res.ok ? 'sent' : `failed: ${res.error}`;
+  const sendOne = async (p: Row): Promise<string> => {
+    if (channel === 'sms') return sms.sendSms(p.phone, msg);
+    const res = await bolna.placeCall(p.phone, { call_kind: 'alert', alert_text: msg, case_id: p.case_id });
+    return res.ok ? 'sent' : `failed: ${res.error}`;
+  };
+  // A few at a time: one by one, a few hundred numbers would outlast the request; all at once would
+  // flood Bolna.
+  for (let i = 0; i < people.length; i += ALERT_BATCH) {
+    for (const status of await Promise.all(people.slice(i, i + ALERT_BATCH).map(sendOne))) {
+      if (status === 'sent') sent++;
+      else if (status.startsWith('demo')) prepared++;
+      else failed++;
     }
-    if (status === 'sent') sent++;
-    else if (status.startsWith('demo')) prepared++;
-    else failed++;
   }
   return store.insert('scam_alerts', { created_at: iso(now), message: msg, channel, recipients: people.length,
     sent, prepared, failed });
