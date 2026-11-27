@@ -5,6 +5,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import express, { type NextFunction, type Request, type Response } from 'express';
+import * as agent from './agent.js';
 import * as alerts from './alerts.js';
 import * as bolna from './bolna.js';
 import * as cases from './cases.js';
@@ -20,6 +21,8 @@ import * as signals from './signals.js';
 import * as sms from './sms.js';
 
 export const licensed = LicensedList.load();
+/** Date of this deploy, used as the sitemap's lastmod. */
+const SITE_UPDATED = new Date().toISOString().slice(0, 10);
 /** The store and clock the server uses; tests swap them. */
 export const state: { store: Store; now: () => Date } = {
   store: SupabaseStore.fromEnv() ?? new MemoryStore(),
@@ -219,6 +222,24 @@ export function createApp() {
     next();
   });
 
+  // --- for AI agents: Markdown on request, and a Link header to the machine-readable resources ---
+  const MD_PATHS: Record<string, string> = { '/': '/', '/index.md': '/', '/demo': '/demo', '/demo.md': '/demo',
+    '/about': '/about', '/about.md': '/about', '/contact': '/contact', '/contact.md': '/contact', '/terms': '/terms', '/terms.md': '/terms' };
+  app.use((req, res, next) => {
+    if ((req.method !== 'GET' && req.method !== 'HEAD') || !Object.hasOwn(MD_PATHS, req.path)) return next();
+    const page = MD_PATHS[req.path];
+    res.vary('Accept');
+    if (page === '/') {
+      res.set('Link', '</llms.txt>; rel="describedby"; type="text/plain", </index.md>; rel="alternate"; type="text/markdown", ' +
+        '</sitemap.xml>; rel="sitemap"; type="application/xml", </.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"');
+    }
+    const wantsMd = req.path.endsWith('.md') || req.accepts(['text/html', 'text/markdown']) === 'text/markdown';
+    if (!wantsMd) return next();
+    const md = agent.markdown(page);
+    if (md === null) return next();
+    res.type('text/markdown; charset=utf-8').send(md);
+  });
+
   // --- public website ---------------------------------------------------------------
 
   // The home page is public and counts every case and call: build the counts at most once a minute.
@@ -262,6 +283,7 @@ export function createApp() {
 
   /** Open to everyone: judges and visitors run the made-up story without a password. */
   app.get('/demo', wrap(() => site.renderDemo()));
+  for (const path of Object.keys(agent.PUBLIC_PAGES)) app.get(path, wrap(() => site.renderInfo(path)!));
 
   /** Creates made-up demo cases (is_demo). No real call or SMS. A story made in the last hour is shown
    * again instead of making new cases each click. */
@@ -566,14 +588,33 @@ export function createApp() {
   const origin = (req: Request) => `${req.protocol}://${req.get('host')}`;
   const text = (res: Response, body: string, type = 'text/plain') => res.type(`${type}; charset=utf-8`).send(body);
   app.get('/robots.txt', (req, res) => text(res, [
-    'User-agent: *', 'Allow: /', 'Allow: /demo',
+    // Content Signals (contentsignals.org): search and answering yes, training AI models no.
+    'User-agent: *', 'Content-Signal: search=yes, ai-input=yes, ai-train=no', 'Allow: /', 'Allow: /demo',
     // Private pages: case data, login, and the endpoints the voice agents call.
     'Disallow: /dashboard', 'Disallow: /api/', 'Disallow: /tools/', 'Disallow: /webhooks/', 'Disallow: /login',
     'Disallow: /check-agent', 'Disallow: /check-fee', 'Disallow: /check-contact', 'Disallow: /health',
     '', `Sitemap: ${origin(req)}/sitemap.xml`, ''].join('\n')));
   app.get('/sitemap.xml', (req, res) => text(res, '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-    ['/', '/demo'].map((p) => `  <url><loc>${origin(req)}${p}</loc></url>`).join('\n') + '\n</urlset>\n', 'application/xml'));
+    ['/', '/demo', '/about', '/contact', '/terms'].map((p) => `  <url><loc>${origin(req)}${p}</loc><lastmod>${SITE_UPDATED}</lastmod></url>`).join('\n') +
+    '\n</urlset>\n', 'application/xml'));
+  app.get('/.well-known/mcp/server-card.json', (_req, res) => { res.set('Access-Control-Allow-Origin', '*').json(agent.serverCard()); });
+  app.get('/.well-known/mcp.json', (_req, res) => { res.set('Access-Control-Allow-Origin', '*').json(agent.serverCard()); });
+  // A small read-only MCP server (JSON-RPC over HTTP): the public agent and fee checks.
+  app.options('/mcp', (_req, res) => { res.set({ 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version' }).status(204).end(); });
+  app.get('/mcp', (_req, res) => { res.set('Allow', 'POST').status(405).json({ detail: 'Use POST with JSON-RPC 2.0 (MCP streamable HTTP).' }); });
+  app.post('/mcp', (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    let body: unknown;
+    try { body = JSON.parse((req.body instanceof Buffer ? req.body : Buffer.alloc(0)).toString('utf8')); } catch {
+      return res.status(400).json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } });
+    }
+    const checks = { agent: (f: Record<string, string>) => checkAgent(f), fee: (p: string) => computeFee(p) };
+    const replies = (Array.isArray(body) ? body : [body]).map((m) => agent.mcpReply(m, checks)).filter((r) => r !== null);
+    if (!replies.length) return res.status(202).end();
+    return res.json(Array.isArray(body) ? replies : replies[0]);
+  });
   app.get('/llms.txt', (req, res) => text(res, `# Gulf Saathi (గల్ఫ్ సాథి)
 
 > A Telugu phone line and case system for people from Telangana who go to work in Gulf countries, and
@@ -593,6 +634,11 @@ export function createApp() {
 ## Pages
 - [Home](${origin(req)}/): how it works, the problem in numbers with sources, a real test call
 - [Demo story](${origin(req)}/demo): three made-up workers, from the first call to the case file
+- [About](${origin(req)}/about) · [Contact](${origin(req)}/contact) · [Terms and privacy](${origin(req)}/terms)
+- Markdown of any page: ask with \`Accept: text/markdown\`, or add .md (e.g. ${origin(req)}/index.md)
+
+## Tools for agents
+- MCP server (read-only agent and fee checks): ${origin(req)}/mcp · card: ${origin(req)}/.well-known/mcp/server-card.json
 `));
 
   // Images, audio and video: served by Vercel from public/ on the old deployment; here by the server.

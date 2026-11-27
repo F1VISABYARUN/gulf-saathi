@@ -647,3 +647,49 @@ test('robots, sitemap and llms.txt keep private pages out', async () => {
   assert.ok(llms.includes('gulf saathi') && llms.includes('not a government body'));
   for (const banned of ['approved', 'government pilot', 'trusted', 'genuine']) assert.ok(!llms.includes(banned), banned);
 });
+
+test('agent-ready: robots signals, sitemap dates, head tags, JSON-LD, markdown, link header', async () => {
+  const robots = (await client.get('/robots.txt')).text;
+  assert.ok(robots.includes('Content-Signal: search=yes, ai-input=yes, ai-train=no') && robots.includes('Sitemap: '));
+  const map = (await client.get('/sitemap.xml')).text;
+  for (const p of ['/about', '/contact', '/terms']) assert.ok(map.includes(`${p}</loc>`), p);
+  assert.ok(/<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/.test(map));
+  const home = await client.get('/', { headers: { Accept: 'text/html' } });
+  assert.ok(home.text.includes('<link rel="canonical" href="') && home.text.includes('application/ld+json'));
+  const ld = JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/s.exec(home.text)![1]);
+  const types = ld['@graph'].map((n: any) => n['@type']);
+  for (const t of ['Organization', 'WebSite', 'WebPage', 'Service']) assert.ok(types.includes(t), t);
+  assert.ok(ld['@graph'][0].sameAs.length >= 1);
+  assert.ok(home.text.includes('href="/about"') && home.text.includes('href="/contact"') && home.text.includes('href="/terms"'));
+  assert.ok(home.text.includes('navigator.modelContext'));
+  assert.ok(home.headers.get('link')!.includes('/llms.txt') && home.headers.get('link')!.includes('text/markdown'));
+  const md = await client.get('/', { headers: { Accept: 'text/markdown' } });
+  assert.ok(md.headers.get('content-type')!.startsWith('text/markdown') && md.text.startsWith('# Gulf Saathi'));
+  for (const p of ['/about', '/contact', '/terms', '/terms.md', '/index.md']) assert.equal((await client.get(p)).status, 200, p);
+  const words = (await client.get('/about')).text.toLowerCase();
+  for (const banned of ['approved', 'government pilot', 'trusted', 'genuine']) assert.ok(!words.includes(banned), banned);
+});
+
+test('contact details appear only once set', async () => {
+  delete process.env.GS_CONTACT_EMAIL; delete process.env.GS_HELPLINE_NUMBER;
+  assert.ok(!(await client.get('/contact')).text.includes('mailto:'));
+  process.env.GS_CONTACT_EMAIL = 'team@example.org';
+  const c = (await client.get('/contact')).text;
+  assert.ok(c.includes('href="mailto:team@example.org"'));
+  assert.ok((await client.get('/')).text.includes('"email":"team@example.org"'));
+});
+
+test('MCP server card and read-only MCP endpoint', async () => {
+  const card = (await client.get('/.well-known/mcp/server-card.json')).json();
+  assert.equal(card.name, 'gulf-saathi'); assert.ok(card.endpoint.endsWith('/mcp') && card.version);
+  const rpc = (body: unknown) => client.post('/mcp', { json: body });
+  assert.equal((await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} })).json().result.serverInfo.name, 'gulf-saathi');
+  assert.equal((await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' })).status, 202);
+  const tools = (await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/list' })).json().result.tools.map((t: any) => t.name);
+  assert.deepEqual(tools, ['check_recruiting_agent', 'check_recruitment_fee']);
+  const fee = (await rpc({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'check_recruitment_fee', arguments: { payments: '50000; 30000' } } })).json();
+  assert.equal(fee.result.structuredContent.status, 'over_cap');
+  const ag = (await rpc({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'check_recruiting_agent', arguments: { owner: 'Seedi Kavitha' } } })).json();
+  assert.equal(ag.result.structuredContent.match, 'needs_confirmation');
+  assert.equal((await rpc({ jsonrpc: '2.0', id: 5, method: 'nope' })).json().error.code, -32601);
+});

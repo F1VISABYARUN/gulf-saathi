@@ -4,6 +4,7 @@
 // through esc(). Images are served from public/. The fixed text and CSS come from tables/pages.json,
 // exported from the Python module, so both versions say exactly the same.
 import { esc } from '../py.js';
+import { headTags, markdownToHtml, PUBLIC_PAGES, WEBMCP_SCRIPT } from '../agent.js';
 import { PAGES } from './text.js';
 
 const S = PAGES.site;
@@ -72,10 +73,10 @@ export function architecture(): string {
 </div>`;
 }
 
-function page(title: string, body: string, description = ''): string {
+export function page(title: string, body: string, description = '', path = '/'): string {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)}</title><meta name="description" content="${esc(description)}">
+<title>${esc(title)}</title><meta name="description" content="${esc(description)}">${headTags(path, title, description)}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Anek+Telugu:wght@600;700&family=Noto+Sans+Telugu:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link href="https://fonts.googleapis.com/css2?family=Anek+Telugu:wght@600;700&family=Noto+Sans+Telugu:wght@400;700&display=swap" rel="stylesheet"></noscript><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23a8501c'/%3E%3C/svg%3E">
 <style>${S.STYLE}</style></head><body>
@@ -83,7 +84,8 @@ function page(title: string, body: string, description = ''): string {
 <span class="links"><a href="/#how">How it works</a><a href="/#call">Get a call</a><a href="/demo">Demo story</a><a href="/login">Team login</a></span></nav></div>
 ${body}
 <footer><div class="wrap">Built for the Bolna Buildathon 2026. Saathi records every Gulf job promise before the worker
-pays, checks on them after they land, and turns trouble into a ready case file for the people who can act.</div></footer>
+pays, checks on them after they land, and turns trouble into a ready case file for the people who can act.
+<p style="margin:10px 0 0"><a href="/about">About</a> · <a href="/contact">Contact</a> · <a href="/terms">Terms and privacy</a></p></div></footer>
 </body></html>`;
 }
 
@@ -314,7 +316,7 @@ document.getElementById('cf').addEventListener('submit', async (e) => {
   <p>Saathi will call your phone in Telugu. Ask it to check an agent's name or a fee. Indian numbers only for now.</p>
   ${callForm}
 </div></div></section>
-`, `Gulf Saathi: a Telugu voice line that checks agents, fees, visas, and calls workers on arrival day and every week.`);
+${WEBMCP_SCRIPT}`, `Gulf Saathi: a Telugu voice line that checks agents, fees, visas, and calls workers on arrival day and every week.`, '/');
 }
 
 export function renderDemo(): string {
@@ -367,7 +369,7 @@ document.getElementById('run').addEventListener('click', async (e) => {
   } catch (err) { msg.textContent = 'Failed: ' + err.message; e.target.disabled = false; }
 });
 </script>
-`, `Run the Yadaiah demo story on Gulf Saathi. No password needed.`);
+`, `Run the Yadaiah demo story on Gulf Saathi. No password needed.`, '/demo');
 }
 
 /** Team login. Real cases hold phone numbers, so they stay behind a password; the demo story is open to
@@ -390,5 +392,15 @@ export function renderLogin(nextPath = '/dashboard', error = ''): string {
     <p style="margin-top:14px"><button class="btn" type="submit">Log in</button></p>
   </form>
 </div></div></section>
-`, `Gulf Saathi: open the demo without a password, or log in as the team.`);
+`, `Gulf Saathi: open the demo without a password, or log in as the team.`, '/login');
+}
+
+/** About, Contact and Terms, in the site's own look. */
+export function renderInfo(path: string): string | null {
+  const info = Object.hasOwn(PUBLIC_PAGES, path) ? PUBLIC_PAGES[path] : null;
+  if (!info) return null;
+  return page(`${info.title} · Gulf Saathi`, `<section><div class="wrap" style="max-width:760px">
+<h1 style="font-size:clamp(28px,4vw,40px);line-height:1.15;margin:0 0 16px">${esc(info.title)}</h1>
+${markdownToHtml(info.md())}
+</div></section>`, info.description, path);
 }
