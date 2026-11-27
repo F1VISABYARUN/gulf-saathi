@@ -550,6 +550,11 @@ export function createApp() {
     return { ok: true };
   }, team));
 
+  // The team dashboard stylesheet (shadcn/ui classes, built by Tailwind). Long cache: its link carries a hash.
+  app.get('/dashboard.css', (_req, res) => {
+    res.set('Cache-Control', 'public, max-age=31536000, immutable').type('text/css; charset=utf-8').sendFile(dashboard.CSS_PATH);
+  });
+
   // --- for search engines and AI tools: what is public, and a plain summary -----------------
 
   const origin = (req: Request) => `${req.protocol}://${req.get('host')}`;

@@ -6,9 +6,19 @@ import { codePhraseOk, fmtIst, parseTs, promiseSaid, reasonText, strftimeIst } f
 import { fmtRupees } from '../fees.js';
 import { predepartureChecks, promiseRows, STOP_FLAGS } from '../promise.js';
 import { esc, orStr, pyInt, pySorted, pyStr, pyTitle, squash, truthy } from '../py.js';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { PAGES } from './text.js';
 
 const D = PAGES.dashboard;
+
+// The dashboard stylesheet (built from src/styles/dashboard.css with shadcn/ui classes). Its hash in the
+// link makes browsers and the CDN fetch the new file after a change.
+const HERE = dirname(fileURLToPath(import.meta.url));
+export const CSS_PATH = join(HERE, '..', 'styles', 'dashboard.built.css');
+const CSS_VERSION = existsSync(CSS_PATH) ? createHash('sha1').update(readFileSync(CSS_PATH)).digest('hex').slice(0, 10) : 'dev';
 type Row = Record<string, any>;
 const BADGE: Record<string, string> = D.BADGE;
 const OUTCOME_LABELS: Record<string, string> = D.OUTCOME_LABELS;
@@ -38,77 +48,12 @@ export function page(title: string, body: string, refresh: number | null = null,
 ${meta}<title>${esc(title)} · Gulf Saathi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;600;700&display=swap" rel="stylesheet">
-<style>
-/* Look and feel copied from shadcn/ui (MIT licence): zinc colours, 0.5rem radius, Inter. */
-:root { --bg:#fafafa; --card:#fff; --ink:#09090b; --muted:#71717a; --line:#e4e4e7; --soft:#f4f4f5; --primary:#18181b;
-  --primary-ink:#fafafa; --ring:#a1a1aa; --danger:#dc2626; --radius:10px; --accent:#2563eb; }
-* { box-sizing:border-box; }
-body { margin:0; font:14px/1.55 Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Telugu","Nirmala UI",sans-serif;
-  color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; }
-[lang="te"], .sms, pre { font-family:Inter,"Noto Sans Telugu","Nirmala UI",system-ui,sans-serif; }
-header { position:sticky; top:0; z-index:10; background:rgba(255,255,255,.92); backdrop-filter:blur(8px);
-  border-bottom:1px solid var(--line); padding:10px 24px; display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
-header a { color:var(--muted); text-decoration:none; font-weight:500; padding:6px 10px; border-radius:8px; font-size:14px; }
-header a:hover { color:var(--ink); background:var(--soft); }
-header a:first-child { color:var(--ink); font-weight:700; }
-header a.primary { background:var(--primary); color:var(--primary-ink); margin-left:6px; }
-header a.outline { border:1px solid var(--line); color:var(--ink); }
-header .sp { flex:1; }
-main { max-width:1180px; margin:0 auto; padding:24px; }
-h1 { font-size:24px; font-weight:700; letter-spacing:-.02em; margin:4px 0 20px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-h2 { font-size:16px; font-weight:600; letter-spacing:-.01em; margin:0 0 12px; }
-.card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px;
-  margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
-details.card > summary { cursor:pointer; list-style:none; } details.card > summary::-webkit-details-marker { display:none; }
-details.card > summary:before { content:"\\25B8"; color:var(--muted); margin-right:8px; display:inline-block; transition:transform .15s; }
-details.card[open] > summary:before { transform:rotate(90deg); }
-.badge { color:#fff; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:600; letter-spacing:.02em; white-space:nowrap; display:inline-block; line-height:18px; }
-table { width:100%; border-collapse:collapse; font-size:14px; }
-th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
-th { font-size:12px; color:var(--muted); font-weight:500; height:40px; vertical-align:middle; }
-tbody tr:hover { background:#fafafa; } tbody tr:last-child td { border-bottom:0; }
-.wrap { overflow-x:auto; }
-.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:6px 24px; }
-.kv { padding:6px 0; } .kv b { display:block; font-size:12px; color:var(--muted); font-weight:500; margin-bottom:2px; }
-.muted { color:var(--muted); } a { color:var(--accent); text-underline-offset:3px; }
-td a { color:var(--ink); font-weight:600; }
-.btn { display:inline-flex; align-items:center; gap:6px; height:36px; border:1px solid var(--primary); background:var(--primary);
-  color:var(--primary-ink); border-radius:8px; padding:0 14px; font:500 14px/1 inherit; cursor:pointer; text-decoration:none;
-  margin:0 6px 6px 0; box-shadow:0 1px 2px rgba(0,0,0,.05); }
-.btn:hover { opacity:.9; }
-.btn.secondary { background:#fff; color:var(--ink); border-color:var(--line); }
-.btn.secondary:hover { background:var(--soft); opacity:1; }
-.btn:disabled { opacity:.45; cursor:not-allowed; }
-.ev { position:relative; border-left:2px solid var(--line); padding:2px 0 16px 16px; margin-left:6px; }
-.ev:before { content:""; position:absolute; left:-6px; top:6px; width:10px; height:10px; border-radius:50%; background:#fff; border:2px solid var(--ring); }
-.ev.alert { border-color:#fecaca; } .ev.alert:before { border-color:var(--danger); background:#fef2f2; }
-.ev table { margin:8px 0 0; } .ev td { padding:6px 10px; font-size:13px; }
-pre { white-space:pre-wrap; background:var(--soft); padding:12px 14px; border-radius:8px; font-size:13px; line-height:1.55; border:1px solid var(--line); }
-form label { display:block; font-size:13px; font-weight:500; margin:12px 0 6px; }
-form input, form textarea, select { width:100%; height:36px; padding:0 12px; border:1px solid var(--line); border-radius:8px;
-  font:inherit; background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.04); }
-form textarea { height:auto; padding:8px 12px; }
-input:focus, textarea:focus, select:focus { outline:2px solid var(--ring); outline-offset:1px; border-color:var(--ring); }
-fieldset { border:1px solid var(--line); border-radius:var(--radius); margin:0 0 16px; padding:12px 20px 20px; background:#fff; }
-legend { font-weight:600; padding:0 6px; font-size:14px; }
-#msg { margin-top:12px; font-weight:500; }
-.nowrap { white-space:nowrap; }
-.tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:16px; }
-.tile { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
-.tile b { display:block; font-size:28px; font-weight:700; letter-spacing:-.02em; line-height:1.15; }
-.tile span { font-size:13px; color:var(--muted); } .tile.warn b { color:var(--danger); }
-.flag { color:#b91c1c; font-size:13px; font-weight:500; }
-td .flag { font-size:12px; line-height:1.45; margin-top:2px; }
-.more { color:var(--muted); font-size:12px; }
-.sms { background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px 14px; font-size:13px; }
-.sms.info { background:#eff6ff; border-color:#bfdbfe; }
-.stop { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; border-left:4px solid var(--danger); border-radius:8px; padding:12px 14px; font-weight:600; margin:8px 0; }
-.demo { background:#fef9c3; color:#854d0e; border-radius:6px; padding:1px 7px; font-size:11px; font-weight:600; letter-spacing:.02em; }
-.v-conflict { color:#b91c1c; font-weight:600; } .v-match { color:#15803d; font-weight:500; } .v-unknown { color:var(--muted); }
-@media (max-width:640px) { main { padding:16px; } header { padding:8px 12px; } .card { padding:16px; } }
-</style></head><body>
-<header><a href="/">Gulf Saathi</a>${nav}</header>
-<main>${body}</main>
+<link rel="stylesheet" href="/dashboard.css?v=${CSS_VERSION}"></head><body>
+<div class="shell">
+<aside class="sidebar"><a class="brand" href="/"><span class="brand-mark">GS</span>Gulf Saathi</a>
+<div class="group-label">${isPublic ? 'Demo' : 'Caseworker'}</div><nav>${nav}</nav></aside>
+<div class="inset"><header class="site-header"><span class="mobile-nav">${nav}</span><span class="muted hidden md:inline">Gulf Saathi</span><span class="hidden md:inline text-muted-foreground">/</span><span class="hidden md:inline font-medium">${esc(title)}</span></header>
+<main>${body}</main></div></div>
 <script>
 async function post(url, body, btn, okText) {
   if (btn) btn.disabled = true;

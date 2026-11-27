@@ -1,0 +1,172 @@
+/* Team dashboard styles, built with Tailwind (`npm run css`).
+ *
+ * The theme variables and every component class list below are copied from shadcn/ui
+ * (https://github.com/shadcn-ui/ui, MIT licence, Copyright (c) 2023 shadcn):
+ *   apps/v4/app/globals.css            theme (:root, @theme inline)
+ *   registry/new-york-v4/ui/card.tsx   .card, card header / title / description
+ *   registry/new-york-v4/ui/badge.tsx  .badge, .demo
+ *   registry/new-york-v4/ui/button.tsx .btn (default), .btn.secondary (outline)
+ *   registry/new-york-v4/ui/table.tsx  table, th, td, tr
+ *   registry/new-york-v4/ui/input.tsx, native-select.tsx, textarea.tsx, label.tsx
+ *   registry/new-york-v4/ui/sidebar.tsx and blocks/dashboard-01: the sidebar, inset panel,
+ *   site header and section cards
+ * Our pages are server-rendered HTML, so the class lists are applied with @apply to the class
+ * names the pages already use, instead of React components.
+ */
+@import "tailwindcss";
+@source "../pages";
+
+@theme inline {
+  --font-sans: Inter, ui-sans-serif, system-ui, "Noto Sans Telugu", "Nirmala UI", sans-serif;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* shadcn new-york "neutral" theme */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body { @apply bg-sidebar text-foreground font-sans text-sm antialiased; }
+  a { @apply text-foreground underline-offset-4 hover:underline; }
+  h1 { @apply text-base font-medium; }
+  h2 { @apply leading-none font-semibold mb-4; }
+  main p { @apply my-2; }
+  main ul { @apply list-disc pl-5 my-2; }
+  main ol { @apply list-decimal pl-5 my-2; }
+  main li { @apply my-1; }
+  main hr { @apply my-4; }
+}
+
+@layer components {
+  /* dashboard-01 layout: sidebar (variant="inset") + SidebarInset + SiteHeader */
+  .shell { @apply flex min-h-svh w-full; }
+  .sidebar { @apply hidden md:flex w-64 shrink-0 flex-col gap-2 p-2 text-sidebar-foreground sticky top-0 h-svh; }
+  .sidebar .brand { @apply flex items-center gap-2 p-2 text-base font-semibold; }
+  .sidebar .brand-mark { @apply flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold; }
+  .sidebar .group-label { @apply flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70; }
+  .sidebar nav { @apply flex flex-1 flex-col gap-1; }
+  .sidebar nav a { @apply flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm no-underline hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:no-underline; }
+  .sidebar nav a[aria-current="page"] { @apply bg-sidebar-accent font-medium text-sidebar-accent-foreground; }
+  .sidebar nav .sp { @apply flex-1; }
+  .sidebar nav a.primary { @apply bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground justify-center font-medium; }
+  .sidebar nav a.outline { @apply border bg-background shadow-xs justify-center font-medium; }
+  .inset { @apply relative flex w-full min-w-0 flex-1 flex-col bg-background md:m-2 md:ml-0 md:rounded-xl md:shadow-sm; }
+  .site-header { @apply flex h-12 shrink-0 items-center gap-2 border-b px-4 lg:px-6; }
+  .site-header .mobile-nav { @apply flex md:hidden gap-1 overflow-x-auto; }
+  .site-header .mobile-nav a { @apply rounded-md px-2 py-1 text-sm no-underline hover:bg-accent whitespace-nowrap; }
+  .site-header .mobile-nav .sp { @apply hidden; }
+  main { @apply flex flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6; }
+  main > h1 { @apply text-2xl font-semibold tracking-tight flex flex-wrap items-center gap-2 m-0; }
+
+  /* Card */
+  .card { @apply block rounded-xl border bg-card px-6 py-6 text-card-foreground shadow-sm; }
+  .card > p:first-child, .card > .muted:first-child { @apply mt-0; }
+  details.card > summary { @apply cursor-pointer font-medium list-none; }
+  details.card > summary::-webkit-details-marker { display: none; }
+  details.card > summary:before { content: "\25B8"; @apply mr-2 inline-block text-muted-foreground transition-transform; }
+  details.card[open] > summary:before { @apply rotate-90; }
+
+  /* SectionCards (dashboard-01) */
+  .tiles { @apply grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-3 2xl:grid-cols-6; }
+  .tile { @apply flex flex-col-reverse gap-1.5 rounded-xl border bg-gradient-to-t from-primary/5 to-card px-4 py-4 md:px-6 md:py-6 text-card-foreground shadow-xs; }
+  .tile span { @apply text-sm text-muted-foreground; }
+  .tile b { @apply text-2xl font-semibold tabular-nums lg:text-3xl; }
+  .tile.warn b { @apply text-destructive; }
+
+  /* Badge */
+  .badge { @apply inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap text-white; }
+  .demo { @apply inline-flex w-fit shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap text-foreground bg-background; }
+
+  /* Button: default and outline variants, default size */
+  .btn { @apply inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 no-underline hover:no-underline mr-1.5 mb-1.5 cursor-pointer border-0; }
+  .btn.secondary { @apply border bg-background text-foreground shadow-xs hover:bg-accent hover:text-accent-foreground; }
+
+  /* Table */
+  .wrap { @apply relative w-full overflow-x-auto; }
+  table { @apply w-full caption-bottom text-sm; }
+  thead tr, tbody tr { @apply border-b transition-colors hover:bg-muted/50; }
+  tbody tr:last-child { @apply border-0; }
+  th { @apply h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-muted-foreground; }
+  td { @apply p-2 align-top; }
+  td a { @apply font-medium; }
+
+  /* Input, NativeSelect, Textarea, Label */
+  form label { @apply flex flex-col items-stretch gap-2 text-sm leading-none font-medium mt-3; }
+  input, select, textarea { @apply h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50; }
+  textarea { @apply h-auto min-h-16 py-2; }
+  fieldset { @apply rounded-xl border bg-card px-6 pt-2 pb-6 mb-4 shadow-sm; }
+  legend { @apply px-1 font-semibold; }
+  .grid { @apply grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-4; }
+  form .grid { @apply lg:grid-cols-3; }
+
+  /* Small pieces */
+  .kv { @apply py-1.5; }
+  .kv b { @apply block text-xs font-medium text-muted-foreground mb-0.5; }
+  .muted { @apply text-muted-foreground; }
+  .nowrap { @apply whitespace-nowrap; }
+  .flag { @apply text-sm font-medium text-destructive my-1; }
+  td .flag { @apply text-xs my-0.5; }
+  .more { @apply text-xs text-muted-foreground; }
+  .stop { @apply rounded-lg border border-destructive/30 border-l-4 border-l-destructive bg-destructive/5 px-4 py-3 font-medium text-destructive; }
+  .sms { @apply rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm; }
+  .sms.info { @apply border-border bg-muted; }
+  pre { @apply whitespace-pre-wrap rounded-lg border bg-muted px-4 py-3 text-[13px] leading-relaxed font-sans; }
+  .ev { @apply relative border-l-2 pl-4 pb-4 ml-1.5; }
+  .ev:before { content: ""; @apply absolute -left-[6px] top-1.5 size-2.5 rounded-full border-2 border-ring bg-background; }
+  .ev.alert { @apply border-destructive/30; }
+  .ev.alert:before { @apply border-destructive; }
+  .ev table { @apply mt-2; }
+  .v-conflict { @apply font-medium text-destructive; }
+  .v-match { @apply font-medium text-green-700; }
+  .v-unknown { @apply text-muted-foreground; }
+  #msg { @apply mt-3 font-medium; }
+}
