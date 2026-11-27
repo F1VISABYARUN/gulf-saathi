@@ -87,25 +87,67 @@
 }
 
 @layer components {
-  /* dashboard-01 layout: sidebar (variant="inset") + SidebarInset + SiteHeader */
+  /* Frame: icon rail (shadcn sidebar-07, collapsed to icons) + SidebarInset panel */
   .shell { @apply flex min-h-svh w-full; }
-  .sidebar { @apply hidden md:flex w-64 shrink-0 flex-col gap-2 p-2 text-sidebar-foreground sticky top-0 h-svh; }
-  .sidebar .brand { @apply flex items-center gap-2 p-2 text-base font-semibold; }
-  .sidebar .brand-mark { @apply flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold; }
-  .sidebar .group-label { @apply flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70; }
-  .sidebar nav { @apply flex flex-1 flex-col gap-1; }
-  .sidebar nav a { @apply flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm no-underline hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:no-underline; }
-  .sidebar nav a[aria-current="page"] { @apply bg-sidebar-accent font-medium text-sidebar-accent-foreground; }
-  .sidebar nav .sp { @apply flex-1; }
-  .sidebar nav a.primary { @apply bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground justify-center font-medium; }
-  .sidebar nav a.outline { @apply border bg-background shadow-xs justify-center font-medium; }
-  .inset { @apply relative flex w-full min-w-0 flex-1 flex-col bg-background md:m-2 md:ml-0 md:rounded-xl md:shadow-sm; }
-  .site-header { @apply flex h-12 shrink-0 items-center gap-2 border-b px-4 lg:px-6; }
-  .site-header .mobile-nav { @apply flex md:hidden gap-1 overflow-x-auto; }
-  .site-header .mobile-nav a { @apply rounded-md px-2 py-1 text-sm no-underline hover:bg-accent whitespace-nowrap; }
-  .site-header .mobile-nav .sp { @apply hidden; }
-  main { @apply flex flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6; }
-  main > h1 { @apply text-2xl font-semibold tracking-tight flex flex-wrap items-center gap-2 m-0; }
+  .rail { @apply hidden md:flex w-14 shrink-0 flex-col items-center gap-2 py-3 sticky top-0 h-svh; }
+  .rail-brand { @apply flex size-9 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground no-underline hover:no-underline; }
+  .rail-nav { @apply flex flex-col items-center gap-1; }
+  .rail-nav:first-of-type { @apply mt-4; }
+  .rail-btn { @apply flex size-9 items-center justify-center rounded-md text-muted-foreground no-underline hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:no-underline; }
+  .rail-btn[aria-current="page"] { @apply bg-sidebar-accent text-sidebar-accent-foreground; }
+  .rail-btn.primary { @apply bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground; }
+  .rail-btn.outline { @apply border bg-background text-foreground shadow-xs; }
+  .inset { @apply relative flex w-full min-w-0 flex-1 flex-col overflow-hidden bg-background md:m-2 md:ml-0 md:rounded-xl md:border md:shadow-sm; }
+  .mobile-bar { @apply flex md:hidden h-12 shrink-0 items-center gap-3 border-b px-4; }
+  .mobile-bar .mobile-nav { @apply flex gap-1 overflow-x-auto; }
+  .mobile-bar .mobile-nav a { @apply rounded-md px-2 py-1 text-sm no-underline hover:bg-accent whitespace-nowrap; }
+  .mobile-bar .mobile-nav .sp { @apply hidden; }
+  main { @apply flex flex-col gap-4 px-4 py-4 md:gap-6 md:px-8 md:py-8; }
+  main.flush { @apply p-0 md:p-0 gap-0; }
+  main > h1, .page-head h1 { @apply text-2xl font-bold tracking-tight flex flex-wrap items-center gap-2 m-0; }
+  .page-head { @apply flex flex-wrap items-end justify-between gap-4; }
+
+  /* Tasks example: summary cards, toolbar, table */
+  .stats { @apply grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4; }
+  .stat { @apply flex flex-col gap-1 rounded-xl border bg-card px-4 py-4 md:px-5 md:py-5 text-card-foreground shadow-sm; }
+  .stat-label { @apply text-sm font-medium; }
+  .stat-value { @apply text-2xl font-bold tabular-nums; }
+  .stat-foot { @apply text-xs text-muted-foreground; }
+  .toolbar { @apply flex flex-wrap items-center gap-2; }
+  .toolbar .toolbar-search { @apply h-8 w-full sm:w-72; }
+  .toolbar .toolbar-select { @apply h-8 w-auto border-dashed text-sm; }
+  .toolbar .btn { @apply h-8 m-0; }
+  .table-card { @apply overflow-hidden rounded-md border; }
+  .table-card td, .table-card th { @apply px-3; }
+  .tag { @apply inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-medium; }
+
+  /* Inbox (mail example): list + case pane */
+  .inbox { @apply flex min-h-svh md:min-h-[calc(100svh-1rem)]; }
+  .inbox-list { @apply hidden lg:flex w-[22rem] shrink-0 flex-col border-r; }
+  .inbox-head { @apply flex h-14 shrink-0 items-center border-b px-4; }
+  .chip { @apply rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted cursor-pointer; }
+  .chip.active { @apply bg-muted font-medium text-foreground; }
+  .inbox-items { @apply flex flex-col gap-2 overflow-y-auto px-3 pb-3; max-height: calc(100svh - 11rem); }
+  .inbox-item { @apply block rounded-lg border p-3 text-left text-sm no-underline transition-colors hover:bg-accent hover:no-underline; }
+  .inbox-item.active { @apply bg-muted; }
+  .case-pane { @apply flex min-w-0 flex-1 flex-col; }
+  .case-head { @apply flex min-h-14 flex-wrap items-center gap-2 border-b px-4 py-2 md:px-6; }
+  .case-body { @apply flex flex-col gap-4 p-4 md:p-6; }
+  .avatar { @apply flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-semibold; }
+  .tabs { @apply flex gap-1 overflow-x-auto border-b; }
+  .tab { @apply -mb-px cursor-pointer whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-foreground; }
+  .tab.active { @apply border-primary font-medium text-foreground; }
+  [data-panel] { @apply flex flex-col gap-4; }
+  [data-panel][hidden] { display: none; }
+  .alert-card { @apply border-destructive/40; }
+  .btn.sm { @apply h-8 px-3 m-0; }
+
+  /* Login (shadcn login blocks) */
+  .login-form { @apply flex w-full max-w-xs flex-col gap-5; }
+  .login-form label { @apply flex flex-col gap-2 text-sm font-medium; }
+  .or { @apply relative text-center text-sm; }
+  .or:after { content: ""; @apply absolute inset-x-0 top-1/2 border-t border-border; }
+  .or span { @apply relative z-10 bg-background px-2 text-muted-foreground; }
 
   /* Card */
   .card { @apply block rounded-xl border bg-card px-6 py-6 text-card-foreground shadow-sm; }

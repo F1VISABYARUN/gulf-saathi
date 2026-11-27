@@ -39,10 +39,40 @@ export function badge(level: unknown): string {
 }
 
 /** public: a demo case shown without the team login (other nav, a note on top). */
-export function page(title: string, body: string, refresh: number | null = null, isPublic = false): string {
+const ICON: Record<string, string> = {
+  cases: '<path d="M4 4h16v16H4z"/><path d="M4 9h16"/><path d="M9 9v11"/>',
+  agents: '<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7"/><path d="M17 11h5M19.5 8.5v5"/>',
+  alerts: '<path d="M3 11l15-6v14L3 13z"/><path d="M7 13v5h3"/>',
+  demo: '<path d="M8 5l11 7-11 7z"/>',
+  intake: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/>',
+  add: '<path d="M12 5v14M5 12h14"/>',
+  out: '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/>',
+};
+const svg = (name: string, cls = 'size-4') =>
+  `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`;
+
+const TEAM_LINKS: Array<[string, string, string, string]> = [
+  ['/dashboard', 'cases', 'Cases', ''], ['/dashboard/agents', 'agents', 'Agents', ''],
+  ['/dashboard/alerts', 'alerts', 'Weekly alerts', ''], ['/demo', 'demo', 'Demo story', ''],
+];
+const TEAM_ACTIONS: Array<[string, string, string, string]> = [
+  ['/dashboard/intake', 'intake', 'Family in trouble', 'outline'], ['/dashboard/new', 'add', 'Register worker', 'primary'],
+  ['/logout', 'out', 'Log out', ''],
+];
+
+/** The page frame: a slim icon rail (shadcn sidebar-07) and the content panel (SidebarInset).
+ * public: a demo case shown without the team login (no team links, a note on top). */
+export function page(title: string, body: string, refresh: number | null = null, isPublic = false, flush = false): string {
   const meta = refresh ? `<meta http-equiv="refresh" content="${refresh}">` : '';
-  const nav = isPublic ? D.PUBLIC_NAV : D.TEAM_NAV;
   if (isPublic) body = D.PUBLIC_NOTE + body;
+  const railLink = ([href, icon, text, kind]: [string, string, string, string]) =>
+    `<a class="rail-btn${kind ? ' ' + kind : ''}" href="${href}" title="${text}" aria-label="${text}">${svg(icon)}</a>`;
+  const rail = isPublic
+    ? `<a class="rail-btn" href="/demo" title="Demo story" aria-label="Demo story">${svg('demo')}</a>`
+    : TEAM_LINKS.map(railLink).join('');
+  const railEnd = isPublic ? '' : TEAM_ACTIONS.map(railLink).join('');
+  const mobile = isPublic ? D.PUBLIC_NAV
+    : [...TEAM_LINKS, ...TEAM_ACTIONS].map(([href, , text]) => `<a href="${href}">${text}</a>`).join('');
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 ${meta}<title>${esc(title)} · Gulf Saathi</title>
@@ -50,10 +80,9 @@ ${meta}<title>${esc(title)} · Gulf Saathi</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/dashboard.css?v=${CSS_VERSION}"></head><body>
 <div class="shell">
-<aside class="sidebar"><a class="brand" href="/"><span class="brand-mark">GS</span>Gulf Saathi</a>
-<div class="group-label">${isPublic ? 'Demo' : 'Caseworker'}</div><nav>${nav}</nav></aside>
-<div class="inset"><header class="site-header"><span class="mobile-nav">${nav}</span><span class="muted hidden md:inline">Gulf Saathi</span><span class="hidden md:inline text-muted-foreground">/</span><span class="hidden md:inline font-medium">${esc(title)}</span></header>
-<main>${body}</main></div></div>
+<aside class="rail"><a class="rail-brand" href="/" title="Gulf Saathi home">GS</a><nav class="rail-nav">${rail}</nav><nav class="rail-nav mt-auto">${railEnd}</nav></aside>
+<div class="inset"><header class="mobile-bar"><a class="font-semibold" href="/">Gulf Saathi</a><span class="mobile-nav">${mobile}</span></header>
+<main class="${flush ? 'flush' : ''}">${body}</main></div></div>
 <script>
 async function post(url, body, btn, okText) {
   if (btn) btn.disabled = true;
@@ -66,6 +95,7 @@ async function post(url, body, btn, okText) {
     return j;
   } catch (e) { if (msg) msg.textContent = 'Failed: ' + e.message; if (btn) btn.disabled = false; }
 }
+document.querySelectorAll('.rail-btn').forEach(a => { if (a.getAttribute('href') === location.pathname) a.setAttribute('aria-current', 'page'); });
 </script></body></html>`;
 }
 
@@ -213,43 +243,87 @@ export function clockBadge(clock: Row | null | undefined): string {
   return `<div class="clock" style="${style};display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;margin-top:4px">${c.overdue ? 'OVERDUE · ' : ''}Alert open ${c.open_days} days · ${esc(last)}</div>`;
 }
 
+/** One short line: the first risk reason, else the first red flag. */
+function problemLine(w: Row): string {
+  const rs = (truthy(w.risk_reasons) ? w.risk_reasons : []) as Row[];
+  if (rs.length) return reasonText(rs[0]) + (rs.length > 1 ? ` (+${rs.length - 1} more)` : '');
+  const fs = predepartureFlags(w);
+  return fs.length ? fs[0] + (fs.length > 1 ? ` (+${fs.length - 1} more)` : '') : '';
+}
+
+const RISK_DOT: Record<string, string> = { critical: 'bg-red-600', high: 'bg-orange-500', medium: 'bg-amber-500', ok: 'bg-green-600' };
+
+/** "● Critical", or "● Red flags" for a worker still in India with red flags and no risk yet. */
+function riskCell(w: Row): string {
+  const level = truthy(w.risk_level) ? String(w.risk_level) : 'ok';
+  if (level === 'ok' && w.status === 'registered' && predepartureChecks(w).length) {
+    return '<span class="inline-flex items-center gap-1.5 whitespace-nowrap"><span class="size-2 rounded-full bg-red-600"></span>Red flags</span>';
+  }
+  return `<span class="inline-flex items-center gap-1.5 whitespace-nowrap"><span class="size-2 rounded-full ${RISK_DOT[level] ?? 'bg-zinc-400'}"></span>${esc(pyTitle(level))}</span>`;
+}
+
+const STATUS_TEXT: Record<string, string> = { registered: 'In India', abroad: 'Abroad', death_reported: 'Death reported' };
+
+/** A small summary card (shadcn dashboard-01 SectionCards). */
+const statCard = (label: string, value: unknown, foot: string, warn = false) =>
+  `<div class="stat"><div class="stat-label">${esc(label)}</div><div class="stat-value${warn ? ' text-destructive' : ''}">${esc(value)}</div><div class="stat-foot">${foot}</div></div>`;
+
 export function renderList(workersAll: Row[], status: Row, totals: Row | null = null, q = '', clocks: Record<string, Row> = {},
-  district = '', outcomes: Row | null = null, live: Array<[string, string, string]> | null = null): string {
+  district = '', outcomes: Row | null = null, live: Array<[string, string, string]> | null = null, risk = '', statusFilter = ''): string {
   const districts = pySorted(new Set(workersAll.filter((w) => truthy(w.home_district)).map((w) => pyTitle(squash(String(w.home_district))))));
   let shown = searchWorkers(workersAll, q);
   if (district) shown = shown.filter((w) => pyTitle(squash(orStr(w.home_district))) === district);
-  const pick = districts.map((d) => `<option value="${esc(d)}"${d === district ? ' selected' : ''}>${esc(d)}</option>`).join('');
-  const search = `<form method="get" action="/dashboard" class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-<input name="q" value="${esc(q)}" placeholder="Find a case: name, phone, employer, sponsor, city" style="flex:1;min-width:220px">
-<select name="district" style="width:auto;min-width:160px"><option value="">All home districts</option>${pick}</select>
-<button class="btn" type="submit">Find</button>${q || district ? ' <a href="/dashboard">Show all</a>' : ''}
-<span class="muted" style="font-size:13px;flex-basis:100%">For the embassy or a volunteer asking whose family a worker is.</span></form>`;
-  const rows: string[] = [];
+  if (risk === 'red_flags') shown = shown.filter((w) => w.status === 'registered' && predepartureChecks(w).length);
+  else if (risk === 'at_risk') shown = shown.filter((w) => w.risk_level === 'high' || w.risk_level === 'critical');
+  else if (risk === 'overdue') shown = shown.filter((w) => (clocks[w.id] ?? {}).overdue);
+  else if (risk) shown = shown.filter((w) => (w.risk_level || 'ok') === risk);
+  if (statusFilter) shown = shown.filter((w) => w.status === statusFilter);
+  const opt = (value: string, text: string, current: string) => `<option value="${esc(value)}"${value === current ? ' selected' : ''}>${esc(text)}</option>`;
+  const toolbar = `<form method="get" action="/dashboard" class="toolbar">
+<input name="q" value="${esc(q)}" placeholder="Filter cases: name, phone, employer, sponsor, city" class="toolbar-search">
+<select name="risk" class="toolbar-select">${opt('', 'Risk: all', risk)}${opt('at_risk', 'At risk (high, critical)', risk)}${opt('overdue', 'Overdue alerts', risk)}${opt('red_flags', 'Red flags, in India', risk)}${opt('critical', 'Critical', risk)}${opt('high', 'High', risk)}${opt('medium', 'Medium', risk)}${opt('ok', 'OK', risk)}</select>
+<select name="status" class="toolbar-select">${opt('', 'Status: all', statusFilter)}${opt('registered', 'In India', statusFilter)}${opt('abroad', 'Abroad', statusFilter)}${opt('death_reported', 'Death reported', statusFilter)}</select>
+<select name="district" class="toolbar-select"><option value="">All home districts</option>${districts.map((d) => opt(d, d, district)).join('')}</select>
+<button class="btn" type="submit">Filter</button>${q || district || risk || statusFilter ? '<a class="text-sm text-muted-foreground" href="/dashboard">Reset ✕</a>' : ''}
+</form>`;
   const order: Record<string, number> = { critical: 0, high: 1, medium: 2, ok: 3 };
-  // Most serious first; within a level, most recently updated first; overdue cases first within a level.
+  // Most serious first; overdue cases first within a level; then most recently updated.
   const byRecent = pySorted(shown, (w) => w.updated_at || '', true);
-  for (const w of pySorted(byRecent, (w) => [Object.hasOwn(order, w.risk_level) ? order[w.risk_level] : 3, !(clocks[w.id] ?? {}).overdue])) {
-    rows.push(`<tr>
-<td>${caseBadge(w)}${clockBadge(clocks[w.id] ?? null)}</td>
-<td class="nowrap"><a href="/dashboard/case/${esc(w.case_id)}"><b>${esc(w.case_id)}</b></a></td>
-<td>${esc(w.worker_name)}${demoTag(w)}<div class="muted">${esc(w.worker_phone)}</div>${flagList(predepartureFlags(w))}</td>
-<td>${esc(w.dest_city)}${truthy(w.dest_city) && truthy(w.dest_country) ? ', ' : ''}${esc(w.dest_country)}</td>
-<td>${esc(w.employer_name)}</td>
-<td>${esc(w.status)}</td>
-<td>${esc(fmtIst(w.last_contact_at))}</td>
-<td>${esc(truthy(w.missed_checkins) ? w.missed_checkins : 0)}</td>
-<td>${esc(fmtIst(w.next_call_at))}</td></tr>`);
-  }
-  const empty = q ? `<p class='muted'>No case matches "${esc(q)}".</p>` : "<p class='muted'>No workers yet. <a href='/dashboard/new'>Register the first one</a>.</p>";
-  const table = !rows.length ? empty : `<div class="wrap"><table><thead><tr><th>Risk</th><th>Case</th><th>Worker</th><th>Destination</th>
-<th>Employer</th><th>Status</th><th>Last contact</th><th>Missed</th><th>Next call</th></tr></thead>
+  const rows = pySorted(byRecent, (w) => [Object.hasOwn(order, w.risk_level) ? order[w.risk_level] : 3, !(clocks[w.id] ?? {}).overdue]).map((w) => {
+    const city = truthy(w.dest_city) ? w.dest_city : w.dest_country;
+    const problem = problemLine(w);
+    return `<tr class="cursor-pointer" onclick="if(!event.target.closest('a'))location.href='/dashboard/case/${esc(w.case_id)}'">
+<td class="whitespace-nowrap"><a href="/dashboard/case/${esc(w.case_id)}"><b>${esc(w.case_id)}</b></a></td>
+<td class="whitespace-nowrap">${truthy(city) ? `<span class="tag mr-1.5">${esc(city)}</span>` : ''}${esc(w.worker_name)}${demoTag(w)}</td>
+<td class="max-w-[22rem]"><div class="truncate" title="${esc(problem)}">${problem ? esc(problem) : '<span class="muted">—</span>'}</div></td>
+<td>${riskCell(w)}</td>
+<td class="whitespace-nowrap">${esc(Object.hasOwn(STATUS_TEXT, w.status) ? STATUS_TEXT[w.status] : w.status)}</td>
+<td>${clockBadge(clocks[w.id] ?? null) || '<span class="muted">—</span>'}</td>
+<td class="whitespace-nowrap text-muted-foreground">${esc(fmtIst(w.last_contact_at))}</td></tr>`;
+  });
+  const empty = q ? `<p class='muted p-4'>No case matches "${esc(q)}".</p>` : "<p class='muted p-4'>No workers yet. <a href='/dashboard/new'>Register the first one</a>.</p>";
+  const table = !rows.length ? empty : `<div class="wrap"><table><thead><tr><th>Case</th><th>Worker</th><th>Problem</th><th>Risk</th><th>Status</th><th>Alert open</th><th>Last contact</th></tr></thead>
 <tbody>${rows.join('')}</tbody></table></div>`;
-  const summary = Object.keys(order).map((l) => `${badge(l)} ${workersAll.filter((w) => (w.risk_level || 'ok') === l).length}`).join(' &nbsp; ');
-  return page('Cases', `<h1>Cases</h1>${goLiveCard(live)}${truthy(totals) ? tiles(totals!) : ''}${outcomeTiles(outcomes)}
-<div class="card">${summary}<div class="muted" style="margin-top:8px">${statusLine(status)} · refreshes every 15 seconds</div></div>
-${search}<div class="card">${table}</div>
+  let cards = '';
+  if (truthy(totals)) {
+    const t = totals!;
+    const overdue = workersAll.filter((w) => (clocks[w.id] ?? {}).overdue).length;
+    const fourth = truthy(outcomes) && truthy(outcomes!.closed)
+      ? statCard('Money recovered (recorded by caseworkers)', '₹' + fmtRupees(outcomes!.recovered), `${esc(outcomes!.solved)} of ${esc(outcomes!.closed)} closed cases solved`)
+      : statCard('Pre-departure briefing done', t.briefed ?? 0, 'calls before the worker flies');
+    cards = `<div class="stats">${statCard('At risk now (HIGH or CRITICAL)', t.at_risk ?? 0, `${overdue} overdue: 7+ days with no caseworker action`, truthy(t.at_risk))}
+${statCard('Workers registered', t.registered ?? 0, `${esc(t.abroad ?? 0)} abroad · ${esc(t.in_india ?? 0)} still in India`)}
+${statCard('Pre-departure red flags', t.red_flags ?? 0, 'in India: told not to pay or travel until sorted', truthy(t.red_flags))}
+${fourth}</div>`;
+  }
+  return page('Cases', `<div class="page-head"><div><h1>Cases</h1><p class="muted m-0">Most serious first. For the embassy or a volunteer asking whose family a worker is, search by name or phone.</p></div>
+<div class="flex flex-wrap gap-2"><a class="btn secondary" href="/dashboard/intake">+ Family in trouble</a><a class="btn" href="/dashboard/new">+ Register worker</a></div></div>
+${cards}${toolbar}
+<div class="table-card">${table}</div>
+<div class="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><span>${rows.length} of ${workersAll.length} case(s)</span><span>${statusLine(status)} · refreshes every 15 seconds</span></div>
+${goLiveCard(live)}
 <script>
-setInterval(() => { if (!document.querySelector('input:focus, details[open] summary:focus')) location.reload(); }, 15000);
+setInterval(() => { if (!document.querySelector('input:focus, select:focus, details[open]')) location.reload(); }, 15000);
 </script>`);
 }
 
@@ -380,8 +454,49 @@ function answersTable(answers: Row): string {
   return rows.length ? `<table>${rows.join('')}</table>` : "<span class='muted'>No answers recorded</span>";
 }
 
+/** The case list on the left of the inbox (shadcn mail layout). The caller passes only cases this
+ * viewer may see: demo cases on a public demo page. */
+function inboxList(cases: Row[], current: string, clocks: Record<string, Row>): string {
+  const order: Record<string, number> = { critical: 0, high: 1, medium: 2, ok: 3 };
+  const sorted = pySorted(pySorted(cases, (x) => x.updated_at || '', true), (x) => [Object.hasOwn(order, x.risk_level) ? order[x.risk_level] : 3]);
+  const atRisk = (x: Row) => x.risk_level === 'high' || x.risk_level === 'critical';
+  const flagged = (x: Row) => x.status === 'registered' && predepartureChecks(x).length > 0;
+  const items = sorted.map((x) => {
+    const city = truthy(x.dest_city) ? x.dest_city : x.dest_country;
+    const tags = [atRisk(x) ? 'risk' : '', flagged(x) ? 'flags' : '', (clocks[x.id] ?? {}).overdue ? 'overdue' : ''].filter(Boolean).join(' ');
+    return `<a class="inbox-item${x.case_id === current ? ' active' : ''}" href="/dashboard/case/${esc(x.case_id)}" data-tags="${tags}" data-text="${esc(orStr(x.worker_name).toLowerCase() + ' ' + orStr(x.case_id).toLowerCase() + ' ' + orStr(x.worker_phone) + ' ' + orStr(city).toLowerCase())}">
+<div class="flex items-center gap-2"><span class="font-semibold">${esc(x.worker_name)}</span>${demoTag(x)}<span class="ml-auto shrink-0 text-xs text-muted-foreground">${esc(fmtIst(x.updated_at).split(',')[0])}</span></div>
+<div class="text-xs text-muted-foreground">${esc(x.case_id)}${truthy(city) ? ' · ' + esc(city) : ''}${x.status === 'registered' ? ' · in India' : ''}</div>
+<div class="mt-1.5 line-clamp-2 text-sm text-muted-foreground">${esc(problemLine(x)) || 'No problem reported'}</div>
+<div class="mt-2 flex flex-wrap gap-1">${caseBadge(x)}</div></a>`;
+  }).join('');
+  const n = (f: (x: Row) => unknown) => cases.filter(f).length;
+  return `<section class="inbox-list"><div class="inbox-head"><span class="text-lg font-semibold">Cases</span></div>
+<div class="flex flex-wrap gap-1 px-3 pt-3" id="chips"><button class="chip active" data-f="">All ${cases.length}</button><button class="chip" data-f="risk">At risk ${n(atRisk)}</button><button class="chip" data-f="flags">Red flags ${n(flagged)}</button><button class="chip" data-f="overdue">Overdue ${n((x) => (clocks[x.id] ?? {}).overdue)}</button></div>
+<div class="p-3"><input id="inbox-q" placeholder="Search name, phone, case number"></div>
+<div class="inbox-items" id="inbox-items">${items}</div></section>`;
+}
+
+const INBOX_SCRIPT = `<script>
+(() => {
+  let f = '', q = '';
+  const apply = () => document.querySelectorAll('#inbox-items .inbox-item').forEach(a => {
+    a.style.display = (!f || a.dataset.tags.split(' ').includes(f)) && (!q || a.dataset.text.includes(q)) ? '' : 'none';
+  });
+  document.querySelectorAll('#chips .chip').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#chips .chip').forEach(x => x.classList.toggle('active', x === b)); f = b.dataset.f; apply();
+  }));
+  const s = document.getElementById('inbox-q'); if (s) s.addEventListener('input', () => { q = s.value.toLowerCase().trim(); apply(); });
+  const tabs = [...document.querySelectorAll('[data-tab]')];
+  const show = (id) => { tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === id));
+    document.querySelectorAll('[data-panel]').forEach(p => p.hidden = p.dataset.panel !== id); };
+  tabs.forEach(t => t.addEventListener('click', () => { show(t.dataset.tab); history.replaceState(null, '', '#' + t.dataset.tab); }));
+  const start = location.hash.slice(1); show(tabs.some(t => t.dataset.tab === start) ? start : 'overview');
+})();
+</script>`;
+
 export function renderCase(w: Row, events: Row[], status: Row, signals: Row[] | null = null, alert: { subject: string; body: string } | null = null,
-  clock: Row | null = null, isPublic = false): string {
+  clock: Row | null = null, isPublic = false, inbox: Row[] | null = null, inboxClocks: Record<string, Row> = {}): string {
   const kv = (lab: string, value: unknown) => `<div class="kv"><b>${esc(lab)}</b>${blank(value) ? '<span class=muted>—</span>' : esc(value)}</div>`;
   const reasons = ((truthy(w.risk_reasons) ? w.risk_reasons : []) as Row[]).map((r) => `<li>${esc(reasonText(r))}</li>`).join('');
   let fee = '';
@@ -503,38 +618,46 @@ place: d_place.value, when: d_when.value, notes: d_notes.value}, this, 'Recorded
 <label style="margin:0;flex:1;min-width:200px">Note<input id="onote" value="${esc(w.outcome_note)}" placeholder="what happened"></label>
 <button class="btn" onclick="post('/api/cases/${esc(w.case_id)}/outcome', {problem: oprob.value, outcome: oout.value, amount_recovered: oamt.value, note: onote.value}, this, 'Saved').then(j => j && location.reload())">Save outcome</button>
 </form><div class="muted" style="margin-top:6px">${recorded ? esc(recorded) : 'No outcome recorded yet.'}</div></div>`;
-  return page(w.case_id, `<h1>${caseId} · ${esc(w.worker_name)}${demoTag(w)} ${caseBadge(w)}</h1>
+  const nowJob = latest.current_job || latest.current_location;
+  const jobClash = truthy(nowJob) && promiseRows(w, latest)[0].verdict === 'conflict';
+  const overCap = w.fee_status === 'over_cap';
+  const summary = `<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+<div class="stat"><div class="stat-label">Promised</div><div class="text-base font-semibold">${esc(joinIf([w.job_title, w.dest_city || w.dest_country], ', ') || '—')}</div></div>
+<div class="stat"><div class="stat-label">Worker says now</div><div class="text-base font-semibold${jobClash ? ' text-destructive' : ''}">${esc(joinIf([nowJob, latest.current_city], ', ') || '—')}</div></div>
+<div class="stat"><div class="stat-label">Paid to agent</div><div class="text-base font-semibold${overCap ? ' text-destructive' : ''}">${truthy(w.amount_paid_total) ? 'Rs ' + esc(fmtRupees(pyInt(w.amount_paid_total))) : '—'}</div><div class="stat-foot">legal limit Rs 35,400</div></div></div>`;
+  const tab = (id: string, text: string) => `<button class="tab" data-tab="${id}">${text}</button>`;
+  const tabs = `<div class="tabs">${tab('overview', 'Overview')}${tab('timeline', 'Timeline')}${tab('promise', 'Promise vs reality')}${tab('details', 'Details')}${tab('petition', 'Petition')}${isPublic ? '' : tab('outcome', 'Outcome')}</div>`;
+  const detailPane = `
+<div class="case-head"><a class="lg:hidden text-sm" href="/dashboard">← Cases</a><span class="text-sm text-muted-foreground">${caseId}</span><span class="text-muted-foreground">/</span><span class="text-sm font-medium">${esc(w.worker_name)}</span>
+<div class="ml-auto flex flex-wrap justify-end gap-2"><a class="btn secondary sm" href="/dashboard/case/${caseId}/packet.txt">Download English case packet</a>
+<a class="btn secondary sm" href="/dashboard/case/${caseId}/proof-of-work" target="_blank">Proof of work</a>
+${isPublic ? '' : `<a class="btn secondary sm" href="/dashboard/case/${caseId}/edit">Edit details</a>`}${embassy ? '<button class="btn sm" data-tab="overview" onclick="document.getElementById(\'embassy\').scrollIntoView({behavior:\'smooth\'})">Alert embassy</button>' : ''}</div></div>
+<div class="case-body">
+<div class="flex flex-wrap items-center gap-3"><div class="avatar">${esc(Array.from(orStr(w.worker_name))[0] || '?')}</div>
+<div class="min-w-0"><h1 class="m-0 text-xl font-semibold">${caseId} · ${esc(w.worker_name)}${truthy(w.worker_name_te) ? ` <span class="text-base font-normal text-muted-foreground">· ${esc(w.worker_name_te)}</span>` : ''}${demoTag(w)}</h1>
+<div class="text-sm text-muted-foreground">${esc(w.worker_phone)} · Family: ${esc(joinIf([w.family_name, w.family_relation, w.family_phone], ' · ') || '—')}</div></div>
+<div class="ml-auto flex flex-col items-end gap-1">${caseBadge(w)}${clockBadge(clock)}</div></div>
 ${death}
+${summary}
+${flags || notices.length ? `<div>${flags}${notices.join('')}</div>` : ''}
+${tabs}
+<div data-panel="overview">
 <div class="card">
-  ${reasons ? `<ul>${reasons}</ul>` : '<p class="muted">No current risk signals.</p>'}${flags}${notices.join('')}
+  ${reasons ? `<ul>${reasons}</ul>` : '<p class="muted">No current risk signals.</p>'}
   <p>
     <button class="btn" ${callsDisabled} onclick="post('/api/cases/${caseId}/call', {kind:'arrival'}, this, 'Arrival call requested')">Call now: arrival check</button>
     <button class="btn" ${callsDisabled} onclick="post('/api/cases/${caseId}/call', {kind:'weekly'}, this, 'Weekly check-in call requested')">Call now: weekly check-in</button>
     <button class="btn" ${callsDisabled} onclick="post('/api/cases/${caseId}/call', {kind:'briefing'}, this, 'Briefing call requested')">Call now: pre-departure briefing</button>
-    <a class="btn secondary" href="/dashboard/case/${caseId}/packet.txt">Download English case packet</a>
-    <a class="btn secondary" href="/dashboard/case/${caseId}/proof-of-work" target="_blank">Proof of work</a>
-    ${isPublic ? '' : `<a class="btn secondary" href="/dashboard/case/${caseId}/edit">Edit details</a>`}
   </p><div id="msg"></div>
   <div class="muted">Status: ${esc(w.status)} · Last contact: ${esc(fmtIst(w.last_contact_at))} ·
   Missed in a row: ${esc(truthy(w.missed_checkins) ? w.missed_checkins : 0)} · Next call: ${esc(fmtIst(w.next_call_at))} · ${briefing} · refreshes every 20 seconds</div>
-  ${clockBadge(clock)}
 </div>
-${embassy}
-${outcomeCard}
-<div class="card"><h2>Pravasi Prajavani petition</h2>
-<p class="muted">For families who cannot travel to Hyderabad: Saathi fills the petition from this case; a caseworker hands it in for them.
-The caller hears the status when they call Saathi again.</p>
-<p><a class="btn secondary" href="/dashboard/case/${caseId}/petition" target="_blank">Open petition (Telugu + English)</a></p>
-<form onsubmit="return false" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
-<label style="margin:0">Status<select id="pst">${['prepared', 'submitted', 'acknowledged', 'closed'].map((x) => `<option value="${x}"${w.petition_status === x ? ' selected' : ''}>${x}</option>`).join('')}</select></label>
-<label style="margin:0">Reference no.<input id="pref" value="${esc(w.petition_ref)}" placeholder="from the counter"></label>
-<button class="btn" onclick="post('/api/cases/${caseId}/petition', {status: document.getElementById('pst').value, ref: document.getElementById('pref').value}, this, 'Saved').then(j => j && location.reload())">Save status</button>
-</form>
-<div class="muted" style="margin-top:6px">${esc(truthy(w.petition_status) ? 'Status: ' + w.petition_status + (truthy(w.petition_submitted_at) ? ' · handed in ' + fmtIst(w.petition_submitted_at) : '') + (truthy(w.petition_ref) ? ' · ref ' + w.petition_ref : '') : 'Not prepared yet.')}</div>
+${embassy ? embassy.replace('<div class="card" style="border-color:#b42318">', '<div class="card alert-card" id="embassy">') : ''}
+${isPublic ? '' : recordDeath}
 </div>
-<div class="card"><h2>Promise vs reality</h2>${promiseTable(w, latest)}</div>
-${sig}
-<div class="card"><h2>Pre-departure trail</h2><div class="grid">
+<div data-panel="timeline"><div class="card"><h2>Timeline</h2>${evs.join('')}</div></div>
+<div data-panel="promise"><div class="card"><h2>Promise vs reality</h2>${promiseTable(w, latest)}</div>${sig}</div>
+<div data-panel="details"><div class="card"><h2>Pre-departure trail</h2><div class="grid">
   ${kv('Worker phone', w.worker_phone)}${kv('Family', joinIf([w.family_name, w.family_relation, w.family_phone], ' · '))}
   ${kv('Employer', w.employer_name)}${kv('Employer phone', w.employer_phone)}
   ${kv('Sponsor (kafeel)', w.sponsor_name)}${kv('Sponsor ID', w.sponsor_id)}
@@ -551,13 +674,27 @@ ${sig}
   ${kv('Passport type', orStr(w.passport_type).toUpperCase())}${kv('Emigration clearance (eMigrate)', w.emigration_clearance)}
   ${kv('PBBY insurance', joinIf([w.pbby, truthy(w.pbby_nominee) ? 'nominee: ' + w.pbby_nominee : ''], ' · '))}
   ${kv('Danger code phrase', w.code_phrase)}
-</div>${welcome}</div>
-<div class="card"><h2>Timeline</h2>${evs.join('')}</div>
-${recordDeath}
+</div>${welcome}</div></div>
+<div data-panel="petition"><div class="card"><h2>Pravasi Prajavani petition</h2>
+<p class="muted">For families who cannot travel to Hyderabad: Saathi fills the petition from this case; a caseworker hands it in for them.
+The caller hears the status when they call Saathi again.</p>
+<p><a class="btn secondary" href="/dashboard/case/${caseId}/petition" target="_blank">Open petition (Telugu + English)</a></p>
+<form onsubmit="return false" class="flex flex-wrap items-end gap-2">
+<label style="margin:0">Status<select id="pst">${['prepared', 'submitted', 'acknowledged', 'closed'].map((x) => `<option value="${x}"${w.petition_status === x ? ' selected' : ''}>${x}</option>`).join('')}</select></label>
+<label style="margin:0">Reference no.<input id="pref" value="${esc(w.petition_ref)}" placeholder="from the counter"></label>
+<button class="btn" onclick="post('/api/cases/${caseId}/petition', {status: document.getElementById('pst').value, ref: document.getElementById('pref').value}, this, 'Saved').then(j => j && location.reload())">Save status</button>
+</form>
+<div class="muted" style="margin-top:6px">${esc(truthy(w.petition_status) ? 'Status: ' + w.petition_status + (truthy(w.petition_submitted_at) ? ' · handed in ' + fmtIst(w.petition_submitted_at) : '') + (truthy(w.petition_ref) ? ' · ref ' + w.petition_ref : '') : 'Not prepared yet.')}</div>
+</div></div>
+${isPublic ? '' : `<div data-panel="outcome">${outcomeCard}</div>`}
+</div>`;
+  const list = inbox ? inboxList(inbox, w.case_id, inboxClocks) : '';
+  return page(w.case_id, `<div class="inbox${list ? '' : ' single'}">${list}<section class="case-pane">${detailPane}</section></div>
+${INBOX_SCRIPT}
 <script>
 // Refresh every 20 seconds, but never while someone is typing or reading an opened section.
 setInterval(() => { if (!document.querySelector('details[open], input:focus, textarea:focus, select:focus')) location.reload(); }, 20000);
-</script>`, null, isPublic);
+</script>`, null, isPublic, true);
 }
 
 export function deathCard(w: Row): string {
@@ -662,4 +799,35 @@ ${en.timeline.length ? `<p><b>Timeline</b></p><ul>${li(en.timeline)}</ul>` : ''}
 <style>@media print { header, .noprint { display:none } .card { border:0 } body { background:#fff } }
 .petition p, .petition li { margin:6px 0 }</style>`;
   return page(`Petition ${pyStr(w.case_id)}`, body, null, isPublic);
+}
+
+/** Team login, in the layout of shadcn's login blocks: the form on the left, a photo on the right.
+ * Real cases hold phone numbers, so they stay behind a password; the demo story is open to everyone. */
+export function renderLogin(nextPath = '/dashboard', error = ''): string {
+  const err = error ? `<p role="alert" class="m-0 text-sm font-medium text-destructive">${esc(error)}</p>` : '';
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team login · Gulf Saathi</title><meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/dashboard.css?v=${CSS_VERSION}"></head><body class="bg-background">
+<div class="grid min-h-svh lg:grid-cols-2">
+  <div class="flex flex-col gap-4 p-6 md:p-10">
+    <a class="flex items-center gap-2 font-medium no-underline" href="/"><span class="flex size-6 items-center justify-center rounded-md bg-primary text-[10px] font-bold text-primary-foreground">GS</span>Gulf Saathi</a>
+    <div class="flex flex-1 items-center justify-center">
+      <form method="post" action="/login" class="login-form">
+        <input type="hidden" name="next" value="${esc(nextPath)}">
+        <div class="flex flex-col items-center gap-2 text-center"><h1 class="m-0 text-2xl font-bold">Team login</h1>
+          <p class="m-0 text-sm text-balance text-muted-foreground">For Gulf Saathi caseworkers. Real cases hold workers' and families' phone numbers.</p></div>
+        <label for="password">Password<input id="password" name="password" type="password" autocomplete="current-password" required></label>
+        ${err}
+        <button class="btn w-full" type="submit">Log in</button>
+        <div class="or"><span>Or</span></div>
+        <a class="btn secondary w-full" href="/demo">Open the demo (no password)</a>
+        <p class="m-0 text-center text-xs text-muted-foreground">The demo shows three made-up cases, from the first call to the case file.</p>
+      </form>
+    </div>
+  </div>
+  <div class="relative hidden bg-muted lg:block"><img src="/gs_caseworker.webp" alt="A caseworker with a headset at a laptop" class="absolute inset-0 h-full w-full object-cover"></div>
+</div></body></html>`;
 }

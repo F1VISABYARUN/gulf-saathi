@@ -277,7 +277,7 @@ export function createApp() {
 
   // --- team login -----------------------------------------------------------------
 
-  app.get('/login', wrap((req) => site.renderLogin(safeNext(q(req, 'next') || '/dashboard'))));
+  app.get('/login', wrap((req) => dashboard.renderLogin(safeNext(q(req, 'next') || '/dashboard'))));
 
   app.post('/login', wrap((req, res) => {
     const form = new URLSearchParams((req.body instanceof Buffer ? req.body : Buffer.alloc(0)).toString('utf8'));
@@ -285,7 +285,7 @@ export function createApp() {
     const target = safeNext(form.has('next') ? form.get('next') : '/dashboard');
     const expected = teamPassword();
     if (!expected) throw new LoginNeeded(true);
-    if (!same(given, expected)) return html(res, site.renderLogin(target, 'Wrong password.'), 401);
+    if (!same(given, expected)) return html(res, dashboard.renderLogin(target, 'Wrong password.'), 401);
     res.cookie(COOKIE, cookieValue(expected), { maxAge: 7 * 24 * 3600 * 1000, httpOnly: true, secure: req.secure, sameSite: 'lax', path: '/' });
     res.redirect(303, target);
   }));
@@ -412,7 +412,8 @@ export function createApp() {
     const clocks: Record<string, Row> = {};
     for (const w of workers) clocks[w.id] = cases.caseClock(w, open, now())!;
     return dashboard.renderList(workers, status(), totals, Array.from(q(req, 'q')).slice(0, 100).join(''), clocks,
-      Array.from(q(req, 'district')).slice(0, 60).join(''), cases.outcomeTotals(workers), goLiveChecks());
+      Array.from(q(req, 'district')).slice(0, 60).join(''), cases.outcomeTotals(workers), goLiveChecks(),
+      q(req, 'risk').slice(0, 20), q(req, 'status').slice(0, 20));
   }, team));
 
   app.get('/dashboard/intake', wrap(() => dashboard.renderIntake(), team));
@@ -436,8 +437,13 @@ export function createApp() {
     let workers = await S().select('workers', null, { order: 'updated_at' });
     if (isPublic) workers = workers.filter((x) => truthy(x.is_demo)); // links to other demo cases only
     const sig = signals.signalsForCase(w, workers);
-    const clock = cases.caseClock(w, await S().select('escalations', { worker_id: w.id, status: 'open' }), now());
-    return dashboard.renderCase(w, await cases.timeline(S(), w), status(), sig, await cases.embassyAlert(S(), w, now()), clock, isPublic);
+    const open = await S().select('escalations', { status: 'open' });
+    const clock = cases.caseClock(w, open, now());
+    const clocks: Record<string, Row> = {};
+    for (const x of workers) { const c = cases.caseClock(x, open, now()); if (c) clocks[x.id] = c; }
+    // The inbox list: every case for the team; on a public demo page, demo cases only.
+    return dashboard.renderCase(w, await cases.timeline(S(), w), status(), sig, await cases.embassyAlert(S(), w, now()), clock, isPublic,
+      workers, clocks);
   }));
 
   app.get('/dashboard/case/:caseId/edit', wrap(async (req) => {
@@ -599,7 +605,7 @@ export function createApp() {
     if (err instanceof LoginNeeded) {
       if (err.off) return res.status(503).json({ detail: 'Dashboard is off: set GS_DASHBOARD_PASSWORD in Vercel and redeploy.' });
       // A login form, not the browser's password pop-up or raw JSON.
-      if (wantsHtml(req)) return html(res, site.renderLogin(safeNext(req.path)), 401);
+      if (wantsHtml(req)) return html(res, dashboard.renderLogin(safeNext(req.path)), 401);
       return res.status(401).json({ detail: 'Team login needed' });
     }
     if (err instanceof HttpError) return res.status(err.status).json({ detail: err.detail });
